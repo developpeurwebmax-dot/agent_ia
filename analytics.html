@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA — Analytics</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">⚡ Agent IA</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link active">🏠 Dashboard</a>
+      <a href="crm.html" class="nav-link">👥 CRM</a>
+      <a href="contenu.html" class="nav-link">✍️ Contenu</a>
+      <a href="devis.html" class="nav-link">📄 Devis</a>
+      <a href="factures.html" class="nav-link">🧾 Factures</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics</a>
+      <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar">M</div>
+      <div class="user-info">
+        <span class="user-name">Mon Profil</span>
+        <span class="user-role">Indépendant</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Analytics</h1>
+        <p class="page-sub">Vue d'ensemble de votre activité</p>
+      </div>
+      <button class="btn-primary" onclick="analyserActivite()">⚡ Analyse IA</button>
+    </header>
+
+    <!-- STATS CRM -->
+    <div class="stats-row" id="stats-crm">
+      <div class="stat-card"><span class="stat-icon">👥</span><div><div class="stat-value" id="a-total">—</div><div class="stat-label">Total prospects</div></div></div>
+      <div class="stat-card"><span class="stat-icon">🏆</span><div><div class="stat-value" id="a-clients">—</div><div class="stat-label">Clients</div></div></div>
+      <div class="stat-card"><span class="stat-icon">📈</span><div><div class="stat-value" id="a-taux">—</div><div class="stat-label">Taux conversion</div></div></div>
+      <div class="stat-card"><span class="stat-icon">💶</span><div><div class="stat-value" id="a-pipeline">—</div><div class="stat-label">Pipeline</div></div></div>
+    </div>
+
+    <!-- STATS FACTURES (localStorage) -->
+    <div class="stats-row" style="margin-top:-8px">
+      <div class="stat-card"><span class="stat-icon">🧾</span><div><div class="stat-value" id="a-fac-total">—</div><div class="stat-label">Total factures</div></div></div>
+      <div class="stat-card"><span class="stat-icon">✅</span><div><div class="stat-value" id="a-fac-payees">—</div><div class="stat-label">Factures payées</div></div></div>
+      <div class="stat-card"><span class="stat-icon">⏳</span><div><div class="stat-value" id="a-fac-attente">—</div><div class="stat-label">En attente</div></div></div>
+      <div class="stat-card"><span class="stat-icon">💰</span><div><div class="stat-value" id="a-ca-encaisse">—</div><div class="stat-label">CA encaissé</div></div></div>
+    </div>
+
+    <div class="grid">
+      <!-- STATS PAR STATUT -->
+      <div class="card">
+        <div class="card-header"><span class="card-icon">📊</span><h2>Répartition des prospects</h2></div>
+        <div id="statuts-chart"></div>
+      </div>
+
+      <!-- PRODUCTIVITE -->
+      <div class="card">
+        <div class="card-header"><span class="card-icon">✅</span><h2>Productivité (7 jours)</h2></div>
+        <div id="productivite"></div>
+      </div>
+
+      <!-- STATS FACTURES DÉTAIL -->
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🧾</span><h2>Suivi facturation</h2></div>
+        <div id="factures-detail"></div>
+      </div>
+
+      <!-- STATS DEVIS DÉTAIL -->
+      <div class="card">
+        <div class="card-header"><span class="card-icon">📄</span><h2>Suivi devis</h2></div>
+        <div id="devis-detail"></div>
+      </div>
+
+      <!-- ANALYSE IA -->
+      <div class="card card-wide" id="card-analyse" style="display:none">
+        <div class="card-header"><span class="card-icon">🤖</span><h2>Analyse IA de votre activité</h2></div>
+        <div id="analyse-result"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API = "https://agentia-production-aec3.up.railway.app";
+
+    // ── STATS LOCALES factures + devis ──
+    function chargerStatsLocales() {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const factures = JSON.parse(localStorage.getItem('factures_list') || '[]');
+        const devis    = JSON.parse(localStorage.getItem('devis_list')    || '[]');
+
+        // Stats factures
+        const facPayees  = factures.filter(f => f.statut === 'payee');
+        const facAttente = factures.filter(f => f.statut === 'non_payee');
+        const facRetard  = factures.filter(f => f.statut === 'non_payee' && f.date_echeance && f.date_echeance < today);
+        const caEncaisse = facPayees.reduce((s, f) => s + (parseFloat(f.montant_ttc) || 0), 0);
+        const caAttente  = facAttente.reduce((s, f) => s + (parseFloat(f.montant_ttc) || 0), 0);
+
+        document.getElementById("a-fac-total").textContent   = factures.length;
+        document.getElementById("a-fac-payees").textContent  = facPayees.length;
+        document.getElementById("a-fac-attente").textContent = facAttente.length;
+        document.getElementById("a-ca-encaisse").textContent =
+          caEncaisse.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+        // Détail factures
+        document.getElementById("factures-detail").innerHTML = `
+          <div class="stat-row"><span>CA encaissé (payées)</span><strong style="color:#10b981">${caEncaisse.toLocaleString('fr-FR',{minimumFractionDigits:2})} €</strong></div>
+          <div class="stat-row"><span>En attente de paiement</span><strong style="color:#f59e0b">${caAttente.toLocaleString('fr-FR',{minimumFractionDigits:2})} €</strong></div>
+          <div class="stat-row"><span>Factures en retard</span><strong style="color:${facRetard.length>0?'#ef4444':'#10b981'}">${facRetard.length}</strong></div>
+          <div class="stat-row"><span>Taux recouvrement</span><strong>${factures.length>0?Math.round(facPayees.length/factures.length*100):0}%</strong></div>
+          ${facRetard.length>0?`<div style="margin-top:10px;padding:8px 12px;background:rgba(239,68,68,0.08);border-radius:8px;font-size:0.82rem;color:#f87171;">⚠️ ${facRetard.length} facture(s) en retard — <a href="factures.html" style="color:#f87171;text-decoration:underline">Voir →</a></div>`:''}
+        `;
+
+        // Stats devis
+        const devBrouillon = devis.filter(d => d.statut === 'brouillon').length;
+        const devEnvoye    = devis.filter(d => d.statut === 'envoye').length;
+        const devAccepte   = devis.filter(d => d.statut === 'accepte').length;
+        const devRefuse    = devis.filter(d => d.statut === 'refuse').length;
+        const montantDevis = devis.filter(d => d.statut === 'envoye').reduce((s,d) => s + (parseFloat(d.montant_ttc)||0), 0);
+        const tauxAccept   = (devEnvoye + devAccepte + devRefuse) > 0
+          ? Math.round(devAccepte / (devEnvoye + devAccepte + devRefuse) * 100) : 0;
+
+        document.getElementById("devis-detail").innerHTML = `
+          <div class="stat-row"><span>Devis envoyés (en attente)</span><strong style="color:#f59e0b">${devEnvoye}</strong></div>
+          <div class="stat-row"><span>Devis acceptés</span><strong style="color:#10b981">${devAccepte}</strong></div>
+          <div class="stat-row"><span>Devis refusés</span><strong style="color:#ef4444">${devRefuse}</strong></div>
+          <div class="stat-row"><span>Taux d'acceptation</span><strong>${tauxAccept}%</strong></div>
+          <div class="stat-row"><span>Pipeline devis (envoyés)</span><strong>${montantDevis.toLocaleString('fr-FR',{minimumFractionDigits:2})} €</strong></div>
+        `;
+
+      } catch(e) { console.error('statsLocales analytics:', e); }
+    }
+
+    async function chargerStats() {
+      chargerStatsLocales(); // immédiat depuis localStorage
+
+      try {
+        const res = await fetch(`${API}/crm/stats`);
+        const json = await res.json();
+        const d = json.data;
+        document.getElementById("a-total").textContent = d.total_prospects;
+        document.getElementById("a-clients").textContent = d.total_clients;
+        document.getElementById("a-taux").textContent = d.taux_conversion + "%";
+        document.getElementById("a-pipeline").textContent = d.valeur_pipeline + " €";
+
+        // Statuts chart
+        const statuts = d.repartition_statuts || {};
+        const colors = { nouveau:"#6366f1", contacte:"#3b82f6", en_discussion:"#f59e0b", devis_envoye:"#8b5cf6", gagne:"#10b981", perdu:"#ef4444", relance:"#f97316", en_pause:"#6b7280" };
+        const chartDiv = document.getElementById("statuts-chart");
+        chartDiv.innerHTML = Object.entries(statuts).map(([k, v]) => `
+          <div class="bar-row">
+            <span class="bar-label">${k}</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:${Math.max(v*20,4)}px;background:${colors[k]||'#6366f1'}"></div>
+            </div>
+            <span class="bar-value">${v}</span>
+          </div>
+        `).join("");
+      } catch(e) {}
+
+      // ── PRODUCTIVITÉ 7 JOURS depuis historique_plans ──
+      afficherProductivite7Jours();
+    }
+
+    function afficherProductivite7Jours() {
+      try {
+        const histo = JSON.parse(localStorage.getItem('historique_plans') || '{}');
+
+        // Générer les 7 derniers jours
+        const jours = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(); d.setDate(d.getDate() - i);
+          jours.push(d.toISOString().split('T')[0]);
+        }
+
+        // Agréger les stats sur 7 jours
+        let totalSemaine = 0, reussiesSemaine = 0, annuleesSemaine = 0;
+        const joursData = jours.map(date => {
+          const j = histo[date];
+          if (!j) return { date, total: 0, reussies: 0, annulees: 0, restantes: 0 };
+          const taches = j.taches || [];
+          const sts = j.statuts || {};
+          const total = taches.length;
+          const reussies = Object.values(sts).filter(s => s === 'done').length;
+          const annulees = Object.values(sts).filter(s => s === 'cancelled').length;
+          totalSemaine += total;
+          reussiesSemaine += reussies;
+          annuleesSemaine += annulees;
+          return { date, total, reussies, annulees, restantes: total - reussies - annulees };
+        });
+
+        const tauxSemaine = totalSemaine > 0 ? Math.round(reussiesSemaine / totalSemaine * 100) : 0;
+        const barColorS = tauxSemaine >= 80 ? '#10b981' : tauxSemaine >= 50 ? '#f59e0b' : '#6366f1';
+
+        // Aujourd'hui séparément
+        const today = new Date().toISOString().split('T')[0];
+        const todayData = joursData.find(j => j.date === today) || { total:0, reussies:0, annulees:0, restantes:0 };
+        const todayPlan = JSON.parse(localStorage.getItem('plan_journalier') || 'null');
+        const todayStatuts = JSON.parse(localStorage.getItem('plan_taches_statuts') || '{}');
+        let tachesAujourdhui = [];
+        if (todayPlan && todayPlan.date === today && todayPlan.data?.taches_du_jour) {
+          const sts = todayStatuts.statuts || {};
+          tachesAujourdhui = todayPlan.data.taches_du_jour.map((t, i) => ({ ...t, statut: sts[i] || 'todo' }));
+        }
+
+        const jourNoms = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+        const maxBar = Math.max(...joursData.map(j => j.total), 1);
+
+        document.getElementById("productivite").innerHTML = `
+          <!-- STATS 7 JOURS -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+            <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:#34d399">${reussiesSemaine}</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">Réussies</div>
+            </div>
+            <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:#f87171">${annuleesSemaine}</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">Annulées</div>
+            </div>
+            <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:700;color:${barColorS}">${tauxSemaine}%</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">Taux réussite</div>
+            </div>
+          </div>
+
+          <!-- GRAPHE 7 JOURS -->
+          <div style="display:flex;align-items:flex-end;gap:6px;height:60px;margin-bottom:6px">
+            ${joursData.map(j => {
+              const hReussies = j.total > 0 ? Math.round(j.reussies / maxBar * 52) : 0;
+              const hAnnulees = j.total > 0 ? Math.round(j.annulees / maxBar * 52) : 0;
+              const hRest = j.total > 0 ? Math.max(Math.round(j.restantes / maxBar * 52), j.total>0?3:0) : 0;
+              const isToday = j.date === today;
+              return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0">
+                <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:52px;gap:1px">
+                  ${j.total === 0 ? `<div style="height:3px;background:var(--border);border-radius:3px 3px 0 0;opacity:0.4"></div>` : `
+                    ${hRest>0?`<div style="height:${hRest}px;background:rgba(99,102,241,0.3);border-radius:2px"></div>`:''}
+                    ${hAnnulees>0?`<div style="height:${hAnnulees}px;background:#ef4444;border-radius:2px"></div>`:''}
+                    ${hReussies>0?`<div style="height:${hReussies}px;background:#10b981;border-radius:2px"></div>`:''}`}
+                </div>
+                <div style="font-size:0.65rem;color:${isToday?'var(--accent2)':'var(--text-muted)'};margin-top:4px;font-weight:${isToday?'700':'400'}">${jourNoms[new Date(j.date+'T12:00:00').getDay()]}</div>
+              </div>`;
+            }).join('')}
+          </div>
+          <div style="display:flex;gap:12px;font-size:0.72rem;color:var(--text-muted);margin-bottom:14px">
+            <span><span style="display:inline-block;width:8px;height:8px;background:#10b981;border-radius:2px;margin-right:4px"></span>Réussies</span>
+            <span><span style="display:inline-block;width:8px;height:8px;background:#ef4444;border-radius:2px;margin-right:4px"></span>Annulées</span>
+            <span><span style="display:inline-block;width:8px;height:8px;background:rgba(99,102,241,0.3);border-radius:2px;margin-right:4px"></span>Restantes</span>
+          </div>
+
+          <!-- TACHES AUJOURD'HUI -->
+          <div style="border-top:1px solid var(--border);padding-top:12px">
+            <div style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Aujourd'hui</div>
+            ${tachesAujourdhui.length > 0 ? tachesAujourdhui.map(t => `
+              <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(42,42,69,0.4);font-size:0.83rem">
+                <span>${t.statut==='done'?'✅':t.statut==='cancelled'?'✗':'⏳'}</span>
+                <span style="flex:1;color:${t.statut==='todo'?'var(--text-soft)':'var(--text-muted)'};${t.statut!=='todo'?'text-decoration:line-through':''}">${t.titre}</span>
+                <span style="font-size:0.72rem;padding:2px 7px;border-radius:99px;
+                  background:${t.statut==='done'?'rgba(16,185,129,0.12)':t.statut==='cancelled'?'rgba(239,68,68,0.1)':'rgba(99,102,241,0.1)'};
+                  color:${t.statut==='done'?'#34d399':t.statut==='cancelled'?'#f87171':'#818cf8'}">
+                  ${t.statut==='done'?'Réussie':t.statut==='cancelled'?'Annulée':'En cours'}
+                </span>
+              </div>
+            `).join('') : '<div style="color:var(--text-muted);font-size:0.85rem;padding:8px 0">Aucun plan généré aujourd\'hui</div>'}
+          </div>
+        `;
+      } catch(e) {
+        document.getElementById("productivite").innerHTML = '<div class="empty-state">Données non disponibles</div>';
+      }
+    }
+
+    async function analyserActivite() {
+      document.getElementById("card-analyse").style.display = "block";
+      document.getElementById("analyse-result").innerHTML = `<div class="loading-spin">⚡ Analyse en cours...</div>`;
+      try {
+        const res = await fetch(`${API}/agent/analyser-activite`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ metier: "indépendant", ca_mois: 3000, nb_clients_actifs: 2, nb_prospects_pipeline: 5, taux_conversion: 0.2, charges_estimees: 500 })
+        });
+        const json = await res.json();
+        const d = json.data;
+        document.getElementById("analyse-result").innerHTML = `
+          <div class="analyse-score">Score santé : <strong>${d.score_sante_business?.note}/10</strong> — ${d.score_sante_business?.interpretation}</div>
+          <div class="deux-col-analyse">
+            <div>
+              <div class="result-label">✅ Points forts</div>
+              <ul>${(d.points_forts||[]).map(p=>`<li>${p}</li>`).join("")}</ul>
+            </div>
+            <div>
+              <div class="result-label">⚠️ À améliorer</div>
+              <ul>${(d.points_amelioration||[]).map(p=>`<li>${p}</li>`).join("")}</ul>
+            </div>
+          </div>
+          <div class="result-label">🚀 Recommandations</div>
+          ${(d.recommandations||[]).map(r=>`
+            <div class="reco-item">
+              <span class="badge badge-${r.impact==='fort'?'success':r.impact==='moyen'?'orange':'grey'}">${r.impact}</span>
+              <span>${r.action}</span>
+              <span class="reco-delai">${r.delai}</span>
+            </div>
+          `).join("")}
+        `;
+      } catch(e) {
+        document.getElementById("analyse-result").innerHTML = `<div class="empty-state">Erreur lors de l'analyse</div>`;
+      }
+    }
+
+    chargerStats();
+
+    // Se rafraîchir automatiquement si les données changent dans un autre onglet
+    window.addEventListener('storage', function(e) {
+      if (e.key === 'factures_list' || e.key === 'devis_list') {
+        chargerStatsLocales();
+      }
+      if (e.key === 'plan_journalier' || e.key === 'plan_taches_statuts' || e.key === 'historique_plans') {
+        afficherProductivite7Jours();
+      }
+    });
+  </script>
+
+  <script>
+    (function() {
+      var user = null;
+      try { user = JSON.parse(localStorage.getItem('user_connecte') || 'null'); } catch(e) {}
+      if (!user) return;
+      var modules = user.modules || ['dashboard','devis','factures','taches'];
+      var LIENS = {
+        'crm.html':      'crm',
+        'contenu.html':  'contenu_ia',
+        'analytics.html':'analytics'
+      };
+      document.querySelectorAll('.nav-link').forEach(function(link) {
+        var href = link.getAttribute('href');
+        var mod  = LIENS[href];
+        if (mod && modules.indexOf(mod) === -1) {
+          link.style.opacity = '0.4';
+          link.style.pointerEvents = 'none';
+          link.style.cursor = 'not-allowed';
+          link.innerHTML = link.innerHTML + ' <span style="font-size:0.7rem;margin-left:auto">🔒</span>';
+          link.title = 'Disponible a partir du plan Pro';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

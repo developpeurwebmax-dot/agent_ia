@@ -7,8 +7,8 @@ import openai
 import json
 from datetime import datetime
 
-import os
-openai.api_key = os.environ.get("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")
+# ⚠️ Remplace par ta clé API OpenAI
+openai.api_key = "sk-VOTRE_CLE_API_ICI"
 
 MODEL = "gpt-4"
 
@@ -317,5 +317,4 @@ Génère une analyse tarifaire JSON :
     try:
         return json.loads(resultat)
     except json.JSONDecodeError:
-
         return {"erreur": "Parsing échoué", "raw": resultat}

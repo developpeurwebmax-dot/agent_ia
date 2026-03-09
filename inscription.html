@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA — Inscription</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--bg); padding:20px; }
+    .auth-wrap { display:flex; width:1020px; max-width:98vw; min-height:620px; border-radius:20px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,0.5); }
+    .auth-left {
+      flex:1; background:linear-gradient(135deg,#1a1a3e 0%,#0d0d1a 100%);
+      padding:48px 40px; display:flex; flex-direction:column; justify-content:space-between;
+      border-right:1px solid var(--border); position:relative; overflow:hidden;
+    }
+    .auth-left::before { content:''; position:absolute; width:300px; height:300px; background:radial-gradient(circle,rgba(99,102,241,0.2) 0%,transparent 70%); top:-80px; right:-80px; border-radius:50%; }
+    .auth-left::after  { content:''; position:absolute; width:200px; height:200px; background:radial-gradient(circle,rgba(139,92,246,0.15) 0%,transparent 70%); bottom:-50px; left:-50px; border-radius:50%; }
+    .auth-logo { font-family:var(--font-display); font-size:1.4rem; font-weight:800; color:var(--accent2); }
+    .auth-tagline h2 { font-family:var(--font-display); font-size:1.8rem; font-weight:700; line-height:1.3; margin-bottom:12px; }
+    .auth-tagline p { color:var(--text-muted); font-size:0.9rem; line-height:1.6; }
+    .auth-steps { display:flex; flex-direction:column; gap:14px; }
+    .auth-step { display:flex; align-items:flex-start; gap:12px; }
+    .step-num { width:26px; height:26px; border-radius:50%; background:var(--accent); color:white; font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
+    .step-num.inactive { background:var(--border); color:var(--text-muted); }
+    .step-text strong { display:block; font-size:0.88rem; color:var(--text); }
+    .step-text span { font-size:0.78rem; color:var(--text-muted); }
+
+    .auth-right { width:560px; background:var(--card); padding:40px; display:flex; flex-direction:column; justify-content:center; overflow-y:auto; }
+    .auth-right h3 { font-family:var(--font-display); font-size:1.4rem; font-weight:700; margin-bottom:6px; }
+    .auth-right .auth-sub { color:var(--text-muted); font-size:0.88rem; margin-bottom:24px; }
+
+    .steps-indicator { display:flex; align-items:center; gap:6px; margin-bottom:28px; }
+    .step-dot { width:8px; height:8px; border-radius:50%; background:var(--border); transition:all 0.3s; }
+    .step-dot.active { background:var(--accent); width:24px; border-radius:99px; }
+    .step-dot.done { background:var(--success); }
+    .step-indicator-label { font-size:0.78rem; color:var(--text-muted); margin-left:8px; }
+
+    .form-step { display:none; }
+    .form-step.active { display:block; }
+    .form-step h4 { font-size:1rem; font-weight:600; margin-bottom:16px; color:var(--text-soft); }
+
+    .form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-group { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+    .form-group label { font-size:0.82rem; color:var(--text-soft); font-weight:500; }
+    .form-group input, .form-group select, .form-group textarea {
+      width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+      padding:11px 14px; color:var(--text); font-family:var(--font-body); font-size:0.9rem; outline:none; transition:border-color 0.15s;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color:var(--accent); }
+    .form-group select option { background:var(--bg3); }
+
+    .form-nav { display:flex; justify-content:space-between; align-items:center; margin-top:20px; }
+    .btn-auth { background:var(--accent); color:white; border:none; padding:11px 24px; border-radius:8px; font-family:var(--font-body); font-size:0.92rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
+    .btn-auth:hover { background:var(--accent2); transform:translateY(-1px); }
+    .btn-back { background:transparent; color:var(--text-muted); border:1px solid var(--border); padding:11px 20px; border-radius:8px; font-family:var(--font-body); font-size:0.88rem; cursor:pointer; transition:all 0.15s; }
+    .btn-back:hover { border-color:var(--accent); color:var(--text); }
+
+    .auth-switch { text-align:center; margin-top:20px; font-size:0.85rem; color:var(--text-muted); }
+    .auth-switch a { color:var(--accent2); text-decoration:none; font-weight:500; }
+    .error-msg { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; padding:10px 14px; border-radius:8px; font-size:0.85rem; display:none; margin-bottom:14px; }
+
+    /* TARIF CARDS */
+    .tarif-options { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+    .tarif-card { border:2px solid var(--border); border-radius:10px; padding:14px; cursor:pointer; transition:all 0.15s; text-align:center; }
+    .tarif-card:hover { border-color:var(--accent); }
+    .tarif-card.selected { border-color:var(--accent); background:var(--accent-glow); }
+    .tarif-card .tarif-icon { font-size:1.4rem; margin-bottom:6px; }
+    .tarif-card .tarif-name { font-size:0.85rem; font-weight:600; }
+    .tarif-card .tarif-desc { font-size:0.75rem; color:var(--text-muted); margin-top:3px; }
+
+    /* PLANS ABONNEMENT */
+    .plans-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:20px; }
+    .plan-card {
+      border:2px solid var(--border); border-radius:14px; padding:18px 14px;
+      cursor:pointer; transition:all 0.2s; text-align:center; position:relative;
+    }
+    .plan-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+    .plan-card.selected { border-color:var(--accent2); background:var(--accent-glow); box-shadow:0 0 20px rgba(99,102,241,0.2); }
+    .plan-card.popular::before {
+      content:"Populaire"; position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+      background:var(--accent); color:white; font-size:0.68rem; font-weight:700;
+      padding:3px 10px; border-radius:99px; letter-spacing:0.5px; text-transform:uppercase;
+    }
+    .plan-name { font-family:var(--font-display); font-size:1rem; font-weight:700; margin-bottom:4px; }
+    .plan-price { font-size:1.6rem; font-weight:800; color:var(--accent2); margin:8px 0 2px; }
+    .plan-price span { font-size:0.78rem; color:var(--text-muted); font-weight:400; }
+    .plan-desc { font-size:0.75rem; color:var(--text-muted); margin-bottom:12px; }
+    .plan-features { list-style:none; text-align:left; display:flex; flex-direction:column; gap:6px; }
+    .plan-features li { font-size:0.78rem; color:var(--text-soft); display:flex; align-items:center; gap:6px; }
+    .plan-features li.off { color:var(--text-muted); opacity:0.5; }
+    .plan-features li::before { content:"✓"; color:var(--success); font-weight:700; font-size:0.8rem; flex-shrink:0; }
+    .plan-features li.off::before { content:"✗"; color:var(--text-muted); }
+
+    /* PAIEMENT */
+    .paiement-recap { background:var(--bg3); border-radius:10px; padding:14px 16px; margin-bottom:18px; }
+    .paiement-recap .plan-choisi { font-size:1rem; font-weight:700; color:var(--accent2); margin-bottom:4px; }
+    .paiement-recap .plan-montant { font-size:1.4rem; font-weight:800; }
+    .paiement-recap .plan-periode { font-size:0.78rem; color:var(--text-muted); }
+    .paiement-free-note { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:#34d399; padding:12px 16px; border-radius:8px; font-size:0.85rem; text-align:center; margin-bottom:16px; }
+    .card-input-group { display:flex; flex-direction:column; gap:12px; }
+    .card-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .input-card { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:11px 14px; color:var(--text); font-family:var(--font-body); font-size:0.9rem; outline:none; width:100%; transition:border-color 0.15s; }
+    .input-card:focus { border-color:var(--accent); }
+    .secure-note { display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--text-muted); margin-top:10px; }
+
+    /* SUCCESS */
+    .success-screen { text-align:center; padding:20px 0; }
+    .success-icon { font-size:3rem; margin-bottom:16px; }
+    .success-screen h3 { font-family:var(--font-display); font-size:1.4rem; margin-bottom:8px; }
+    .success-screen p { color:var(--text-muted); font-size:0.9rem; margin-bottom:24px; }
+  </style>
+</head>
+<body>
+
+  <div class="auth-wrap">
+    <!-- GAUCHE -->
+    <div class="auth-left">
+      <div class="auth-logo">⚡ Agent IA</div>
+      <div class="auth-tagline">
+        <h2>Créez votre espace en quelques minutes</h2>
+        <p>Votre assistant IA personnalisé vous attend.</p>
+      </div>
+      <div class="auth-steps">
+        <div class="auth-step">
+          <div class="step-num" id="left-dot-1">1</div>
+          <div class="step-text"><strong>Votre compte</strong><span>Email et mot de passe</span></div>
+        </div>
+        <div class="auth-step">
+          <div class="step-num inactive" id="left-dot-2">2</div>
+          <div class="step-text"><strong>Profil professionnel</strong><span>Métier, expérience</span></div>
+        </div>
+        <div class="auth-step">
+          <div class="step-num inactive" id="left-dot-3">3</div>
+          <div class="step-text"><strong>Tarifs et objectifs</strong><span>Pour des conseils personnalisés</span></div>
+        </div>
+        <div class="auth-step">
+          <div class="step-num inactive" id="left-dot-4">4</div>
+          <div class="step-text"><strong>Votre abonnement</strong><span>Choisissez votre formule</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DROITE -->
+    <div class="auth-right">
+      <h3>Créer mon compte</h3>
+      <p class="auth-sub">Votre IA personnalisée en 4 étapes</p>
+
+      <div class="steps-indicator">
+        <div class="step-dot active" id="dot-1"></div>
+        <div class="step-dot" id="dot-2"></div>
+        <div class="step-dot" id="dot-3"></div>
+        <div class="step-dot" id="dot-4"></div>
+        <span class="step-indicator-label" id="step-label">Étape 1 / 4</span>
+      </div>
+
+      <div class="error-msg" id="error-msg"></div>
+
+      <!-- ÉTAPE 1 : COMPTE -->
+      <div class="form-step active" id="step-1">
+        <h4>👤 Informations de connexion</h4>
+        <div class="form-grid-2">
+          <div class="form-group"><label>Prénom *</label><input type="text" id="prenom" placeholder="Jean"/></div>
+          <div class="form-group"><label>Nom *</label><input type="text" id="nom" placeholder="Dupont"/></div>
+        </div>
+        <div class="form-group"><label>Email *</label><input type="email" id="email" placeholder="jean@example.com"/></div>
+        <div class="form-group"><label>Mot de passe *</label><input type="password" id="password" placeholder="8 caractères minimum"/></div>
+        <div class="form-group"><label>Confirmer le mot de passe *</label><input type="password" id="password2" placeholder="••••••••"/></div>
+        <div class="form-nav">
+          <div></div>
+          <button class="btn-auth" onclick="validerEtape1()">Continuer →</button>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 2 : PROFIL PRO -->
+      <div class="form-step" id="step-2">
+        <h4>💼 Votre profil professionnel</h4>
+        <div class="form-group">
+          <label>Votre métier *</label>
+          <select id="metier-select" onchange="toggleMetierCustom()">
+            <option value="">-- Choisissez votre métier --</option>
+            <optgroup label="Consulting & Coaching">
+              <option value="consultant">Consultant</option>
+              <option value="coach business">Coach business</option>
+              <option value="coach de vie">Coach de vie</option>
+              <option value="consultant RH">Consultant RH</option>
+              <option value="consultant marketing">Consultant marketing</option>
+            </optgroup>
+            <optgroup label="Tech & Digital">
+              <option value="développeur freelance">Développeur freelance</option>
+              <option value="designer UX/UI">Designer UX/UI</option>
+              <option value="graphiste freelance">Graphiste freelance</option>
+              <option value="community manager">Community manager</option>
+              <option value="expert SEO">Expert SEO</option>
+            </optgroup>
+            <optgroup label="Créatif & Communication">
+              <option value="rédacteur freelance">Rédacteur freelance</option>
+              <option value="photographe">Photographe</option>
+              <option value="vidéaste">Vidéaste</option>
+              <option value="traducteur">Traducteur</option>
+            </optgroup>
+            <optgroup label="Artisan & Services">
+              <option value="artisan">Artisan</option>
+              <option value="plombier">Plombier</option>
+              <option value="électricien">Électricien</option>
+              <option value="menuisier">Menuisier</option>
+            </optgroup>
+            <optgroup label="Formation & Éducation">
+              <option value="formateur">Formateur</option>
+              <option value="tuteur">Tuteur</option>
+            </optgroup>
+            <option value="autre">Autre (préciser)</option>
+          </select>
+        </div>
+        <div class="form-group" id="metier-custom-group" style="display:none">
+          <label>Précisez votre métier</label>
+          <input type="text" id="metier-custom" placeholder="Ex: consultant en image de marque"/>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group"><label>Localisation</label><input type="text" id="localisation" placeholder="Paris, Lyon, Remote..."/></div>
+          <div class="form-group">
+            <label>Années d'expérience</label>
+            <select id="experience">
+              <option value="débutant (0-2 ans)">Débutant (0-2 ans)</option>
+              <option value="intermédiaire (3-5 ans)">Intermédiaire (3-5 ans)</option>
+              <option value="confirmé (6-10 ans)">Confirmé (6-10 ans)</option>
+              <option value="expert (10+ ans)">Expert (10+ ans)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Secteurs ciblés</label><input type="text" id="secteurs" placeholder="Tech, RH, Finance, PME..."/></div>
+        <div class="form-group"><label>Votre offre principale</label><textarea id="offre" placeholder="Ex: J'accompagne les PME dans leur transformation digitale..."></textarea></div>
+        <div class="form-nav">
+          <button class="btn-back" onclick="allerEtape(1)">← Retour</button>
+          <button class="btn-auth" onclick="validerEtape2()">Continuer →</button>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 3 : TARIFS -->
+      <div class="form-step" id="step-3">
+        <h4>💶 Tarifs & Objectifs</h4>
+        <div class="form-group">
+          <label>Type de facturation</label>
+          <div class="tarif-options">
+            <div class="tarif-card selected" id="tc-jour" onclick="selectTarif('jour')"><div class="tarif-icon">📅</div><div class="tarif-name">TJM</div><div class="tarif-desc">Tarif journalier</div></div>
+            <div class="tarif-card" id="tc-heure" onclick="selectTarif('heure')"><div class="tarif-icon">⏱</div><div class="tarif-name">Horaire</div><div class="tarif-desc">Tarif à l'heure</div></div>
+            <div class="tarif-card" id="tc-forfait" onclick="selectTarif('forfait')"><div class="tarif-icon">📦</div><div class="tarif-name">Forfait</div><div class="tarif-desc">Prix fixe par projet</div></div>
+            <div class="tarif-card" id="tc-mixte" onclick="selectTarif('mixte')"><div class="tarif-icon">🔀</div><div class="tarif-name">Mixte</div><div class="tarif-desc">Combinaison</div></div>
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group"><label>Tarif journalier (€)</label><input type="number" id="tarif-jour" placeholder="400" min="0"/></div>
+          <div class="form-group"><label>Tarif horaire (€)</label><input type="number" id="tarif-heure" placeholder="60" min="0"/></div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group"><label>Objectif CA mensuel (€)</label><input type="number" id="objectif-ca" placeholder="5000" min="0"/></div>
+          <div class="form-group"><label>Nb clients visés / mois</label><input type="number" id="objectif-clients" placeholder="3" min="0"/></div>
+        </div>
+        <div class="form-group"><label>Charges mensuelles (€)</label><input type="number" id="charges" placeholder="800" min="0"/></div>
+        <div class="form-nav">
+          <button class="btn-back" onclick="allerEtape(2)">← Retour</button>
+          <button class="btn-auth" onclick="allerEtape(4)">Continuer →</button>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 4 : ABONNEMENT -->
+      <div class="form-step" id="step-4">
+        <h4>🚀 Choisissez votre formule</h4>
+        <div class="plans-grid">
+
+          <!-- STARTER -->
+          <div class="plan-card selected" id="plan-starter" onclick="selectPlan('starter')">
+            <div class="plan-name">Starter</div>
+            <div class="plan-price">0€ <span>/ mois</span></div>
+            <div class="plan-desc">Pour démarrer</div>
+            <ul class="plan-features">
+              <li>Devis & Factures</li>
+              <li>Tâches du jour</li>
+              <li>Dashboard</li>
+              <li class="off">CRM Prospects</li>
+              <li class="off">Contenu IA</li>
+              <li class="off">Analytics</li>
+              <li class="off">Plan IA du matin</li>
+            </ul>
+          </div>
+
+          <!-- PRO -->
+          <div class="plan-card popular" id="plan-pro" onclick="selectPlan('pro')">
+            <div class="plan-name">Pro</div>
+            <div class="plan-price">19€ <span>/ mois</span></div>
+            <div class="plan-desc">Pour les actifs</div>
+            <ul class="plan-features">
+              <li>Devis & Factures</li>
+              <li>Tâches du jour</li>
+              <li>Dashboard</li>
+              <li>CRM Prospects</li>
+              <li>Analytics</li>
+              <li>Plan IA du matin</li>
+              <li class="off">Contenu IA illimité</li>
+            </ul>
+          </div>
+
+          <!-- PREMIUM -->
+          <div class="plan-card" id="plan-premium" onclick="selectPlan('premium')">
+            <div class="plan-name">Premium</div>
+            <div class="plan-price">39€ <span>/ mois</span></div>
+            <div class="plan-desc">Tout illimité</div>
+            <ul class="plan-features">
+              <li>Devis & Factures</li>
+              <li>Tâches du jour</li>
+              <li>Dashboard</li>
+              <li>CRM Prospects</li>
+              <li>Analytics avancés</li>
+              <li>Plan IA du matin</li>
+              <li>Contenu IA illimité</li>
+            </ul>
+          </div>
+
+        </div>
+        <div class="form-nav">
+          <button class="btn-back" onclick="allerEtape(3)">← Retour</button>
+          <button class="btn-auth" onclick="allerEtape(5)">Continuer →</button>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 5 : PAIEMENT -->
+      <div class="form-step" id="step-5">
+        <h4>💳 Paiement</h4>
+
+        <!-- Recap plan -->
+        <div class="paiement-recap">
+          <div class="plan-choisi" id="recap-plan-nom">Plan Starter</div>
+          <div>
+            <span class="plan-montant" id="recap-plan-prix">0€</span>
+            <span class="plan-periode" id="recap-plan-periode"> — Gratuit pour toujours</span>
+          </div>
+        </div>
+
+        <!-- Si plan gratuit -->
+        <div id="section-gratuit">
+          <div class="paiement-free-note">
+            ✅ Aucune carte bancaire requise pour le plan Starter !<br>
+            <span style="font-size:0.8rem;opacity:0.8">Vous pourrez upgrader à tout moment depuis votre dashboard.</span>
+          </div>
+        </div>
+
+        <!-- Si plan payant -->
+        <div id="section-payant" style="display:none">
+          <div class="card-input-group">
+            <div class="form-group" style="margin:0">
+              <label>Numéro de carte</label>
+              <input class="input-card" type="text" id="card-num" placeholder="1234 5678 9012 3456" maxlength="19" oninput="formatCard(this)"/>
+            </div>
+            <div class="card-row">
+              <div class="form-group" style="margin:0">
+                <label>Date d'expiration</label>
+                <input class="input-card" type="text" id="card-exp" placeholder="MM/AA" maxlength="5" oninput="formatExp(this)"/>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label>CVV</label>
+                <input class="input-card" type="text" id="card-cvv" placeholder="123" maxlength="3"/>
+              </div>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Nom sur la carte</label>
+              <input class="input-card" type="text" id="card-nom" placeholder="JEAN DUPONT"/>
+            </div>
+          </div>
+          <div class="secure-note">🔒 Paiement sécurisé — vos données sont chiffrées</div>
+        </div>
+
+        <div class="form-nav" style="margin-top:20px">
+          <button class="btn-back" onclick="allerEtape(4)">← Retour</button>
+          <button class="btn-auth" id="btn-finaliser" onclick="creerCompte()">🚀 Créer mon compte</button>
+        </div>
+      </div>
+
+      <!-- SUCCÈS -->
+      <div class="form-step" id="step-success">
+        <div class="success-screen">
+          <div class="success-icon">🎉</div>
+          <h3>Compte créé avec succès !</h3>
+          <p>Votre espace Agent IA est prêt.<br>Bienvenue <span id="success-prenom"></span> !</p>
+          <div id="success-plan-badge" style="display:inline-block;background:var(--accent-glow);border:1px solid var(--accent);border-radius:8px;padding:8px 18px;font-size:0.88rem;color:var(--accent2);margin-bottom:20px"></div>
+          <br>
+          <button class="btn-auth" onclick="window.location.href='dashboard.html'">Accéder à mon dashboard →</button>
+        </div>
+      </div>
+
+      <div class="auth-switch" id="switch-link">
+        Déjà un compte ? <a href="connexion.html">Se connecter</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var tarifType    = "jour";
+    var planChoisi   = "starter";
+    var etapeActuelle = 1;
+
+    var PLANS = {
+      starter: {
+        nom: "Starter", prix: 0, periode: "Gratuit pour toujours",
+        modules: ["dashboard", "devis", "factures", "taches"]
+      },
+      pro: {
+        nom: "Pro", prix: 19, periode: "/mois",
+        modules: ["dashboard", "devis", "factures", "taches", "crm", "analytics", "plan_ia"]
+      },
+      premium: {
+        nom: "Premium", prix: 39, periode: "/mois",
+        modules: ["dashboard", "devis", "factures", "taches", "crm", "analytics", "plan_ia", "contenu_ia"]
+      }
+    };
+
+    function toggleMetierCustom() {
+      var val = document.getElementById("metier-select").value;
+      document.getElementById("metier-custom-group").style.display = val === "autre" ? "block" : "none";
+    }
+
+    function selectTarif(type) {
+      tarifType = type;
+      ["jour","heure","forfait","mixte"].forEach(function(t) {
+        document.getElementById("tc-"+t).classList.remove("selected");
+      });
+      document.getElementById("tc-"+type).classList.add("selected");
+    }
+
+    function selectPlan(plan) {
+      planChoisi = plan;
+      ["starter","pro","premium"].forEach(function(p) {
+        document.getElementById("plan-"+p).classList.remove("selected");
+      });
+      document.getElementById("plan-"+plan).classList.add("selected");
+    }
+
+    function allerEtape(n) {
+      // Si on passe à l'étape paiement (5), mettre à jour le recap
+      if (n === 5) { mettreAJourPaiement(); }
+
+      document.querySelectorAll(".form-step").forEach(function(s) { s.classList.remove("active"); });
+      document.getElementById("step-" + n).classList.add("active");
+      etapeActuelle = n;
+
+      // Dots indicateur
+      for (var i = 1; i <= 4; i++) {
+        var dot = document.getElementById("dot-" + i);
+        if (!dot) continue;
+        if (i < n) dot.className = "step-dot done";
+        else if (i === n) dot.className = "step-dot active";
+        else dot.className = "step-dot";
+      }
+      var maxEtape = Math.min(n, 4);
+      document.getElementById("step-label").textContent = "Etape " + maxEtape + " / 4";
+
+      // Dots gauche
+      for (var j = 1; j <= 4; j++) {
+        var ld = document.getElementById("left-dot-" + j);
+        if (!ld) continue;
+        if (j < n) { ld.className = "step-num"; ld.style.background = "var(--success)"; }
+        else if (j === n) { ld.className = "step-num"; ld.style.background = "var(--accent)"; }
+        else { ld.className = "step-num inactive"; ld.style.background = ""; }
+      }
+
+      document.getElementById("error-msg").style.display = "none";
+    }
+
+    function mettreAJourPaiement() {
+      var plan = PLANS[planChoisi];
+      document.getElementById("recap-plan-nom").textContent = "Plan " + plan.nom;
+      document.getElementById("recap-plan-prix").textContent = plan.prix === 0 ? "Gratuit" : plan.prix + "€";
+      document.getElementById("recap-plan-periode").textContent = plan.prix === 0 ? " — Pour toujours" : " — " + plan.periode;
+
+      if (plan.prix === 0) {
+        document.getElementById("section-gratuit").style.display = "block";
+        document.getElementById("section-payant").style.display = "none";
+        document.getElementById("btn-finaliser").textContent = "Creer mon compte gratuitement";
+      } else {
+        document.getElementById("section-gratuit").style.display = "none";
+        document.getElementById("section-payant").style.display = "block";
+        document.getElementById("btn-finaliser").textContent = "Payer " + plan.prix + "€ et creer mon compte";
+      }
+    }
+
+    function formatCard(el) {
+      var v = el.value.replace(/\D/g,"").substring(0,16);
+      el.value = v.replace(/(\d{4})(?=\d)/g,"$1 ");
+    }
+
+    function formatExp(el) {
+      var v = el.value.replace(/\D/g,"").substring(0,4);
+      if (v.length >= 2) v = v.substring(0,2) + "/" + v.substring(2);
+      el.value = v;
+    }
+
+    function showError(msg) {
+      var e = document.getElementById("error-msg");
+      e.textContent = msg;
+      e.style.display = "block";
+    }
+
+    function validerEtape1() {
+      var prenom = document.getElementById("prenom").value.trim();
+      var nom    = document.getElementById("nom").value.trim();
+      var email  = document.getElementById("email").value.trim();
+      var pwd    = document.getElementById("password").value;
+      var pwd2   = document.getElementById("password2").value;
+
+      if (!prenom || !nom || !email || !pwd) { showError("Veuillez remplir tous les champs."); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError("Email invalide."); return; }
+      if (pwd.length < 8) { showError("Mot de passe : 8 caracteres minimum."); return; }
+      if (pwd !== pwd2) { showError("Les mots de passe ne correspondent pas."); return; }
+
+      var users = [];
+      try { users = JSON.parse(localStorage.getItem("users") || "[]"); } catch(e) {}
+      if (users.find(function(u){ return u.email === email; })) { showError("Cet email est deja utilise."); return; }
+
+      allerEtape(2);
+    }
+
+    function validerEtape2() {
+      var metierSelect = document.getElementById("metier-select").value;
+      if (!metierSelect) { showError("Veuillez choisir votre metier."); return; }
+      allerEtape(3);
+    }
+
+    function creerCompte() {
+      var plan = PLANS[planChoisi];
+
+      // Validation paiement si plan payant
+      if (plan.prix > 0) {
+        var cardNum = document.getElementById("card-num").value.replace(/\s/g,"");
+        var cardExp = document.getElementById("card-exp").value;
+        var cardCvv = document.getElementById("card-cvv").value;
+        var cardNom = document.getElementById("card-nom").value.trim();
+        if (cardNum.length < 16 || cardExp.length < 5 || cardCvv.length < 3 || !cardNom) {
+          showError("Veuillez remplir tous les champs de paiement.");
+          return;
+        }
+      }
+
+      var metierSelect = document.getElementById("metier-select").value;
+      var metier = metierSelect === "autre"
+        ? document.getElementById("metier-custom").value.trim()
+        : metierSelect;
+
+      var user = {
+        id:               Date.now().toString(),
+        prenom:           document.getElementById("prenom").value.trim(),
+        nom:              document.getElementById("nom").value.trim(),
+        email:            document.getElementById("email").value.trim(),
+        password:         document.getElementById("password").value,
+        metier:           metier,
+        localisation:     document.getElementById("localisation").value.trim(),
+        experience:       document.getElementById("experience").value,
+        secteurs:         document.getElementById("secteurs").value.trim(),
+        offre:            document.getElementById("offre").value.trim(),
+        tarif_type:       tarifType,
+        tarif_journalier: parseFloat(document.getElementById("tarif-jour").value) || 0,
+        tarif_horaire:    parseFloat(document.getElementById("tarif-heure").value) || 0,
+        objectif_ca:      parseFloat(document.getElementById("objectif-ca").value) || 0,
+        objectif_clients: parseInt(document.getElementById("objectif-clients").value) || 0,
+        charges:          parseFloat(document.getElementById("charges").value) || 0,
+        plan:             planChoisi,
+        plan_nom:         plan.nom,
+        plan_prix:        plan.prix,
+        modules:          plan.modules,
+        date_inscription: new Date().toISOString()
+      };
+
+      var users = [];
+      try { users = JSON.parse(localStorage.getItem("users") || "[]"); } catch(e) {}
+      users.push(user);
+      localStorage.setItem("users", JSON.stringify(users));
+      localStorage.setItem("user_connecte", JSON.stringify(user));
+
+      // Afficher succès
+      document.querySelectorAll(".form-step").forEach(function(s){ s.classList.remove("active"); });
+      document.getElementById("step-success").classList.add("active");
+      document.getElementById("success-prenom").textContent = user.prenom + " !";
+      document.getElementById("success-plan-badge").textContent = "Formule " + plan.nom + (plan.prix > 0 ? " — " + plan.prix + "€/mois" : " — Gratuite");
+      document.getElementById("switch-link").style.display = "none";
+
+      for (var i = 1; i <= 4; i++) {
+        var d = document.getElementById("dot-" + i);
+        if (d) d.className = "step-dot done";
+      }
+      document.getElementById("step-label").textContent = "Termine !";
+    }
+  </script>
+</body>
+</html>
