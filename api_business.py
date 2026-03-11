@@ -3,10 +3,46 @@ api_business.py — Routes API pour Agent IA Business
 À importer dans api.py ou à lancer séparément sur un sous-préfixe /business
 """
 
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 import json
+import time
+import jwt
+import os
+from functools import wraps
 
-from api import reponse_ok, reponse_erreur, get_json, generer_id, token_requis
+# ── Fonctions utilitaires (évite import circulaire avec api.py) ──
+
+def reponse_ok(data, message="Succès", code=200):
+    return jsonify({"statut": "ok", "message": message, "data": data}), code
+
+def reponse_erreur(message, code=400):
+    return jsonify({"statut": "erreur", "message": message}), code
+
+def get_json():
+    return request.get_json() or {}
+
+def generer_id(prefix):
+    return f"{prefix}_{int(time.time() * 1000)}"
+
+def token_requis(f):
+    @wraps(f)
+    def decorateur(*args, **kwargs):
+        token = None
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth.split(" ")[1]
+        if not token:
+            return reponse_erreur("Token manquant", 401)
+        try:
+            secret = os.environ.get("JWT_SECRET", "secret_dev_change_me")
+            payload = jwt.decode(token, secret, algorithms=["HS256"])
+            request.user_id = payload.get("user_id")
+        except jwt.ExpiredSignatureError:
+            return reponse_erreur("Token expiré", 401)
+        except jwt.InvalidTokenError:
+            return reponse_erreur("Token invalide", 401)
+        return f(*args, **kwargs)
+    return decorateur
 from users import (
     creer_entreprise, get_entreprises_user, get_entreprise, modifier_entreprise,
     inviter_membre, get_membres, modifier_role_membre, retirer_membre, get_role_user
@@ -489,3 +525,12 @@ def analyser_business():
         return reponse_erreur(str(e), 500)
 
 
+# ─────────────────────────────────────────────
+# ENREGISTREMENT DU BLUEPRINT dans api.py
+# ─────────────────────────────────────────────
+# Dans api.py, ajouter APRÈS la création de app :
+#
+#   from api_business import business
+#   app.register_blueprint(business)
+#   from database_business import init_db_business
+#   init_db_business()

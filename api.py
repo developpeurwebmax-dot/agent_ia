@@ -17,14 +17,16 @@ from auth import (
 )
 
 app = Flask(__name__)
-from api_business import business
-app.register_blueprint(business)
-from database_business import init_db_business
-init_db_business()
 CORS(app)
 
 # Initialiser la base de données au démarrage
 init_db()
+
+# ── MODULE BUSINESS ──
+from api_business import business
+app.register_blueprint(business)
+from database_business import init_db_business
+init_db_business()
 
 
 # ─────────────────────────────────────────────
