@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA Business — Facturation</title>
+  <link rel="stylesheet" href="../freelance/style.css"/>
+  <link rel="stylesheet" href="style_business.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    .doc-num { font-family: var(--font-display); font-size: 0.8rem; color: var(--accent2); font-weight: 600; }
+    .fac-num { color: #34d399; }
+    .total-cell { font-family: var(--font-display); font-weight: 700; color: var(--text); }
+    .status-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+    .tag-brouillon { background: rgba(107,114,128,0.15); color: #9ca3af; }
+    .tag-envoye   { background: rgba(99,102,241,0.15); color: var(--accent2); }
+    .tag-accepte  { background: rgba(16,185,129,0.15); color: #34d399; }
+    .tag-refuse   { background: rgba(239,68,68,0.15); color: #f87171; }
+    .tag-non_payee{ background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .tag-payee    { background: rgba(16,185,129,0.15); color: #34d399; }
+    .tag-retard   { background: rgba(239,68,68,0.15); color: #f87171; }
+    .ligne-item { display: grid; grid-template-columns: 1fr 80px 100px 100px 36px; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .ligne-total { font-weight: 600; color: var(--accent2); font-family: var(--font-display); padding: 8px 12px; background: var(--bg3); border-radius: 8px; text-align: right; min-width: 100px; }
+    .btn-remove { background: transparent; border: 1px solid var(--border); color: var(--text-muted); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .btn-remove:hover { border-color: var(--danger); color: var(--danger); }
+    .doc-totaux { background: var(--bg3); border-radius: 10px; padding: 16px 20px; margin-top: 16px; }
+    .totaux-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.9rem; color: var(--text-soft); }
+    .totaux-row.total-final { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text); border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+    .preview-zone { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 28px 32px; font-size: 0.88rem; line-height: 1.6; }
+    .preview-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .preview-table th { background: var(--bg3); padding: 8px 12px; text-align: left; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; }
+    .preview-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-soft); }
+    .preview-total-line { display: flex; justify-content: flex-end; gap: 40px; padding: 4px 0; font-size: 0.88rem; color: var(--text-soft); }
+    .preview-total-final { display: flex; justify-content: flex-end; gap: 40px; padding: 10px 0; font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: #34d399; border-top: 1px solid var(--border); margin-top: 6px; }
+    .tabs-sm { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-sm { padding: 7px 16px; border-radius: 7px; border: none; background: transparent; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; transition: all 0.15s; font-family: var(--font-body); }
+    .tab-sm.active { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+    .col-header { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .commercial-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-muted); background: var(--bg3); padding: 2px 8px; border-radius: 99px; }
+    .alerte-retard { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.88rem; color: #f87171; display: flex; align-items: center; gap: 10px; }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">🏢 IA Business</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
+      <a href="finances.html" class="nav-link">💰 Finances</a>
+      <a href="employes.html" class="nav-link">👥 Employés</a>
+      <a href="facturation.html" class="nav-link active">🧾 Facturation</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics IA</a>
+      <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
+      <div class="nav-sep"></div>
+      <a href="../freelance/dashboard.html" class="nav-link nav-switch">⚡ Agent IA Freelance</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Dirigeant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Facturation B2B</h1>
+        <p class="page-sub">Devis et factures — multi-commerciaux</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <select id="filtre-commercial" onchange="filtrerCommercial(this.value)" class="select-inline">
+          <option value="">Tous les commerciaux</option>
+        </select>
+        <button class="btn-secondary" onclick="showMainTab('devis', document.querySelector('.tab-principal.active') || document.querySelectorAll('.tab-principal')[0])">📄 Devis</button>
+        <button class="btn-primary" onclick="ouvrirModalDevis()">+ Nouveau devis</button>
+      </div>
+    </header>
+
+    <!-- ALERTES RETARD -->
+    <div class="alerte-retard" id="alerte-retard" style="display:none">
+      ⚠️ <span id="alerte-retard-text"></span>
+    </div>
+
+    <!-- KPIs -->
+    <div class="stats-row">
+      <div class="stat-card"><span class="stat-icon">📄</span><div><div class="stat-value" id="kpi-devis">0</div><div class="stat-label">Devis en cours</div></div></div>
+      <div class="stat-card"><span class="stat-icon">🧾</span><div><div class="stat-value" id="kpi-factures">0</div><div class="stat-label">Factures émises</div></div></div>
+      <div class="stat-card"><span class="stat-icon">⏳</span><div><div class="stat-value" id="kpi-attente">0 €</div><div class="stat-label">En attente de paiement</div></div></div>
+      <div class="stat-card"><span class="stat-icon">💶</span><div><div class="stat-value" id="kpi-ca">0 €</div><div class="stat-label">CA encaissé</div></div></div>
+    </div>
+
+    <!-- TABS PRINCIPAL -->
+    <div class="tabs">
+      <button class="tab tab-principal active" onclick="showMainTab('devis', this)">📄 Devis</button>
+      <button class="tab tab-principal" onclick="showMainTab('factures', this)">🧾 Factures</button>
+    </div>
+
+    <!-- ── SECTION DEVIS ── -->
+    <div id="section-devis">
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filtrerDevis('tous', this)">Tous</button>
+        <button class="filter-btn" onclick="filtrerDevis('brouillon', this)">Brouillons</button>
+        <button class="filter-btn" onclick="filtrerDevis('envoye', this)">Envoyés</button>
+        <button class="filter-btn" onclick="filtrerDevis('accepte', this)">Acceptés</button>
+        <button class="filter-btn" onclick="filtrerDevis('refuse', this)">Refusés</button>
+      </div>
+      <div class="card">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>Numéro</th><th>Client</th><th>Objet</th><th>Commercial</th><th>Montant HT</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody id="tbody-devis"><tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Chargement...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SECTION FACTURES ── -->
+    <div id="section-factures" style="display:none">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+        <button class="btn-primary" onclick="ouvrirModalFacture()">+ Nouvelle facture</button>
+      </div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filtrerFactures('tous', this)">Toutes</button>
+        <button class="filter-btn" onclick="filtrerFactures('non_payee', this)">En attente</button>
+        <button class="filter-btn" onclick="filtrerFactures('payee', this)">Payées</button>
+        <button class="filter-btn" onclick="filtrerFactures('retard', this)">En retard 🔴</button>
+      </div>
+      <div class="card">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>Numéro</th><th>Client</th><th>Objet</th><th>Commercial</th><th>Montant TTC</th><th>Échéance</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody id="tbody-factures"><tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Chargement...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ════ MODAL DEVIS ════ -->
+  <div class="modal-overlay" id="modal-devis" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:820px;max-width:98vw;max-height:92vh;overflow-y:auto">
+      <h3>📄 Nouveau devis</h3>
+      <div class="tabs-sm">
+        <button class="tab-sm active" onclick="switchTab('d','infos',this)">1. Informations</button>
+        <button class="tab-sm" onclick="switchTab('d','lignes',this)">2. Prestations</button>
+        <button class="tab-sm" onclick="switchTab('d','preview',this)">3. Aperçu</button>
+      </div>
+
+      <!-- Infos -->
+      <div id="dtab-infos">
+        <div class="form-grid">
+          <div class="form-group"><label>Client / Société *</label><input type="text" id="d-client" placeholder="Nom du client"/></div>
+          <div class="form-group"><label>Numéro de devis</label><input type="text" id="d-numero" placeholder="DEV-2024-001"/></div>
+          <div class="form-group form-full"><label>Adresse client</label><textarea id="d-adresse" style="min-height:60px" placeholder="Adresse complète..."></textarea></div>
+          <div class="form-group form-full"><label>Objet *</label><input type="text" id="d-objet" placeholder="Ex: Développement application mobile"/></div>
+          <div class="form-group"><label>Date d'émission</label><input type="date" id="d-date"/></div>
+          <div class="form-group"><label>Validité (jours)</label><input type="number" id="d-validite" value="30" min="1"/></div>
+          <div class="form-group"><label>Délai de réalisation</label><input type="text" id="d-delai" placeholder="Ex: 4 semaines"/></div>
+          <div class="form-group"><label>Commercial responsable</label>
+            <select id="d-commercial" class="select-inline" style="width:100%">
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+          <div class="form-group form-full"><label>Conditions de paiement</label><input type="text" id="d-conditions" placeholder="Ex: 30% à la commande, solde à la livraison"/></div>
+        </div>
+      </div>
+
+      <!-- Lignes -->
+      <div id="dtab-lignes" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 80px 100px 100px 36px;gap:10px;margin-bottom:8px" class="col-header">
+          <span>Description</span><span>Qté</span><span>Prix unit. HT</span><span>Total HT</span><span></span>
+        </div>
+        <div id="d-lignes-container"></div>
+        <button class="btn-secondary" onclick="ajouterLigne('d')" style="margin-top:8px">+ Ajouter une ligne</button>
+        <div class="form-group" style="margin-top:16px;max-width:180px">
+          <label>TVA (%)</label>
+          <input type="number" id="d-tva" value="20" min="0" max="100" oninput="recalculer('d')"/>
+        </div>
+        <div class="doc-totaux" id="d-totaux"></div>
+      </div>
+
+      <!-- Preview -->
+      <div id="dtab-preview" style="display:none">
+        <div class="preview-zone" id="d-preview-content"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-devis').style.display='none'">Annuler</button>
+        <button class="btn-secondary" onclick="sauvegarderDevis('brouillon')">💾 Brouillon</button>
+        <button class="btn-primary" onclick="sauvegarderDevis('envoye')">📤 Enregistrer & Envoyer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ MODAL FACTURE ════ -->
+  <div class="modal-overlay" id="modal-facture" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:820px;max-width:98vw;max-height:92vh;overflow-y:auto">
+      <h3>🧾 Nouvelle facture</h3>
+      <div class="tabs-sm">
+        <button class="tab-sm active" onclick="switchTab('f','infos',this)">1. Informations</button>
+        <button class="tab-sm" onclick="switchTab('f','lignes',this)">2. Prestations</button>
+        <button class="tab-sm" onclick="switchTab('f','preview',this)">3. Aperçu</button>
+      </div>
+
+      <!-- Infos -->
+      <div id="ftab-infos">
+        <div class="form-grid">
+          <div class="form-group"><label>Client *</label><input type="text" id="f-client" placeholder="Nom du client"/></div>
+          <div class="form-group"><label>Numéro de facture</label><input type="text" id="f-numero" placeholder="FAC-2024-001"/></div>
+          <div class="form-group form-full"><label>Adresse client</label><textarea id="f-adresse" style="min-height:60px" placeholder="Adresse complète..."></textarea></div>
+          <div class="form-group form-full"><label>Objet *</label><input type="text" id="f-objet" placeholder="Ex: Développement phase 1"/></div>
+          <div class="form-group"><label>Date d'émission</label><input type="date" id="f-date"/></div>
+          <div class="form-group"><label>Date d'échéance</label><input type="date" id="f-echeance"/></div>
+          <div class="form-group"><label>Mode de paiement</label>
+            <select id="f-paiement" class="select-inline" style="width:100%">
+              <option value="Virement bancaire">Virement bancaire</option>
+              <option value="Chèque">Chèque</option>
+              <option value="Carte bancaire">Carte bancaire</option>
+              <option value="Prélèvement">Prélèvement</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Commercial responsable</label>
+            <select id="f-commercial" class="select-inline" style="width:100%">
+              <option value="">— Sélectionner —</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Référence devis</label><input type="text" id="f-ref-devis" placeholder="DEV-2024-001 (optionnel)"/></div>
+          <div class="form-group form-full"><label>Mentions particulières</label><input type="text" id="f-mentions" placeholder="TVA non applicable, art. 293B du CGI..."/></div>
+        </div>
+      </div>
+
+      <!-- Lignes -->
+      <div id="ftab-lignes" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 80px 100px 100px 36px;gap:10px;margin-bottom:8px" class="col-header">
+          <span>Description</span><span>Qté</span><span>Prix unit. HT</span><span>Total HT</span><span></span>
+        </div>
+        <div id="f-lignes-container"></div>
+        <button class="btn-secondary" onclick="ajouterLigne('f')" style="margin-top:8px">+ Ajouter une ligne</button>
+        <div class="form-group" style="margin-top:16px;max-width:180px">
+          <label>TVA (%)</label>
+          <input type="number" id="f-tva" value="20" min="0" max="100" oninput="recalculer('f')"/>
+        </div>
+        <div class="doc-totaux" id="f-totaux"></div>
+      </div>
+
+      <!-- Preview -->
+      <div id="ftab-preview" style="display:none">
+        <div class="preview-zone" id="f-preview-content"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-facture').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="sauvegarderFacture()">💾 Créer la facture</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VOIR DEVIS -->
+  <div class="modal-overlay" id="modal-voir-devis" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:780px;max-width:96vw;max-height:92vh;overflow-y:auto">
+      <div id="voir-devis-content"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-voir-devis').style.display='none'">Fermer</button>
+        <button class="btn-secondary" onclick="window.print()">🖨️ Imprimer</button>
+        <button class="btn-primary" id="btn-convertir-facture">🧾 → Créer la facture</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VOIR FACTURE -->
+  <div class="modal-overlay" id="modal-voir-facture" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:780px;max-width:96vw;max-height:92vh;overflow-y:auto">
+      <div id="voir-facture-content"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-voir-facture').style.display='none'">Fermer</button>
+        <button class="btn-secondary" onclick="window.print()">🖨️ Imprimer</button>
+        <button class="btn-primary" id="btn-marquer-payee">✅ Marquer payée</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../freelance/auth.js"></script>
+  <script>
+    let ENTREPRISE_ID = null;
+    let membres_cache = [];
+    let devis_cache = [];
+    let factures_cache = [];
+    let lignes_d = [], lignes_f = [];
+    let filtreDevis = "tous", filtreFactures = "tous", filtreCommercialId = "";
+
+    // ── INIT ──
+    async function init() {
+      const user = await initSidebar();
+      if (!user) return;
+
+      const today = new Date().toISOString().slice(0, 10);
+      const echeance = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+      document.getElementById("d-date").value = today;
+      document.getElementById("f-date").value = today;
+      document.getElementById("f-echeance").value = echeance;
+      document.getElementById("d-numero").value = "DEV-" + new Date().getFullYear() + "-001";
+      document.getElementById("f-numero").value = "FAC-" + new Date().getFullYear() + "-001";
+
+      const json = await apiAuth("GET", "/business/entreprises");
+      if (!json?.data?.entreprises?.length) return;
+      ENTREPRISE_ID = json.data.entreprises[0].id;
+
+      await chargerMembres();
+      await chargerDevis();
+      await chargerFactures();
+      ajouterLigne("d");
+      ajouterLigne("f");
+    }
+
+    async function chargerMembres() {
+      const json = await apiAuth("GET", `/business/membres?entreprise_id=${ENTREPRISE_ID}`);
+      membres_cache = (json?.data?.membres || []).filter(m => ["admin","commercial"].includes(m.role));
+
+      ["d-commercial","f-commercial","filtre-commercial"].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const firstOpt = sel.options[0].outerHTML;
+        sel.innerHTML = firstOpt;
+        membres_cache.forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m.user_id;
+          opt.textContent = m.prenom + " " + m.nom + " (" + (m.role_label || m.role) + ")";
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    // ── TABS ──
+    function showMainTab(name, btn) {
+      document.getElementById("section-devis").style.display = name === "devis" ? "block" : "none";
+      document.getElementById("section-factures").style.display = name === "factures" ? "block" : "none";
+      document.querySelectorAll(".tab-principal").forEach(t => t.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+    }
+
+    function switchTab(prefix, name, btn) {
+      ["infos","lignes","preview"].forEach(t => {
+        const el = document.getElementById(prefix + "tab-" + t);
+        if (el) el.style.display = t === name ? "block" : "none";
+      });
+      const modal = prefix === "d" ? "modal-devis" : "modal-facture";
+      document.querySelectorAll("#" + modal + " .tab-sm").forEach(t => t.classList.remove("active"));
+      btn.classList.add("active");
+      if (name === "preview") buildPreview(prefix);
+    }
+
+    // ── LIGNES ──
+    function ajouterLigne(prefix) {
+      const arr = prefix === "d" ? lignes_d : lignes_f;
+      arr.push({ desc: "", qte: 1, prix: 0 });
+      renderLignes(prefix);
+    }
+
+    function renderLignes(prefix) {
+      const arr = prefix === "d" ? lignes_d : lignes_f;
+      const container = document.getElementById(prefix + "-lignes-container");
+      container.innerHTML = arr.map((l, i) => `
+        <div class="ligne-item">
+          <input type="text" class="form-group input" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:0.88rem;width:100%"
+            placeholder="Description de la prestation" value="${l.desc}"
+            oninput="updateLigne('${prefix}',${i},'desc',this.value)"/>
+          <input type="number" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:0.88rem;width:100%;text-align:center"
+            value="${l.qte}" min="0.5" step="0.5"
+            oninput="updateLigne('${prefix}',${i},'qte',this.value)"/>
+          <input type="number" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:0.88rem;width:100%"
+            placeholder="0.00" value="${l.prix}" min="0" step="0.01"
+            oninput="updateLigne('${prefix}',${i},'prix',this.value)"/>
+          <div class="ligne-total">${eur(l.qte * l.prix)}</div>
+          <button class="btn-remove" onclick="supprimerLigne('${prefix}',${i})">×</button>
+        </div>
+      `).join("");
+      recalculer(prefix);
+    }
+
+    function updateLigne(prefix, i, key, val) {
+      const arr = prefix === "d" ? lignes_d : lignes_f;
+      arr[i][key] = key === "desc" ? val : parseFloat(val) || 0;
+      renderLignes(prefix);
+    }
+
+    function supprimerLigne(prefix, i) {
+      const arr = prefix === "d" ? lignes_d : lignes_f;
+      arr.splice(i, 1);
+      renderLignes(prefix);
+    }
+
+    function recalculer(prefix) {
+      const arr = prefix === "d" ? lignes_d : lignes_f;
+      const tva = parseFloat(document.getElementById(prefix + "-tva").value) || 0;
+      const ht = arr.reduce((s, l) => s + l.qte * l.prix, 0);
+      const tvaM = ht * tva / 100;
+      document.getElementById(prefix + "-totaux").innerHTML = `
+        <div class="totaux-row"><span>Total HT</span><span>${eur(ht)}</span></div>
+        <div class="totaux-row"><span>TVA (${tva}%)</span><span>${eur(tvaM)}</span></div>
+        <div class="totaux-row total-final"><span>Total TTC</span><span>${eur(ht + tvaM)}</span></div>
+      `;
+    }
+
+    // ── PREVIEW ──
+    function buildPreview(prefix) {
+      const isDevis = prefix === "d";
+      const arr = isDevis ? lignes_d : lignes_f;
+      const tva = parseFloat(document.getElementById(prefix + "-tva").value) || 0;
+      const ht = arr.reduce((s, l) => s + l.qte * l.prix, 0);
+      const tvaM = ht * tva / 100;
+      const client = document.getElementById(prefix + "-client").value || "Client";
+      const objet = document.getElementById(prefix + "-objet").value || "—";
+      const num = document.getElementById(prefix + "-numero").value || (isDevis ? "DEV-XXX" : "FAC-XXX");
+      const date = document.getElementById(prefix + "-date").value || "—";
+      const adresse = document.getElementById(prefix + "-adresse").value || "";
+
+      const html = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
+          <div>
+            <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:800;color:var(--accent2)">🏢 Agent IA Business</div>
+            <div style="color:var(--text-muted);font-size:0.82rem;margin-top:4px">Émis le ${date}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--font-display);font-size:1.5rem;font-weight:700">${isDevis ? "DEVIS" : "FACTURE"}</div>
+            <div style="color:var(--accent2);font-weight:600">${num}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+          <div>
+            <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Émetteur</div>
+            <div style="font-weight:600">Votre entreprise</div>
+            <div style="color:var(--text-muted);font-size:0.85rem">Complétez dans Paramètres</div>
+          </div>
+          <div>
+            <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Client</div>
+            <div style="font-weight:600">${client}</div>
+            <div style="color:var(--text-muted);font-size:0.85rem;white-space:pre-line">${adresse}</div>
+          </div>
+        </div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:6px">Objet : <strong style="color:var(--text)">${objet}</strong></div>
+        <table class="preview-table">
+          <thead><tr><th>Description</th><th style="text-align:right">Qté</th><th style="text-align:right">Prix HT</th><th style="text-align:right">Total HT</th></tr></thead>
+          <tbody>
+            ${arr.map(l => `<tr><td>${l.desc || "—"}</td><td style="text-align:right">${l.qte}</td><td style="text-align:right">${eur(l.prix)}</td><td style="text-align:right">${eur(l.qte*l.prix)}</td></tr>`).join("")}
+          </tbody>
+        </table>
+        <div class="preview-total-line"><span>Total HT</span><span>${eur(ht)}</span></div>
+        <div class="preview-total-line"><span>TVA (${tva}%)</span><span>${eur(tvaM)}</span></div>
+        <div class="preview-total-final"><span>Total TTC</span><span>${eur(ht + tvaM)}</span></div>
+      `;
+      document.getElementById(prefix + "-preview-content").innerHTML = html;
+    }
+
+    // ── DEVIS CRUD ──
+    async function chargerDevis() {
+      const json = await apiAuth("GET", `/devis`);
+      devis_cache = json?.data?.devis || [];
+      renderDevis();
+      majKPIs();
+    }
+
+    function filtrerDevisBtn(f, btn) {
+      filtreDevis = f;
+      document.querySelectorAll("#section-devis .filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderDevis();
+    }
+    function filtrerDevis(f, btn) { filtrerDevisBtn(f, btn); }
+
+    function filtrerCommercial(uid) {
+      filtreCommercialId = uid;
+      renderDevis();
+      renderFactures();
+    }
+
+    function renderDevis() {
+      const today = new Date().toISOString().slice(0, 10);
+      let list = devis_cache;
+      if (filtreDevis !== "tous") list = list.filter(d => d.statut === filtreDevis);
+      if (filtreCommercialId) list = list.filter(d => d.commercial_id === filtreCommercialId);
+
+      const tbody = document.getElementById("tbody-devis");
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Aucun devis trouvé</td></tr>';
+        return;
+      }
+      const TC = { brouillon:"tag-brouillon", envoye:"tag-envoye", accepte:"tag-accepte", refuse:"tag-refuse" };
+      const TL = { brouillon:"✏️ Brouillon", envoye:"📤 Envoyé", accepte:"✅ Accepté", refuse:"❌ Refusé" };
+      tbody.innerHTML = list.map(d => {
+        const commercial = membres_cache.find(m => m.user_id === d.commercial_id);
+        return `<tr>
+          <td><span class="doc-num">${d.numero || "—"}</span></td>
+          <td><strong>${d.client}</strong></td>
+          <td>${d.objet || "—"}</td>
+          <td>${commercial ? `<span class="commercial-badge">👤 ${commercial.prenom}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+          <td class="total-cell">${eur(d.montant_ht || 0)}</td>
+          <td>${d.date || "—"}</td>
+          <td><span class="status-tag ${TC[d.statut] || ''}">${TL[d.statut] || d.statut}</span></td>
+          <td>
+            <button class="btn-sm" onclick="voirDevis('${d.id}')">👁 Voir</button>
+            ${d.statut !== "accepte"
+              ? `<button class="btn-sm" style="background:rgba(16,185,129,0.15);color:#34d399;border-color:rgba(16,185,129,0.3)" onclick="convertirEnFacture('${d.id}')">→ Facture</button>`
+              : '<span style="font-size:0.75rem;color:#34d399;margin:0 4px">✅ Converti</span>'
+            }
+            <button class="btn-sm btn-danger" onclick="supprimerDevisItem('${d.id}')">🗑</button>
+          </td>
+        </tr>`;
+      }).join("");
+    }
+
+    function ouvrirModalDevis() {
+      lignes_d = [];
+      document.getElementById("d-client").value = "";
+      document.getElementById("d-objet").value = "";
+      document.getElementById("d-adresse").value = "";
+      document.getElementById("d-delai").value = "";
+      document.getElementById("d-conditions").value = "";
+      document.getElementById("d-commercial").value = "";
+      document.getElementById("d-tva").value = "20";
+      ajouterLigne("d");
+      switchTab("d","infos", document.querySelector("#modal-devis .tab-sm"));
+      document.getElementById("modal-devis").style.display = "flex";
+    }
+
+    async function sauvegarderDevis(statut) {
+      if (!document.getElementById("d-client").value.trim()) { alert("Nom du client requis"); return; }
+      const tva = parseFloat(document.getElementById("d-tva").value) || 20;
+      const ht = lignes_d.reduce((s, l) => s + l.qte * l.prix, 0);
+      const commercialId = document.getElementById("d-commercial").value;
+      const body = {
+        numero: document.getElementById("d-numero").value,
+        client: document.getElementById("d-client").value,
+        objet: document.getElementById("d-objet").value,
+        date: document.getElementById("d-date").value,
+        validite: document.getElementById("d-validite").value + " jours",
+        adresse: document.getElementById("d-adresse").value,
+        delai: document.getElementById("d-delai").value,
+        conditions: document.getElementById("d-conditions").value,
+        tva, lignes: lignes_d,
+        montant_ht: ht, montant_ttc: ht * (1 + tva / 100),
+        statut,
+        commercial_id: commercialId || null
+      };
+      const json = await apiAuth("POST", "/devis", body);
+      if (json?.statut === "ok") {
+        document.getElementById("modal-devis").style.display = "none";
+        await chargerDevis();
+        toast("✅ Devis " + statut === "envoye" ? "envoyé" : "sauvegardé");
+      } else alert(json?.message || "Erreur");
+    }
+
+    async function supprimerDevisItem(id) {
+      if (!confirm("Supprimer ce devis ?")) return;
+      await apiAuth("DELETE", "/devis/" + id);
+      await chargerDevis();
+    }
+
+    async function convertirEnFacture(devisId) {
+      if (!confirm("Accepter ce devis et créer la facture ?")) return;
+      const json = await apiAuth("POST", "/devis/" + devisId + "/convertir");
+      if (json?.statut === "ok") {
+        toast("✅ Facture " + json.data.numero + " créée !");
+        await chargerDevis();
+        await chargerFactures();
+        showMainTab("factures", document.querySelectorAll(".tab-principal")[1]);
+      } else alert(json?.message || "Erreur");
+    }
+
+    function voirDevis(id) {
+      const d = devis_cache.find(x => x.id === id);
+      if (!d) return;
+      const TC = { brouillon:"tag-brouillon", envoye:"tag-envoye", accepte:"tag-accepte", refuse:"tag-refuse" };
+      const TL = { brouillon:"✏️ Brouillon", envoye:"📤 Envoyé", accepte:"✅ Accepté", refuse:"❌ Refusé" };
+      const commercial = membres_cache.find(m => m.user_id === d.commercial_id);
+      document.getElementById("voir-devis-content").innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3>Devis — ${d.numero}</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${commercial ? `<span class="commercial-badge">👤 ${commercial.prenom} ${commercial.nom}</span>` : ""}
+            <span class="status-tag ${TC[d.statut] || ''}">${TL[d.statut] || d.statut}</span>
+          </div>
+        </div>
+        <div class="preview-zone">${buildDocHTML(d, d.lignes || [], false)}</div>
+      `;
+      const btn = document.getElementById("btn-convertir-facture");
+      if (d.statut === "accepte") {
+        btn.textContent = "✅ Déjà converti"; btn.disabled = true; btn.style.opacity = "0.5";
+      } else {
+        btn.textContent = "🧾 Accepter & créer facture"; btn.disabled = false; btn.style.opacity = "1";
+        btn.onclick = () => { document.getElementById("modal-voir-devis").style.display = "none"; convertirEnFacture(id); };
+      }
+      document.getElementById("modal-voir-devis").style.display = "flex";
+    }
+
+    // ── FACTURES CRUD ──
+    async function chargerFactures() {
+      const json = await apiAuth("GET", "/factures");
+      factures_cache = json?.data?.factures || [];
+      renderFactures();
+      majKPIs();
+      verifierRetards();
+    }
+
+    function filtrerFactures(f, btn) {
+      filtreFactures = f;
+      document.querySelectorAll("#section-factures .filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderFactures();
+    }
+
+    function renderFactures() {
+      const today = new Date().toISOString().slice(0, 10);
+      let list = factures_cache.map(f => ({
+        ...f, statut_reel: (f.statut === "non_payee" && f.date_echeance && f.date_echeance < today) ? "retard" : f.statut
+      }));
+      if (filtreFactures !== "tous") list = list.filter(f => f.statut_reel === filtreFactures);
+      if (filtreCommercialId) list = list.filter(f => f.commercial_id === filtreCommercialId);
+
+      const tbody = document.getElementById("tbody-factures");
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Aucune facture trouvée</td></tr>';
+        return;
+      }
+      const TC = { non_payee:"tag-non_payee", payee:"tag-payee", retard:"tag-retard" };
+      const TL = { non_payee:"⏳ En attente", payee:"✅ Payée", retard:"🔴 En retard" };
+      tbody.innerHTML = list.map(f => {
+        const commercial = membres_cache.find(m => m.user_id === f.commercial_id);
+        return `<tr>
+          <td><span class="doc-num fac-num">${f.numero || "—"}</span></td>
+          <td><strong>${f.client}</strong></td>
+          <td>${f.objet || "—"}</td>
+          <td>${commercial ? `<span class="commercial-badge">👤 ${commercial.prenom}</span>` : '<span style="color:var(--text-muted)">—</span>'}</td>
+          <td class="total-cell">${eur(f.montant_ttc || 0)}</td>
+          <td style="${f.statut_reel === 'retard' ? 'color:var(--danger)' : ''}">${f.date_echeance || "—"}</td>
+          <td><span class="status-tag ${TC[f.statut_reel] || ''}">${TL[f.statut_reel] || f.statut}</span></td>
+          <td>
+            <button class="btn-sm" onclick="voirFacture('${f.id}')">👁 Voir</button>
+            ${f.statut !== "payee" ? `<button class="btn-sm" onclick="marquerPayee('${f.id}')">✅ Payée</button>` : ""}
+            <button class="btn-sm btn-danger" onclick="supprimerFactureItem('${f.id}')">🗑</button>
+          </td>
+        </tr>`;
+      }).join("");
+    }
+
+    function ouvrirModalFacture() {
+      lignes_f = [];
+      document.getElementById("f-client").value = "";
+      document.getElementById("f-objet").value = "";
+      document.getElementById("f-adresse").value = "";
+      document.getElementById("f-ref-devis").value = "";
+      document.getElementById("f-mentions").value = "";
+      document.getElementById("f-commercial").value = "";
+      document.getElementById("f-tva").value = "20";
+      ajouterLigne("f");
+      switchTab("f","infos", document.querySelector("#modal-facture .tab-sm"));
+      document.getElementById("modal-facture").style.display = "flex";
+    }
+
+    async function sauvegarderFacture() {
+      if (!document.getElementById("f-client").value.trim()) { alert("Nom du client requis"); return; }
+      const tva = parseFloat(document.getElementById("f-tva").value) || 20;
+      const ht = lignes_f.reduce((s, l) => s + l.qte * l.prix, 0);
+      const body = {
+        numero: document.getElementById("f-numero").value,
+        client: document.getElementById("f-client").value,
+        objet: document.getElementById("f-objet").value,
+        date: document.getElementById("f-date").value,
+        date_echeance: document.getElementById("f-echeance").value,
+        adresse: document.getElementById("f-adresse").value,
+        paiement: document.getElementById("f-paiement").value,
+        mentions: document.getElementById("f-mentions").value,
+        ref_devis: document.getElementById("f-ref-devis").value,
+        commercial_id: document.getElementById("f-commercial").value || null,
+        tva, lignes: lignes_f,
+        montant_ht: ht, montant_ttc: ht * (1 + tva / 100),
+        statut: "non_payee"
+      };
+      const json = await apiAuth("POST", "/factures", body);
+      if (json?.statut === "ok") {
+        document.getElementById("modal-facture").style.display = "none";
+        await chargerFactures();
+        toast("✅ Facture créée !");
+      } else alert(json?.message || "Erreur");
+    }
+
+    async function marquerPayee(id) {
+      await apiAuth("PUT", "/factures/" + id, { statut: "payee" });
+      document.getElementById("modal-voir-facture").style.display = "none";
+      await chargerFactures();
+      toast("✅ Facture marquée comme payée !");
+    }
+
+    async function supprimerFactureItem(id) {
+      if (!confirm("Supprimer cette facture ?")) return;
+      await apiAuth("DELETE", "/factures/" + id);
+      await chargerFactures();
+    }
+
+    function voirFacture(id) {
+      const today = new Date().toISOString().slice(0, 10);
+      const f = factures_cache.find(x => x.id === id);
+      if (!f) return;
+      const statutReel = (f.statut === "non_payee" && f.date_echeance && f.date_echeance < today) ? "retard" : f.statut;
+      const TC = { non_payee:"tag-non_payee", payee:"tag-payee", retard:"tag-retard" };
+      const TL = { non_payee:"⏳ En attente", payee:"✅ Payée", retard:"🔴 En retard" };
+      const commercial = membres_cache.find(m => m.user_id === f.commercial_id);
+      document.getElementById("voir-facture-content").innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3>Facture — ${f.numero}</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${commercial ? `<span class="commercial-badge">👤 ${commercial.prenom} ${commercial.nom}</span>` : ""}
+            <span class="status-tag ${TC[statutReel] || ''}">${TL[statutReel] || statutReel}</span>
+          </div>
+        </div>
+        <div class="preview-zone">${buildDocHTML(f, f.lignes || [], true)}</div>
+      `;
+      const btn = document.getElementById("btn-marquer-payee");
+      btn.style.display = statutReel === "payee" ? "none" : "inline-flex";
+      btn.onclick = () => marquerPayee(id);
+      document.getElementById("modal-voir-facture").style.display = "flex";
+    }
+
+    // ── HTML DOC ──
+    function buildDocHTML(doc, lignes, isFacture) {
+      const tva = doc.tva || 20;
+      const ht = doc.montant_ht || lignes.reduce((s, l) => s + (l.qte || 1) * (l.prix || 0), 0);
+      const tvaM = ht * tva / 100;
+      const ttc = doc.montant_ttc || ht + tvaM;
+      return `
+        <div style="display:flex;justify-content:space-between;margin-bottom:24px">
+          <div>
+            <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:800;color:var(--accent2)">🏢 Agent IA Business</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--font-display);font-size:1.4rem;font-weight:700">${isFacture ? "FACTURE" : "DEVIS"}</div>
+            <div style="color:var(--accent2)">${doc.numero || "—"}</div>
+            <div style="color:var(--text-muted);font-size:0.8rem">Émis le ${doc.date || "—"}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+          <div><div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">Client</div>
+            <strong>${doc.client}</strong><br>
+            <span style="color:var(--text-muted);font-size:0.82rem;white-space:pre-line">${doc.adresse_client || doc.adresse || ""}</span>
+          </div>
+          ${isFacture ? `<div><div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">Échéance</div><strong>${doc.date_echeance || "—"}</strong><br><span style="color:var(--text-muted);font-size:0.82rem">${doc.paiement || "Virement bancaire"}</span></div>` : ""}
+        </div>
+        ${doc.objet ? `<div style="margin-bottom:16px;font-size:0.85rem;color:var(--text-muted)">Objet : <strong style="color:var(--text)">${doc.objet}</strong></div>` : ""}
+        <table class="preview-table">
+          <thead><tr><th>Description</th><th style="text-align:right">Qté</th><th style="text-align:right">PU HT</th><th style="text-align:right">Total HT</th></tr></thead>
+          <tbody>${(lignes || []).map(l => `<tr><td>${l.desc || l.description || "—"}</td><td style="text-align:right">${l.qte || 1}</td><td style="text-align:right">${eur(l.prix || 0)}</td><td style="text-align:right">${eur((l.qte || 1) * (l.prix || 0))}</td></tr>`).join("")}</tbody>
+        </table>
+        <div class="preview-total-line"><span>Total HT</span><span>${eur(ht)}</span></div>
+        <div class="preview-total-line"><span>TVA (${tva}%)</span><span>${eur(tvaM)}</span></div>
+        <div class="preview-total-final"><span>Total TTC</span><span>${eur(ttc)}</span></div>
+        ${doc.mentions ? `<div style="margin-top:16px;padding:10px 14px;background:var(--bg3);border-radius:8px;font-size:0.78rem;color:var(--text-muted)">${doc.mentions}</div>` : ""}
+      `;
+    }
+
+    // ── KPIs ──
+    function majKPIs() {
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById("kpi-devis").textContent = devis_cache.filter(d => !["accepte","refuse"].includes(d.statut)).length;
+      document.getElementById("kpi-factures").textContent = factures_cache.length;
+      const attente = factures_cache.filter(f => f.statut === "non_payee").reduce((s, f) => s + (f.montant_ttc || 0), 0);
+      const ca = factures_cache.filter(f => f.statut === "payee").reduce((s, f) => s + (f.montant_ttc || 0), 0);
+      document.getElementById("kpi-attente").textContent = eur(attente);
+      document.getElementById("kpi-ca").textContent = eur(ca);
+    }
+
+    function verifierRetards() {
+      const today = new Date().toISOString().slice(0, 10);
+      const retards = factures_cache.filter(f => f.statut === "non_payee" && f.date_echeance && f.date_echeance < today);
+      const el = document.getElementById("alerte-retard");
+      if (retards.length) {
+        document.getElementById("alerte-retard-text").textContent = `${retards.length} facture(s) en retard — Total : ${eur(retards.reduce((s, f) => s + (f.montant_ttc || 0), 0))}`;
+        el.style.display = "flex";
+      } else el.style.display = "none";
+    }
+
+    // ── UTILS ──
+    function eur(n) {
+      return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n || 0);
+    }
+
+    function toast(msg) {
+      const t = document.createElement("div");
+      t.textContent = msg;
+      t.style.cssText = "position:fixed;bottom:28px;right:28px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(16,185,129,0.4)";
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity = "0"; t.style.transition = "opacity 0.5s"; setTimeout(() => t.remove(), 500); }, 2500);
+    }
+
+    init();
+  </script>
+</body>
+</html>

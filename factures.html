@@ -56,8 +56,9 @@
       <div class="user-avatar" id="sidebar-avatar">M</div>
       <div class="user-info">
         <span class="user-name" id="sidebar-nom">Mon Profil</span>
-        <span class="user-role" id="sidebar-metier">Indépendant</span>
+        <span class="user-role" id="sidebar-role">Indépendant</span>
       </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
     </div>
   </aside>
 
@@ -173,18 +174,19 @@
     </div>
   </div>
 
+  <script src="auth.js"></script>
   <script>
-    // ── getUserId doit être défini EN PREMIER ──
-    function getUserId() {
-      try { var u = JSON.parse(localStorage.getItem('user_connecte')||'null'); return u ? u.id : 'guest'; } catch(e) { return 'guest'; }
+    var facturesCache = [];
+    function getFactures() { return facturesCache; }
+    async function chargerFactures() {
+      var json = await apiAuth('GET', '/factures');
+      if (json && json.statut === 'ok') facturesCache = json.data.factures || [];
+      afficherTable(); majStats(); verifierRetards();
     }
-
-    function getFactures() { try { return JSON.parse(localStorage.getItem('factures_list_' + getUserId()) || '[]'); } catch(e) { return []; } }
-    function saveFactures(list) { localStorage.setItem('factures_list_' + getUserId(), JSON.stringify(list)); }
     // Infos légales : lire depuis user_connecte (saisies une seule fois dans Paramètres)
     function getProfil() {
       try {
-        var u = JSON.parse(localStorage.getItem('user_connecte') || '{}');
+        var u = JSON.parse(localStorage.getItem('user_cache') || '{}');
         var p = u.profil_legal || {};
         // Fallback sur les infos du compte si profil légal vide
         if (!p.nom) p.nom = ((u.prenom||'') + ' ' + (u.nom||'')).trim();
@@ -193,21 +195,14 @@
         return p;
       } catch(e) { return {}; }
     }
-    function getUser() { try { return JSON.parse(localStorage.getItem('user_connecte') || '{}'); } catch(e) { return {}; } }
+    function getUser() { try { return JSON.parse(localStorage.getItem('user_cache') || '{}'); } catch(e) { return {}; } }
     function fmtEur(v) { return (v||0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
     function fmtDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
 
     let fLignes = [];
 
-    // Init sidebar
-    (function() {
-      const u = getUser();
-      if (u.prenom) {
-        document.getElementById('sidebar-nom').textContent = u.prenom + ' ' + (u.nom || '');
-        document.getElementById('sidebar-metier').textContent = u.metier || 'Indépendant';
-        document.getElementById('sidebar-avatar').textContent = u.prenom[0].toUpperCase();
-      }
-    })();
+    // Init sidebar centralisée
+    initSidebar();
 
     function getProfilComplet() {
       const p = getProfil(); const u = getUser();
@@ -458,23 +453,11 @@
       } else { el.style.display = 'none'; }
     }
 
-    function marquerPayee(id) {
-      const list = getFactures();
-      const i = list.findIndex(f => f.id === id);
-      if (i >= 0) {
-        list[i].statut = 'payee';
-        list[i].date_paiement = new Date().toISOString();
-        saveFactures(list);
-
-        // Fermer la modal si ouverte
+    async function marquerPayee(id) {
+      var json = await apiAuth('PUT', '/factures/' + id, { statut: 'payee' });
+      if (json && json.statut === 'ok') {
         document.getElementById('modal-voir-facture').style.display = 'none';
-
-        // Rafraîchir tout l'affichage
-        afficherTable();
-        majStats();
-        verifierRetards();
-
-        // Feedback visuel
+        await chargerFactures();
         const toast = document.createElement('div');
         toast.innerHTML = '✅ Facture marquée comme payée !';
         toast.style.cssText = 'position:fixed;bottom:30px;right:30px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(16,185,129,0.4);transition:opacity 0.5s';
@@ -483,9 +466,10 @@
       }
     }
 
-    function supprimerFacture(id) {
+    async function supprimerFacture(id) {
       if (!confirm('Supprimer cette facture ?')) return;
-      saveFactures(getFactures().filter(f => f.id!==id)); afficherTable(); majStats(); verifierRetards();
+      await apiAuth('DELETE', '/factures/' + id);
+      await chargerFactures();
     }
 
     function voirFacture(id) {
@@ -512,34 +496,7 @@
     function imprimerFacture() { window.print(); }
 
     verifierProfilComplet();
-    afficherTable();
-    majStats();
-    verifierRetards();
+    chargerFactures();
   </script>
-
-  <script>
-    (function() {
-      var user = null;
-      try { user = JSON.parse(localStorage.getItem('user_connecte') || 'null'); } catch(e) {}
-      if (!user) return;
-      var modules = user.modules || ['dashboard','devis','factures','taches'];
-      var LIENS = {
-        'crm.html':      'crm',
-        'contenu.html':  'contenu_ia',
-        'analytics.html':'analytics'
-      };
-      document.querySelectorAll('.nav-link').forEach(function(link) {
-        var href = link.getAttribute('href');
-        var mod  = LIENS[href];
-        if (mod && modules.indexOf(mod) === -1) {
-          link.style.opacity = '0.4';
-          link.style.pointerEvents = 'none';
-          link.style.cursor = 'not-allowed';
-          link.innerHTML = link.innerHTML + ' <span style="font-size:0.7rem;margin-left:auto">🔒</span>';
-          link.title = 'Disponible a partir du plan Pro';
-        }
-      });
-    })();
-</script>
 </body>
 </html>

@@ -13,17 +13,20 @@
     <div class="logo">⚡ Agent IA</div>
     <nav>
       <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
-      <a href="crm.html" class="nav-link">👥 CRM</a>
-      <a href="contenu.html" class="nav-link active">✍️ Contenu</a>
+      <a href="crm.html" class="nav-link active">👥 CRM</a>
+      <a href="contenu.html" class="nav-link">✍️ Contenu</a>
+      <a href="devis.html" class="nav-link">📄 Devis</a>
+      <a href="factures.html" class="nav-link">🧾 Factures</a>
       <a href="analytics.html" class="nav-link">📊 Analytics</a>
       <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
     </nav>
     <div class="sidebar-footer">
-      <div class="user-avatar">M</div>
+      <div class="user-avatar" id="sidebar-avatar">U</div>
       <div class="user-info">
-        <span class="user-name">Mon Profil</span>
-        <span class="user-role">Indépendant</span>
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Indépendant</span>
       </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
     </div>
   </aside>
 
@@ -175,8 +178,10 @@
 
   </main>
 
+  <script src="auth.js"></script>
   <script>
-    const API = "https://agentia-production-aec3.up.railway.app";
+    // API défini dans auth.js
+    initSidebar();
 
     function showTab(name, btn) {
       document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
@@ -194,124 +199,102 @@
       alert("Copié !");
     }
 
+    function erreurGeneration(id, msg) {
+      document.getElementById(id).innerHTML =
+        `<div style="color:#f87171;padding:12px;border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.88rem">
+          ⚠️ ${msg || "Erreur de génération — vérifiez votre connexion."}
+        </div>`;
+    }
+
     async function genererEmail() {
       setLoading("result-email");
-      const res = await fetch(`${API}/agent/email`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        const json = await apiAuth("POST", "/agent/email", {
           prospect: { nom: document.getElementById("e-nom").value, entreprise: document.getElementById("e-entreprise").value, besoin: document.getElementById("e-besoin").value },
           contexte: document.getElementById("e-contexte").value,
           metier: document.getElementById("e-metier").value || "indépendant",
           style: document.getElementById("e-style").value
-        })
-      });
-      const json = await res.json();
-      const d = json.data;
-      document.getElementById("result-email").innerHTML = `
-        <div class="result-label">Objet</div>
-        <div class="result-subject">${d.sujet}</div>
-        <div class="result-label">Corps</div>
-        <div class="result-body">${d.corps?.replace(/\n/g, "<br>")}</div>
-        <div class="result-label">Call to action</div>
-        <div class="result-cta">${d.call_to_action}</div>
-        <button class="btn-secondary" onclick="copyToClipboard(\`${d.corps}\`)">📋 Copier</button>
-      `;
+        });
+        if (!json || !json.data) { erreurGeneration("result-email", json?.message); return; }
+        const d = json.data;
+        document.getElementById("result-email").innerHTML = `
+          <div class="result-label">Objet</div>
+          <div class="result-subject">${d.sujet}</div>
+          <div class="result-label">Corps</div>
+          <div class="result-body">${d.corps?.replace(/\n/g, "<br>")}</div>
+          <div class="result-label">Call to action</div>
+          <div class="result-cta">${d.call_to_action}</div>
+          <button class="btn-secondary" onclick="copyToClipboard(\`${d.corps}\`)">📋 Copier</button>
+        `;
+      } catch(e) { erreurGeneration("result-email"); }
     }
 
     async function genererLinkedIn() {
       setLoading("result-linkedin");
-      const res = await fetch(`${API}/agent/post-linkedin`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        const json = await apiAuth("POST", "/agent/post-linkedin", {
           sujet: document.getElementById("li-sujet").value,
           metier: document.getElementById("li-metier").value || "indépendant",
           objectif: document.getElementById("li-objectif").value
-        })
-      });
-      const json = await res.json();
-      const d = json.data;
-      document.getElementById("result-linkedin").innerHTML = `
-        <div class="result-label">Accroche</div>
-        <div class="result-subject">${d.accroche}</div>
-        <div class="result-label">Post complet</div>
-        <div class="result-body">${d.corps?.replace(/\n/g, "<br>")}</div>
-        <div class="result-label">Hashtags</div>
-        <div class="hashtags">${(d.hashtags||[]).map(h=>`<span class="hashtag">#${h}</span>`).join("")}</div>
-        <div class="result-meta">🕐 Meilleur moment : ${d.meilleur_moment_publication} · Score : ${d.score_potentiel}/10</div>
-        <button class="btn-secondary" onclick="copyToClipboard(\`${d.accroche}\n\n${d.corps}\`)">📋 Copier</button>
-      `;
+        });
+        if (!json || !json.data) { erreurGeneration("result-linkedin", json?.message); return; }
+        const d = json.data;
+        document.getElementById("result-linkedin").innerHTML = `
+          <div class="result-label">Accroche</div>
+          <div class="result-subject">${d.accroche}</div>
+          <div class="result-label">Post complet</div>
+          <div class="result-body">${d.corps?.replace(/\n/g, "<br>")}</div>
+          <div class="result-label">Hashtags</div>
+          <div class="hashtags">${(d.hashtags||[]).map(h=>`<span class="hashtag">#${h}</span>`).join("")}</div>
+          <div class="result-meta">🕐 Meilleur moment : ${d.meilleur_moment_publication} · Score : ${d.score_potentiel}/10</div>
+          <button class="btn-secondary" onclick="copyToClipboard(\`${d.accroche}\n\n${d.corps}\`)">📋 Copier</button>
+        `;
+      } catch(e) { erreurGeneration("result-linkedin"); }
     }
 
     async function genererOffre() {
       setLoading("result-offre");
-      const res = await fetch(`${API}/agent/offre-commerciale`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        const json = await apiAuth("POST", "/agent/offre-commerciale", {
           service: { nom: document.getElementById("o-service").value, description: document.getElementById("o-desc").value },
           cible: { secteur: document.getElementById("o-secteur").value },
           metier: document.getElementById("o-metier").value || "indépendant"
-        })
-      });
-      const json = await res.json();
-      const d = json.data;
-      document.getElementById("result-offre").innerHTML = `
-        <div class="result-subject">${d.titre_offre}</div>
-        <div class="result-label">Promesse</div>
-        <div class="result-body">${d.promesse}</div>
-        <div class="result-label">Tarif suggéré</div>
-        <div class="result-cta">${d.tarif_suggere?.fourchette_basse}€ — ${d.tarif_suggere?.fourchette_haute}€</div>
-        <div class="result-label">Livrables</div>
-        <ul>${(d.livrables||[]).map(l=>`<li>${l}</li>`).join("")}</ul>
-      `;
+        });
+        if (!json || !json.data) { erreurGeneration("result-offre", json?.message); return; }
+        const d = json.data;
+        document.getElementById("result-offre").innerHTML = `
+          <div class="result-subject">${d.titre_offre}</div>
+          <div class="result-label">Promesse</div>
+          <div class="result-body">${d.promesse}</div>
+          <div class="result-label">Tarif suggéré</div>
+          <div class="result-cta">${d.tarif_suggere?.fourchette_basse}€ — ${d.tarif_suggere?.fourchette_haute}€</div>
+          <div class="result-label">Livrables</div>
+          <ul>${(d.livrables||[]).map(l=>`<li>${l}</li>`).join("")}</ul>
+        `;
+      } catch(e) { erreurGeneration("result-offre"); }
     }
 
     async function genererRelance() {
       setLoading("result-relance");
-      const res = await fetch(`${API}/agent/relance`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        const json = await apiAuth("POST", "/agent/relance", {
           prospect: { nom: document.getElementById("r-nom").value },
           nb_jours_sans_reponse: parseInt(document.getElementById("r-jours").value),
           metier: document.getElementById("r-metier").value || "indépendant"
-        })
-      });
-      const json = await res.json();
-      const d = json.data;
-      document.getElementById("result-relance").innerHTML = `
-        <div class="result-label">Canal recommandé</div>
-        <div class="result-subject">${d.canal_recommande}</div>
-        <div class="result-label">Message</div>
-        <div class="result-body">${d.message?.replace(/\n/g, "<br>")}</div>
-        <div class="result-label">Conseil</div>
-        <div class="result-cta">${d.conseil}</div>
-        <button class="btn-secondary" onclick="copyToClipboard(\`${d.message}\`)">📋 Copier</button>
-      `;
+        });
+        if (!json || !json.data) { erreurGeneration("result-relance", json?.message); return; }
+        const d = json.data;
+        document.getElementById("result-relance").innerHTML = `
+          <div class="result-label">Canal recommandé</div>
+          <div class="result-subject">${d.canal_recommande}</div>
+          <div class="result-label">Message</div>
+          <div class="result-body">${d.message?.replace(/\n/g, "<br>")}</div>
+          <div class="result-label">Conseil</div>
+          <div class="result-cta">${d.conseil}</div>
+          <button class="btn-secondary" onclick="copyToClipboard(\`${d.message}\`)">📋 Copier</button>
+        `;
+      } catch(e) { erreurGeneration("result-relance"); }
     }
-  </script>
-
-  <script>
-    (function() {
-      var user = null;
-      try { user = JSON.parse(localStorage.getItem('user_connecte') || 'null'); } catch(e) {}
-      if (!user) return;
-      var modules = user.modules || ['dashboard','devis','factures','taches'];
-      var LIENS = {
-        'crm.html':      'crm',
-        'contenu.html':  'contenu_ia',
-        'analytics.html':'analytics'
-      };
-      document.querySelectorAll('.nav-link').forEach(function(link) {
-        var href = link.getAttribute('href');
-        var mod  = LIENS[href];
-        if (mod && modules.indexOf(mod) === -1) {
-          link.style.opacity = '0.4';
-          link.style.pointerEvents = 'none';
-          link.style.cursor = 'not-allowed';
-          link.innerHTML = link.innerHTML + ' <span style="font-size:0.7rem;margin-left:auto">🔒</span>';
-          link.title = 'Disponible a partir du plan Pro';
-        }
-      });
-    })();
   </script>
 </body>
 </html>

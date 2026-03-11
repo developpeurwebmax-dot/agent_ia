@@ -123,18 +123,33 @@
     </div>
   </div>
 
-  <script>
-    // Vérifier si déjà connecté
-    try {
-      if (localStorage.getItem("user_connecte")) {
-        window.location.href = "dashboard.html";
-      }
-    } catch(e) {}
 
-    function seConnecter() {
-      const email = document.getElementById("login-email").value.trim().toLowerCase();
-      const password = document.getElementById("login-password").value;
-      const erreur = document.getElementById("error-msg");
+  <script src="auth.js"></script>
+  <script>
+    const API_URL = "https://agentia-production-aec3.up.railway.app";
+
+    // Si session expirée → ne pas rediriger, afficher un message
+    var sessionExpired = sessionStorage.getItem("session_expired");
+    if (sessionExpired) {
+      sessionStorage.removeItem("session_expired");
+      var erreur = document.getElementById("error-msg");
+      if (erreur) {
+        erreur.textContent = "⚠️ Votre session a expiré. Veuillez vous reconnecter.";
+        erreur.style.display = "block";
+        erreur.style.background = "rgba(245,158,11,0.12)";
+        erreur.style.borderColor = "rgba(245,158,11,0.4)";
+        erreur.style.color = "#fbbf24";
+      }
+    } else if (getToken()) {
+      // Déjà connecté avec token valide → dashboard
+      window.location.href = "dashboard.html";
+    }
+
+    async function seConnecter() {
+      var email    = document.getElementById("login-email").value.trim().toLowerCase();
+      var password = document.getElementById("login-password").value;
+      var erreur   = document.getElementById("error-msg");
+      var btn      = document.querySelector(".btn-auth");
 
       erreur.style.display = "none";
 
@@ -144,44 +159,36 @@
         return;
       }
 
-      // Récupérer les utilisateurs enregistrés
-      let users = [];
+      btn.textContent = "Connexion...";
+      btn.disabled = true;
+
       try {
-        users = JSON.parse(localStorage.getItem("users") || "[]");
-      } catch(e) {
-        users = [];
-      }
+        var res  = await fetch(API_URL + "/auth/connexion", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email, password: password })
+        });
+        var json = await res.json();
 
-      // Debug : afficher les users trouvés
-      console.log("Users enregistrés :", users);
-      console.log("Tentative avec :", email, password);
-
-      const user = users.find(u =>
-        u.email.toLowerCase().trim() === email &&
-        u.password === password
-      );
-
-      if (!user) {
-        // Si aucun utilisateur enregistré du tout
-        if (users.length === 0) {
-          erreur.textContent = "Aucun compte trouvé. Veuillez d'abord vous inscrire.";
+        if (json.statut === "ok") {
+          setToken(json.data.token);
+          setUserCache(json.data.user);
+          window.location.href = "dashboard.html";
         } else {
-          erreur.textContent = "Email ou mot de passe incorrect.";
+          erreur.textContent = json.message || "Email ou mot de passe incorrect.";
+          erreur.style.display = "block";
+          btn.textContent = "Se connecter →";
+          btn.disabled = false;
         }
+      } catch(e) {
+        erreur.textContent = "Erreur de connexion au serveur.";
         erreur.style.display = "block";
-        return;
+        btn.textContent = "Se connecter →";
+        btn.disabled = false;
       }
-
-      // Connexion réussie
-      try {
-        localStorage.setItem("user_connecte", JSON.stringify(user));
-      } catch(e) {}
-
-      window.location.href = "dashboard.html";
     }
 
-    // Connexion avec la touche Entrée
-    document.addEventListener("keydown", e => {
+    document.addEventListener("keydown", function(e) {
       if (e.key === "Enter") seConnecter();
     });
   </script>

@@ -56,8 +56,9 @@
       <div class="user-avatar" id="sidebar-avatar">M</div>
       <div class="user-info">
         <span class="user-name" id="sidebar-nom">Mon Profil</span>
-        <span class="user-role" id="sidebar-metier">Indépendant</span>
+        <span class="user-role" id="sidebar-role">Indépendant</span>
       </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
     </div>
   </aside>
 
@@ -164,41 +165,26 @@
     </div>
   </div>
 
+  <script src="auth.js"></script>
   <script>
-    // ── getUserId doit être défini EN PREMIER ──
-    function getUserId() {
-      try { var u = JSON.parse(localStorage.getItem('user_connecte')||'null'); return u ? u.id : 'guest'; } catch(e) { return 'guest'; }
-    }
-
-    function getDevis() { try { return JSON.parse(localStorage.getItem('devis_list_' + getUserId()) || '[]'); } catch(e) { return []; } }
-    function saveDevis(list) { localStorage.setItem('devis_list_' + getUserId(), JSON.stringify(list)); }
-    // Infos légales : lire depuis user_connecte (saisies une seule fois dans Paramètres)
     function getProfil() {
       try {
-        var u = JSON.parse(localStorage.getItem('user_connecte') || '{}');
+        var u = getUserCache() || {};
         var p = u.profil_legal || {};
-        // Fallback sur les infos du compte si profil légal vide
         if (!p.nom) p.nom = ((u.prenom||'') + ' ' + (u.nom||'')).trim();
         if (!p.email) p.email = u.email || '';
         if (!p.metier) p.metier = u.metier || '';
         return p;
       } catch(e) { return {}; }
     }
-    function getUser() { try { return JSON.parse(localStorage.getItem('user_connecte') || '{}'); } catch(e) { return {}; } }
+    function getUser() { return getUserCache() || {}; }
     function fmtEur(v) { return (v||0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
     function fmtDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
 
     let lignes = [];
 
-    // Init sidebar
-    (function() {
-      const u = getUser();
-      if (u.prenom) {
-        document.getElementById('sidebar-nom').textContent = u.prenom + ' ' + (u.nom || '');
-        document.getElementById('sidebar-metier').textContent = u.metier || 'Indépendant';
-        document.getElementById('sidebar-avatar').textContent = u.prenom[0].toUpperCase();
-      }
-    })();
+    // Init sidebar centralisée
+    initSidebar();
 
     // Profil légal → géré dans Paramètres
     function ouvrirModalProfil() {
@@ -375,13 +361,22 @@
       document.getElementById('preview-content').innerHTML = buildPreviewHTML(data, lignes);
     }
 
-    function sauvegarderDevis(statut) {
+    // ── CACHE LOCAL DES DEVIS ──
+    var devisCache = [];
+
+    async function chargerDevis() {
+      var json = await apiAuth('GET', '/devis');
+      if (json && json.statut === 'ok') {
+        devisCache = json.data.devis || [];
+      }
+      afficherTable(); majStats();
+    }
+
+    async function sauvegarderDevis(statut) {
       if (!document.getElementById('d-client').value.trim()) { alert('Le nom du client est requis'); return; }
       const tvaP = parseFloat(document.getElementById('d-tva').value || 20);
       const ht = lignes.reduce((s, l) => s + l.qte * l.prix, 0);
-      const list = getDevis();
-      list.unshift({
-        id: 'DEV_' + Date.now(),
+      var payload = {
         numero: document.getElementById('d-numero').value,
         client: document.getElementById('d-client').value,
         objet: document.getElementById('d-objet').value,
@@ -391,19 +386,23 @@
         delai: document.getElementById('d-delai').value,
         conditions: document.getElementById('d-conditions').value,
         tva: tvaP, lignes: [...lignes],
-        montant_ht: ht, montant_tva: ht * tvaP / 100, montant_ttc: ht * (1 + tvaP / 100),
-        statut, date_creation: new Date().toISOString()
-      });
-      saveDevis(list);
-      document.getElementById('modal-devis').style.display = 'none';
-      afficherTable(); majStats();
+        montant_ht: ht, montant_ttc: ht * (1 + tvaP / 100),
+        statut: statut
+      };
+      var json = await apiAuth('POST', '/devis', payload);
+      if (json && json.statut === 'ok') {
+        document.getElementById('modal-devis').style.display = 'none';
+        await chargerDevis();
+      } else {
+        alert('Erreur : ' + (json ? json.message : 'Connexion échouée'));
+      }
     }
 
     var filtreActif = 'tous';
 
     function afficherTable(filtre) {
       if (filtre !== undefined) filtreActif = filtre;
-      var list = getDevis();
+      var list = devisCache.slice();
       if (filtreActif !== 'tous') list = list.filter(function(d){ return d.statut === filtreActif; });
       var tbody = document.getElementById('devis-table');
       if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Aucun devis trouvé</td></tr>'; return; }
@@ -431,70 +430,41 @@
     }
 
     function majStats() {
-      var list = getDevis();
+      var list = devisCache;
       document.getElementById('s-total').textContent = list.length;
       document.getElementById('s-envoyes').textContent = list.filter(function(d){ return d.statut==='envoye'; }).length;
       document.getElementById('s-acceptes').textContent = list.filter(function(d){ return d.statut==='accepte'; }).length;
       document.getElementById('s-montant').textContent = fmtEur(list.reduce(function(s,d){ return s+(d.montant_ht||0); }, 0));
     }
 
-    function changerStatut(id, statut) {
-      var list = getDevis(); var i = list.findIndex(function(d){ return d.id===id; });
-      if (i>=0) { list[i].statut = statut; saveDevis(list); afficherTable(); majStats(); }
+    async function changerStatut(id, statut) {
+      await apiAuth('PUT', '/devis/' + id, { statut: statut });
+      await chargerDevis();
     }
 
-    function supprimerDevis(id) {
+    async function supprimerDevis(id) {
       if (!confirm('Supprimer ce devis ?')) return;
-      saveDevis(getDevis().filter(function(d){ return d.id!==id; })); afficherTable(); majStats();
+      await apiAuth('DELETE', '/devis/' + id);
+      await chargerDevis();
     }
 
-    // Accepter le devis ET créer la facture en un clic
-    function accepterEtFacturer(devisId) {
-      var d = getDevis().find(function(x){ return x.id===devisId; }); if (!d) return;
+    async function accepterEtFacturer(devisId) {
       if (!confirm('Accepter ce devis et créer la facture correspondante ?')) return;
-      creerFactureDepuisDevis(d, devisId);
-    }
-
-    function creerFactureDepuisDevis(d, devisId) {
-      // Lire les factures avec la bonne clé userId
-      var uid = getUserId();
-      var factures = [];
-      try { factures = JSON.parse(localStorage.getItem('factures_list_' + uid) || '[]'); } catch(e) {}
-      var echeance = new Date(); echeance.setDate(echeance.getDate()+30);
-      var num = 'FAC-' + new Date().getFullYear() + '-' + String(factures.length+1).padStart(3,'0');
-      var facture = {
-        id: 'FAC_' + Date.now(),
-        numero: num,
-        client: d.client,
-        adresse: d.adresse || '',
-        objet: d.objet || '',
-        lignes: d.lignes || [],
-        montant_ht: d.montant_ht || 0,
-        montant_ttc: d.montant_ttc || d.montant_ht || 0,
-        tva: d.tva || 20,
-        statut: 'non_payee',
-        devis_id: devisId,
-        date: new Date().toISOString().split('T')[0],
-        date_echeance: echeance.toISOString().split('T')[0],
-        paiement: 'Virement bancaire',
-        date_creation: new Date().toISOString(),
-        conditions: d.conditions || '',
-        type: 'facture'
-      };
-      factures.unshift(facture);
-      localStorage.setItem('factures_list_' + uid, JSON.stringify(factures));
-      // Marquer le devis comme accepté
-      changerStatut(devisId, 'accepte');
-      // Toast + redirection
-      var toast = document.createElement('div');
-      toast.textContent = '✅ Facture ' + num + ' créée !';
-      toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(16,185,129,0.4)';
-      document.body.appendChild(toast);
-      setTimeout(function(){ window.location.href = 'factures.html'; }, 1500);
+      var json = await apiAuth('POST', '/devis/' + devisId + '/convertir');
+      if (json && json.statut === 'ok') {
+        var num = json.data.numero;
+        var toast = document.createElement('div');
+        toast.textContent = '✅ Facture ' + num + ' créée !';
+        toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(16,185,129,0.4)';
+        document.body.appendChild(toast);
+        setTimeout(function(){ window.location.href = 'factures.html'; }, 1500);
+      } else {
+        alert('Erreur : ' + (json ? json.message : 'Connexion échouée'));
+      }
     }
 
     function voirDevis(id) {
-      var d = getDevis().find(function(x){ return x.id===id; }); if (!d) return;
+      var d = devisCache.find(function(x){ return x.id===id; }); if (!d) return;
       var tc = { brouillon:'tag-brouillon', envoye:'tag-envoye', accepte:'tag-accepte', refuse:'tag-refuse' };
       var tl = { brouillon:'✏️ Brouillon', envoye:'📤 Envoyé', accepte:'✅ Accepté', refuse:'❌ Refusé' };
       document.getElementById('voir-devis-content').innerHTML =
@@ -520,33 +490,7 @@
     function imprimerDevis() { window.print(); }
 
     verifierProfilComplet();
-    afficherTable();
-    majStats();
+    chargerDevis();
   </script>
-
-  <script>
-    (function() {
-      var user = null;
-      try { user = JSON.parse(localStorage.getItem('user_connecte') || 'null'); } catch(e) {}
-      if (!user) return;
-      var modules = user.modules || ['dashboard','devis','factures','taches'];
-      var LIENS = {
-        'crm.html':      'crm',
-        'contenu.html':  'contenu_ia',
-        'analytics.html':'analytics'
-      };
-      document.querySelectorAll('.nav-link').forEach(function(link) {
-        var href = link.getAttribute('href');
-        var mod  = LIENS[href];
-        if (mod && modules.indexOf(mod) === -1) {
-          link.style.opacity = '0.4';
-          link.style.pointerEvents = 'none';
-          link.style.cursor = 'not-allowed';
-          link.innerHTML = link.innerHTML + ' <span style="font-size:0.7rem;margin-left:auto">🔒</span>';
-          link.title = 'Disponible a partir du plan Pro';
-        }
-      });
-    })();
-</script>
 </body>
 </html>

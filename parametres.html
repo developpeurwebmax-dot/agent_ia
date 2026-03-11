@@ -176,6 +176,7 @@
     </div>
   </div>
 
+  <script src="auth.js"></script>
   <script>
     var user = null;
     var planSelecte = null;
@@ -233,10 +234,22 @@
       setTimeout(function() { t.style.opacity="0"; t.style.transition="opacity 0.4s"; setTimeout(function(){t.remove();},400); }, 2500);
     }
 
-    function chargerUser() {
-      try { user = JSON.parse(localStorage.getItem("user_connecte") || "null"); } catch(e) {}
-      if (!user) { window.location.href = "connexion.html"; return; }
+    async function chargerUser() {
+      var json = await apiAuth("GET", "/auth/profil");
+      if (json && json.statut === "ok") {
+        user = json.data;
+        setUserCache(user);
+        _afficherUser();
+      } else if (!getUserCache()) {
+        window.location.href = "connexion.html";
+      } else {
+        user = getUserCache();
+        _afficherUser();
+      }
+    }
 
+    function _afficherUser() {
+      if (!user) return;
       document.getElementById("sidebar-avatar").textContent = (user.prenom||"M")[0].toUpperCase();
       document.getElementById("sidebar-nom").textContent    = (user.prenom||"") + " " + (user.nom||"");
       document.getElementById("sidebar-role").textContent   = user.metier || "Independant";
@@ -328,28 +341,24 @@
         }
       }
 
-      // Mettre à jour l'utilisateur
-      user.plan     = planSelecte;
-      user.plan_nom = plan.nom;
-      user.plan_prix= plan.prix;
-      user.modules  = plan.modules;
-
-      // Sauver dans localStorage
-      localStorage.setItem("user_connecte", JSON.stringify(user));
-
-      // Mettre à jour dans la liste users
-      try {
-        var users = JSON.parse(localStorage.getItem("users") || "[]");
-        var idx = users.findIndex(function(u){ return u.id === user.id; });
-        if (idx >= 0) { users[idx] = user; localStorage.setItem("users", JSON.stringify(users)); }
-      } catch(e) {}
-
-      toast("Plan mis a jour : " + plan.nom + " !");
-      document.getElementById("btn-confirmer-plan").style.display = "none";
-      document.getElementById("zone-paiement-upgrade").style.display = "none";
-      document.getElementById("zone-downgrade-gratuit").style.display = "none";
-      planSelecte = null;
-      chargerUser();
+      // Appel API pour changer le plan
+      fetch(API + "/auth/plan", {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ plan: planSelecte })
+      }).then(function(r){ return r.json(); }).then(function(json){
+        if (json.statut === "ok") {
+          setUserCache(json.data);
+          toast("Plan mis a jour : " + plan.nom + " !");
+        } else {
+          toast("Erreur : " + json.message, "#ef4444");
+        }
+        document.getElementById("btn-confirmer-plan").style.display = "none";
+        document.getElementById("zone-paiement-upgrade").style.display = "none";
+        document.getElementById("zone-downgrade-gratuit").style.display = "none";
+        planSelecte = null;
+        chargerUser();
+      });
     }
 
     function sauverInfos() {
@@ -361,53 +370,43 @@
 
       if (!prenom || !email) { toast("Prenom et email requis", "#ef4444"); return; }
 
-      user.prenom = prenom;
-      user.nom    = nom;
-      user.email  = email;
-      user.metier = metier;
-      if (pwd && pwd.length >= 8) user.password = pwd;
+      var payload = { prenom: prenom, nom: nom, metier: metier };
+      if (pwd && pwd.length >= 8) payload.new_password = pwd;
 
-      localStorage.setItem("user_connecte", JSON.stringify(user));
-      try {
-        var users = JSON.parse(localStorage.getItem("users") || "[]");
-        var idx = users.findIndex(function(u){ return u.id === user.id; });
-        if (idx >= 0) { users[idx] = user; localStorage.setItem("users", JSON.stringify(users)); }
-      } catch(e) {}
-
-      document.getElementById("modal-edit").style.display = "none";
-      toast("Informations mises a jour !");
-      chargerUser();
+      fetch(API + "/auth/profil", {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      }).then(function(r){ return r.json(); }).then(function(json){
+        if (json.statut === "ok") {
+          setUserCache(json.data);
+          document.getElementById("modal-edit").style.display = "none";
+          toast("Informations mises a jour !");
+          chargerUser();
+        } else {
+          toast("Erreur : " + json.message, "#ef4444");
+        }
+      });
     }
 
     function scrollerVersPlans() {
       document.getElementById("section-plans").scrollIntoView({behavior:"smooth"});
     }
 
-    function seDeconnecter() {
-      localStorage.removeItem("user_connecte");
-      window.location.href = "connexion.html";
-    }
-
     function supprimerCompte() {
-      if (!confirm("Supprimer definitivement votre compte ?")) return;
-      try {
-        var users = JSON.parse(localStorage.getItem("users") || "[]");
-        users = users.filter(function(u){ return u.id !== user.id; });
-        localStorage.setItem("users", JSON.stringify(users));
-        localStorage.removeItem("user_connecte");
-        localStorage.removeItem("plan_journalier_" + user.id);
-        localStorage.removeItem("plan_taches_statuts_" + user.id);
-        localStorage.removeItem("historique_plans_" + user.id);
-        localStorage.removeItem("devis_list_" + user.id);
-        localStorage.removeItem("factures_list_" + user.id);
-      } catch(e) {}
-      window.location.href = "connexion.html";
+      if (!confirm("Supprimer definitivement votre compte et TOUTES vos données ?")) return;
+      fetch(API + "/auth/supprimer", {
+        method: "DELETE",
+        headers: authHeaders()
+      }).then(function(){
+        removeToken();
+        window.location.href = "connexion.html";
+      });
     }
 
     // ── INFOS LÉGALES ──
     function chargerLegal() {
-      var p = user.profil_legal || {};
-      // Pré-remplir depuis le profil utilisateur si vide
+      var p = (user.profil_legal && typeof user.profil_legal === "object") ? user.profil_legal : {};
       document.getElementById('l-nom').value     = p.nom     || (user.prenom + ' ' + (user.nom||'')).trim();
       document.getElementById('l-metier').value  = p.metier  || user.metier || '';
       document.getElementById('l-adresse').value = p.adresse || user.localisation || '';
@@ -431,22 +430,20 @@
         iban:        document.getElementById('l-iban').value.trim(),
         mention_tva: document.getElementById('l-mention-tva').value.trim()
       };
-      // Sauvegarder dans users[]
-      try {
-        var users = JSON.parse(localStorage.getItem('users') || '[]');
-        var idx = users.findIndex(function(u){ return u.id === user.id; });
-        if (idx !== -1) {
-          users[idx].profil_legal = profil;
-          localStorage.setItem('users', JSON.stringify(users));
+      fetch(API + "/auth/profil", {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ profil_legal: profil })
+      }).then(function(r){ return r.json(); }).then(function(json){
+        if (json.statut === "ok") {
+          setUserCache(json.data);
+          var msg = document.getElementById('legal-saved-msg');
+          msg.style.display = 'inline';
+          setTimeout(function(){ msg.style.display = 'none'; }, 3000);
+        } else {
+          toast("Erreur sauvegarde : " + json.message, "#ef4444");
         }
-        // Mettre à jour user_connecte
-        user.profil_legal = profil;
-        localStorage.setItem('user_connecte', JSON.stringify(user));
-      } catch(e) {}
-      // Feedback visuel
-      var msg = document.getElementById('legal-saved-msg');
-      msg.style.display = 'inline';
-      setTimeout(function(){ msg.style.display = 'none'; }, 3000);
+      });
     }
 
     function fmtCard(el) {
@@ -459,40 +456,13 @@
       el.value = v;
     }
 
-    chargerUser();
+    // initSidebar gère auth + sidebar + lock modules
+    initSidebar().then(function(u) {
+      if (!u) return;
+      user = u;
+      _afficherUser();
+    });
     chargerLegal();
-
-    // Lock des modules non accessibles selon le plan
-    (function() {
-      var user = null;
-      try { user = JSON.parse(localStorage.getItem('user_connecte') || 'null'); } catch(e) {}
-      if (!user) return;
-      var modules = user.modules || ['dashboard','devis','factures','taches'];
-      var LIENS = {
-        'crm.html':       'crm',
-        'contenu.html':   'contenu_ia',
-        'analytics.html': 'analytics'
-      };
-      document.querySelectorAll('.nav-link').forEach(function(link) {
-        var href = link.getAttribute('href');
-        var mod  = LIENS[href];
-        if (mod && modules.indexOf(mod) === -1) {
-          link.style.opacity = '0.45';
-          link.style.pointerEvents = 'none';
-          link.style.cursor = 'not-allowed';
-          link.style.display = 'flex';
-          link.style.justifyContent = 'space-between';
-          if (!link.querySelector('.lock-icon')) {
-            var s = document.createElement('span');
-            s.className = 'lock-icon';
-            s.style.cssText = 'font-size:0.7rem;margin-left:auto;flex-shrink:0';
-            s.textContent = '🔒';
-            link.appendChild(s);
-          }
-          link.title = 'Disponible a partir du plan Pro';
-        }
-      });
-    })();
   </script>
 </body>
 </html>

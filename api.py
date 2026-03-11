@@ -17,6 +17,10 @@ from auth import (
 )
 
 app = Flask(__name__)
+from api_business import business
+app.register_blueprint(business)
+from database_business import init_db_business
+init_db_business()
 CORS(app)
 
 # Initialiser la base de données au démarrage
@@ -275,15 +279,24 @@ def get_a_relancer():
         seuil = (datetime.now() - timedelta(days=jours)).isoformat()
         conn = get_db()
         rows = conn.execute("""
-            SELECT *, 
-            CAST(julianday('now') - julianday(COALESCE(dernier_contact, date_ajout)) AS INTEGER) as jours_sans_contact
-            FROM prospects 
+            SELECT * FROM prospects
             WHERE user_id=? AND statut NOT IN ('gagne','perdu')
             AND (dernier_contact IS NULL OR dernier_contact < ? OR dernier_contact = '')
-            ORDER BY jours_sans_contact DESC
+            ORDER BY dernier_contact ASC NULLS FIRST
         """, (request.user_id, seuil)).fetchall()
         conn.close()
-        return reponse_ok({"prospects": rows_to_list(rows), "total": len(rows)})
+        # Calculer jours_sans_contact en Python
+        result = []
+        for r in rows_to_list(rows):
+            ref = r.get("dernier_contact") or r.get("date_ajout", "")
+            try:
+                jsc = (datetime.now() - datetime.fromisoformat(ref)).days if ref else 999
+            except Exception:
+                jsc = 999
+            r["jours_sans_contact"] = jsc
+            result.append(r)
+        result.sort(key=lambda x: x["jours_sans_contact"], reverse=True)
+        return reponse_ok({"prospects": result, "total": len(result)})
     except Exception as e:
         return reponse_erreur(str(e))
 
@@ -304,11 +317,11 @@ def creer_interaction():
               data.get("contenu",""), data.get("resultat",""), data.get("prochain_contact")))
         # Mettre à jour le prospect
         conn.execute("""
-            UPDATE prospects SET dernier_contact=datetime('now'),
+            UPDATE prospects SET dernier_contact=?,
             nb_interactions=nb_interactions+1,
             prochain_contact=?
             WHERE id=? AND user_id=?
-        """, (data.get("prochain_contact"), data["prospect_id"], request.user_id))
+        """, (datetime.now().isoformat(), data.get("prochain_contact"), data["prospect_id"], request.user_id))
         conn.commit()
         row = conn.execute("SELECT * FROM interactions WHERE id=?", (iid,)).fetchone()
         conn.close()
@@ -333,21 +346,24 @@ def get_stats_crm():
     try:
         conn = get_db()
         uid = request.user_id
-        total = conn.execute("SELECT COUNT(*) FROM prospects WHERE user_id=?", (uid,)).fetchone()[0]
-        clients = conn.execute("SELECT COUNT(*) FROM prospects WHERE user_id=? AND statut='gagne'", (uid,)).fetchone()[0]
-        interactions = conn.execute("SELECT COUNT(*) FROM interactions WHERE user_id=?", (uid,)).fetchone()[0]
-        pipeline = conn.execute("SELECT COALESCE(SUM(valeur_estimee),0) FROM prospects WHERE user_id=? AND statut NOT IN ('gagne','perdu')", (uid,)).fetchone()[0]
         seuil = (datetime.now() - timedelta(days=3)).isoformat()
-        a_relancer = conn.execute("""
-            SELECT COUNT(*) FROM prospects WHERE user_id=? AND statut NOT IN ('gagne','perdu')
-            AND (dernier_contact IS NULL OR dernier_contact < ? OR dernier_contact = '')
-        """, (uid, seuil)).fetchone()[0]
 
-        # Répartition par statut
-        rows = conn.execute("""
-            SELECT statut, COUNT(*) as nb FROM prospects WHERE user_id=? GROUP BY statut
-        """, (uid,)).fetchall()
-        repartition = {r["statut"]: r["nb"] for r in rows}
+        def scalar(row):
+            if row is None: return 0
+            if isinstance(row, dict): return list(row.values())[0] or 0
+            return row[0] or 0
+
+        total       = scalar(conn.execute("SELECT COUNT(*) as c FROM prospects WHERE user_id=?", (uid,)).fetchone())
+        clients     = scalar(conn.execute("SELECT COUNT(*) as c FROM prospects WHERE user_id=? AND statut='gagne'", (uid,)).fetchone())
+        interactions= scalar(conn.execute("SELECT COUNT(*) as c FROM interactions WHERE user_id=?", (uid,)).fetchone())
+        pipeline    = scalar(conn.execute("SELECT COALESCE(SUM(valeur_estimee),0) as c FROM prospects WHERE user_id=? AND statut NOT IN ('gagne','perdu')", (uid,)).fetchone())
+        a_relancer  = scalar(conn.execute("""
+            SELECT COUNT(*) as c FROM prospects WHERE user_id=? AND statut NOT IN ('gagne','perdu')
+            AND (dernier_contact IS NULL OR dernier_contact < ? OR dernier_contact = '')
+        """, (uid, seuil)).fetchone())
+
+        rows = conn.execute("SELECT statut, COUNT(*) as nb FROM prospects WHERE user_id=? GROUP BY statut", (uid,)).fetchall()
+        repartition = {r["statut"]: r["nb"] for r in rows_to_list(rows)}
         conn.close()
 
         taux = round((clients / total * 100), 1) if total > 0 else 0
@@ -406,10 +422,9 @@ def get_devis():
                            (request.user_id,)).fetchall()
         conn.close()
         devis = []
-        for r in rows:
-            d = dict(r)
-            d["lignes"] = json.loads(d.get("lignes") or "[]")
-            devis.append(d)
+        for r in rows_to_list(rows):
+            r["lignes"] = json.loads(r.get("lignes") or "[]")
+            devis.append(r)
         return reponse_ok({"devis": devis, "total": len(devis)})
     except Exception as e:
         return reponse_erreur(str(e))
@@ -469,8 +484,8 @@ def convertir_devis_en_facture(did):
 
         d = dict(devis_row)
         # Compter les factures pour le numéro
-        nb = conn.execute("SELECT COUNT(*) FROM factures WHERE user_id=?",
-                         (request.user_id,)).fetchone()[0]
+        nb_row = conn.execute("SELECT COUNT(*) as c FROM factures WHERE user_id=?", (request.user_id,)).fetchone()
+        nb = list(nb_row.values())[0] if isinstance(nb_row, dict) else nb_row[0]
         annee = datetime.now().year
         num = f"FAC-{annee}-{str(nb+1).zfill(3)}"
         echeance = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
@@ -542,10 +557,9 @@ def get_factures():
                            (request.user_id,)).fetchall()
         conn.close()
         factures = []
-        for r in rows:
-            f = dict(r)
-            f["lignes"] = json.loads(f.get("lignes") or "[]")
-            factures.append(f)
+        for r in rows_to_list(rows):
+            r["lignes"] = json.loads(r.get("lignes") or "[]")
+            factures.append(r)
         return reponse_ok({"factures": factures, "total": len(factures)})
     except Exception as e:
         return reponse_erreur(str(e))
@@ -598,9 +612,15 @@ def get_stats_factures():
         conn = get_db()
         uid = request.user_id
         today = date.today().isoformat()
-        ca = conn.execute("SELECT COALESCE(SUM(montant_ttc),0) FROM factures WHERE user_id=? AND statut='payee'", (uid,)).fetchone()[0]
-        en_attente = conn.execute("SELECT COALESCE(SUM(montant_ttc),0) FROM factures WHERE user_id=? AND statut='non_payee'", (uid,)).fetchone()[0]
-        en_retard = conn.execute("SELECT COUNT(*) FROM factures WHERE user_id=? AND statut='non_payee' AND date_echeance < ?", (uid, today)).fetchone()[0]
+
+        def scalar(row):
+            if row is None: return 0
+            if isinstance(row, dict): return list(row.values())[0] or 0
+            return row[0] or 0
+
+        ca         = scalar(conn.execute("SELECT COALESCE(SUM(montant_ttc),0) as c FROM factures WHERE user_id=? AND statut='payee'", (uid,)).fetchone())
+        en_attente = scalar(conn.execute("SELECT COALESCE(SUM(montant_ttc),0) as c FROM factures WHERE user_id=? AND statut='non_payee'", (uid,)).fetchone())
+        en_retard  = scalar(conn.execute("SELECT COUNT(*) as c FROM factures WHERE user_id=? AND statut='non_payee' AND date_echeance < ?", (uid, today)).fetchone())
         conn.close()
         return reponse_ok({"ca_encaisse": ca, "en_attente": en_attente, "en_retard": en_retard})
     except Exception as e:

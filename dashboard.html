@@ -22,12 +22,12 @@
       <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
     </nav>
     <div class="sidebar-footer">
-      <div class="user-avatar">U</div>
+      <div class="user-avatar" id="sidebar-avatar">U</div>
       <div class="user-info">
-        <span class="user-name">Mon Profil</span>
-        <span class="user-role">Indépendant</span>
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Indépendant</span>
       </div>
-      <span onclick="localStorage.removeItem('user_connecte');window.location.href='connexion.html'" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
     </div>
   </aside>
 
@@ -153,37 +153,24 @@
     .plan-compteur strong { color:var(--accent2); }
   </style>
 
+  <script src="auth.js"></script>
   <script>
-    const API = "https://agentia-production-aec3.up.railway.app";
-
-    function getUserId() {
-      try { var u = JSON.parse(localStorage.getItem('user_connecte')||'null'); return u ? u.id : 'guest'; } catch(e) { return 'guest'; }
-    }
-    const PLAN_KEY   = "plan_journalier_"   + getUserId();
+    // ── INIT ──
+    const PLAN_KEY   = "plan_journalier_"    + getUserId();
     const TACHES_KEY = "plan_taches_statuts_" + getUserId();
 
-    // ── CONNEXION ──
     let userConnecte = null;
-    try { userConnecte = JSON.parse(localStorage.getItem("user_connecte") || "null"); } catch(e) {}
-    if (!userConnecte) { window.location.href = "connexion.html"; }
 
-    if (userConnecte) {
-      document.querySelector(".page-title").textContent = `Bonjour ${userConnecte.prenom} 👋`;
-      document.querySelector(".user-name").textContent  = userConnecte.prenom + " " + userConnecte.nom;
-      document.querySelector(".user-role").textContent  = userConnecte.metier || "Indépendant";
-      document.querySelector(".user-avatar").textContent = userConnecte.prenom?.[0]?.toUpperCase() || "U";
-    }
-
-    const now = new Date();
-    document.getElementById("date-today").textContent = now.toLocaleDateString("fr-FR", {
-      weekday:"long", day:"numeric", month:"long", year:"numeric"
-    });
-
-    // ── STATS LOCALES ──
-    function chargerStatsLocales() {
+    // ── STATS CA DEPUIS L'API ──
+    async function chargerStatsLocales() {
+      showSkeleton(["stat-ca"]);
       try {
+        const res = await fetch(`${API}/factures`, { headers: authHeaders() });
+        if (!res) return;
+        if (res.status === 401) { gerer401(); return; }
+        const json = await res.json();
+        const factures = (json.statut === 'ok') ? json.data.factures || [] : [];
         const today = new Date().toISOString().split('T')[0];
-        const factures = JSON.parse(localStorage.getItem('factures_list') || '[]');
         const ca = factures.filter(f=>f.statut==='payee').reduce((s,f)=>s+(parseFloat(f.montant_ttc)||0),0);
         document.getElementById("stat-ca").textContent =
           ca.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + " €";
@@ -217,10 +204,12 @@
 
       // Stats CRM depuis l'API
       try {
-        const res  = await fetch(`${API}/crm/stats`);
-        const json = await res.json(); const d = json.data;
-        document.getElementById("stat-prospects").textContent = d.total_prospects ?? "0";
-        document.getElementById("stat-relances").textContent  = d.a_relancer_urgence ?? "0";
+        const res  = await fetch(`${API}/crm/stats`, { headers: authHeaders() });
+        if (res && res.status !== 401) {
+          const json = await res.json(); const d = json.data;
+          document.getElementById("stat-prospects").textContent = d.total_prospects ?? "0";
+          document.getElementById("stat-relances").textContent  = d.a_relancer_urgence ?? "0";
+        }
       } catch(e) {}
     }
 
@@ -484,8 +473,8 @@
       const loader = document.getElementById("loader");
       loader.style.display = "block";
       try {
-        const res = await fetch(`${API}/agent/plan-journalier`, {
-          method:"POST", headers:{"Content-Type":"application/json"},
+        const res = await fetch(API + "/agent/plan-journalier", {
+          method:"POST", headers: authHeaders(),
           body: JSON.stringify({ metier: userConnecte?.metier || "indépendant", prospects:[], taches_en_cours:[] })
         });
         const json = await res.json();
@@ -558,9 +547,21 @@
       document.body.appendChild(toast);
       setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.4s'; setTimeout(()=>toast.remove(),400); }, 2000);
     }
-    function init() {
+    async function init() {
+      const user = await initSidebar();
+      if (!user) return;
+      userConnecte = user;
+
+      // Bonjour + date
+      document.querySelector(".page-title").textContent = `Bonjour ${user.prenom} 👋`;
+      document.getElementById("date-today").textContent = new Date().toLocaleDateString("fr-FR", {
+        weekday:"long", day:"numeric", month:"long", year:"numeric"
+      });
+
+      showSkeleton(["stat-prospects","stat-relances","stat-ca"]);
       chargerStats();
       afficherProspectsCRM();
+
       const today = new Date().toISOString().split('T')[0];
       try {
         const saved = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
@@ -617,38 +618,6 @@
   </div>
 
 
-  <script>
-    (function() {
-      var user = null;
-      try { user = JSON.parse(localStorage.getItem('user_connecte') || 'null'); } catch(e) {}
-      if (!user) return;
-      var modules = user.modules || ['dashboard','devis','factures','taches'];
-      var LIENS = {
-        'crm.html':       'crm',
-        'contenu.html':   'contenu_ia',
-        'analytics.html': 'analytics',
-        'parametres.html': 'dashboard'
-      };
-      document.querySelectorAll('.nav-link').forEach(function(link) {
-        var href = link.getAttribute('href');
-        var mod  = LIENS[href];
-        if (mod && mod !== 'dashboard' && modules.indexOf(mod) === -1) {
-          link.style.opacity = '0.45';
-          link.style.pointerEvents = 'none';
-          link.style.cursor = 'not-allowed';
-          if (!link.querySelector('.lock-icon')) {
-            var s = document.createElement('span');
-            s.className = 'lock-icon';
-            s.style.cssText = 'font-size:0.7rem;margin-left:auto;flex-shrink:0';
-            s.textContent = '🔒';
-            link.style.display = 'flex';
-            link.style.justifyContent = 'space-between';
-            link.appendChild(s);
-          }
-          link.title = 'Disponible a partir du plan Pro';
-        }
-      });
-    })();
-  </script>
+
 </body>
 </html>

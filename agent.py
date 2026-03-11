@@ -2,6 +2,7 @@
 agent.py — Le cerveau de l'agent IA pour indépendants
 Connexion OpenAI + génération de contenu intelligent
 """
+
 import openai
 import json
 import os
@@ -316,5 +317,4 @@ Génère une analyse tarifaire JSON :
     try:
         return json.loads(resultat)
     except json.JSONDecodeError:
-
         return {"erreur": "Parsing échoué", "raw": resultat}

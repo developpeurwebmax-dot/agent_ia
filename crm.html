@@ -40,11 +40,12 @@
       <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
     </nav>
     <div class="sidebar-footer">
-      <div class="user-avatar" id="sidebar-avatar">M</div>
+      <div class="user-avatar" id="sidebar-avatar">U</div>
       <div class="user-info">
         <span class="user-name" id="sidebar-nom">Mon Profil</span>
         <span class="user-role" id="sidebar-role">Indépendant</span>
       </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
     </div>
   </aside>
 
@@ -124,18 +125,17 @@
     </div>
   </div>
 
+  <script src="auth.js"></script>
   <script>
-    var API = "https://agentia-production-aec3.up.railway.app";
     var allProspects = [];
 
-    try {
-      var u = JSON.parse(localStorage.getItem('user_connecte') || 'null');
-      if (u) {
-        document.getElementById('sidebar-avatar').textContent = (u.prenom||'M')[0].toUpperCase();
-        document.getElementById('sidebar-nom').textContent    = (u.prenom||'') + ' ' + (u.nom||'');
-        document.getElementById('sidebar-role').textContent   = u.metier || 'Independant';
-      }
-    } catch(e) {}
+    async function initCRM() {
+      showSkeleton(['s-total','s-clients','s-taux','s-relances']);
+      await initSidebar();
+      chargerProspects();
+    }
+
+    initCRM();
 
     var STATUTS = [
       { val:'nouveau',       label:'🆕 Nouveau' },
@@ -165,7 +165,8 @@
 
     async function chargerStats() {
       try {
-        var res  = await fetch(API + '/crm/stats');
+        var res  = await fetch(API + '/crm/stats', { headers: authHeaders() });
+        if (!res || res.status === 401) { gerer401(); return; }
         var json = await res.json();
         var d = json.data;
         document.getElementById('s-total').textContent    = d.total_prospects != null ? d.total_prospects : '—';
@@ -177,7 +178,7 @@
 
     async function chargerProspects() {
       try {
-        var res  = await fetch(API + '/crm/prospects');
+        var res  = await fetch(API + '/crm/prospects', { headers: authHeaders() });
         var json = await res.json();
         allProspects = json.data.prospects || [];
         afficherProspects(allProspects);
@@ -222,7 +223,7 @@
       try {
         var res = await fetch(API + '/crm/prospects/' + id + '/statut', {
           method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(),
           body: JSON.stringify({ statut: nouveauStatut })
         });
         var json = await res.json();
@@ -293,7 +294,7 @@
       try {
         await fetch(API + '/crm/prospects/' + id, {
           method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(),
           body: JSON.stringify({ notes: note })
         });
         toast('Note sauvegardee');
@@ -317,7 +318,7 @@
       try {
         await fetch(API + '/crm/prospects', {
           method: "POST",
-          headers: {"Content-Type": "application/json"},
+          headers: authHeaders(),
           body: JSON.stringify({
             nom: nom,
             entreprise: document.getElementById("p-entreprise").value,
@@ -339,7 +340,7 @@
 
     async function supprimerProspect(id) {
       if (!confirm("Supprimer ce prospect ?")) return;
-      await fetch(API + '/crm/prospects/' + id, { method: "DELETE" });
+      await fetch(API + '/crm/prospects/' + id, { method: 'DELETE', headers: authHeaders() });
       toast('Supprime', '#6b7280');
       chargerProspects();
     }
@@ -363,7 +364,7 @@
       try {
         await fetch(API + '/crm/interactions', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers: authHeaders(),
           body: JSON.stringify({
             prospect_id: interactionProspectId,
             type_interaction: type,
@@ -380,7 +381,6 @@
       }
     }
 
-    chargerProspects();
   </script>
 
   <!-- MODAL INTERACTION -->
@@ -414,30 +414,5 @@
       </div>
     </div>
   </div>
-
-  <script>
-    (function() {
-      var user = null;
-      try { user = JSON.parse(localStorage.getItem('user_connecte') || 'null'); } catch(e) {}
-      if (!user) return;
-      var modules = user.modules || ['dashboard','devis','factures','taches'];
-      var LIENS = {
-        'crm.html':      'crm',
-        'contenu.html':  'contenu_ia',
-        'analytics.html':'analytics'
-      };
-      document.querySelectorAll('.nav-link').forEach(function(link) {
-        var href = link.getAttribute('href');
-        var mod  = LIENS[href];
-        if (mod && modules.indexOf(mod) === -1) {
-          link.style.opacity = '0.4';
-          link.style.pointerEvents = 'none';
-          link.style.cursor = 'not-allowed';
-          link.innerHTML = link.innerHTML + ' <span style="font-size:0.7rem;margin-left:auto">🔒</span>';
-          link.title = 'Disponible a partir du plan Pro';
-        }
-      });
-    })();
-  </script>
 </body>
 </html>

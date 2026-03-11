@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA Business — Dashboard</title>
+  <link rel="stylesheet" href="../freelance/style.css"/>
+  <link rel="stylesheet" href="style_business.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">🏢 IA Business</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link active">🏠 Dashboard</a>
+      <a href="finances.html" class="nav-link">💰 Finances</a>
+      <a href="employes.html" class="nav-link">👥 Employés</a>
+      <a href="facturation.html" class="nav-link">🧾 Facturation</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics IA</a>
+      <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
+      <div class="nav-sep"></div>
+      <a href="../freelance/dashboard.html" class="nav-link nav-switch">⚡ Agent IA Freelance</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Dirigeant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Dashboard Dirigeant</h1>
+        <p class="page-sub" id="entreprise-nom">Chargement...</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <select id="select-periode" onchange="chargerDashboard()" class="select-inline">
+          <option value="mois_courant">Ce mois</option>
+          <option value="trimestre">Ce trimestre</option>
+          <option value="annee">Cette année</option>
+        </select>
+        <button class="btn-primary" onclick="window.location.href='finances.html'">+ Transaction</button>
+      </div>
+    </header>
+
+    <!-- KPIs FINANCIERS -->
+    <div class="stats-row" id="kpis">
+      <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div>
+          <div class="stat-value" id="kpi-revenus">—</div>
+          <div class="stat-label">Revenus</div>
+        </div>
+        <div class="stat-trend" id="trend-revenus"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📤</div>
+        <div>
+          <div class="stat-value" id="kpi-depenses">—</div>
+          <div class="stat-label">Dépenses</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📈</div>
+        <div>
+          <div class="stat-value" id="kpi-marge">—</div>
+          <div class="stat-label">Marge nette</div>
+        </div>
+        <div class="stat-badge" id="badge-taux"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">👥</div>
+        <div>
+          <div class="stat-value" id="kpi-employes">—</div>
+          <div class="stat-label">Employés actifs</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERTES IA -->
+    <div id="alertes-container" style="margin-bottom:20px"></div>
+
+    <!-- GRILLE PRINCIPALE -->
+    <div class="grid">
+
+      <!-- Évolution revenus/dépenses -->
+      <div class="card card-wide">
+        <div class="card-header">
+          <span class="card-icon">📊</span>
+          <h2>Évolution financière — 6 derniers mois</h2>
+        </div>
+        <div id="chart-evolution" class="chart-container">
+          <div class="chart-loading">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- Dépenses par catégorie -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">🗂️</span>
+          <h2>Dépenses par catégorie</h2>
+        </div>
+        <div id="categories-depenses">
+          <div class="empty-state">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- Projection trésorerie -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">🔭</span>
+          <h2>Projection trésorerie — 6 mois</h2>
+        </div>
+        <div id="projection-tresorerie">
+          <div class="empty-state">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- Congés en attente -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">🏖️</span>
+          <h2>Congés en attente de validation</h2>
+          <a href="employes.html#conges" class="card-link">Voir tout →</a>
+        </div>
+        <div id="conges-attente">
+          <div class="empty-state">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- Masse salariale -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">💼</span>
+          <h2>Masse salariale mensuelle</h2>
+        </div>
+        <div id="masse-salariale">
+          <div class="empty-state">Chargement...</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="../freelance/auth.js"></script>
+  <script>
+    let ENTREPRISE_ID = null;
+
+    async function init() {
+      const user = await initSidebar();
+      if (!user) return;
+
+      // Récupérer l'entreprise active
+      const json = await apiAuth("GET", "/business/entreprises");
+      if (!json || !json.data || !json.data.entreprises?.length) {
+        document.getElementById("entreprise-nom").textContent = "Aucune entreprise — ";
+        document.getElementById("entreprise-nom").innerHTML +=
+          '<a href="parametres.html" style="color:var(--accent2)">Créer votre entreprise →</a>';
+        return;
+      }
+
+      const entreprise = json.data.entreprises[0];
+      ENTREPRISE_ID = entreprise.id;
+      document.getElementById("entreprise-nom").textContent = entreprise.nom;
+      document.getElementById("sidebar-role").textContent = entreprise.role_label || "Dirigeant";
+
+      await chargerDashboard();
+      await chargerConges();
+      await chargerMasseSalariale();
+    }
+
+    async function chargerDashboard() {
+      if (!ENTREPRISE_ID) return;
+      const periode = document.getElementById("select-periode").value;
+
+      const json = await apiAuth("GET", `/business/finances/dashboard?entreprise_id=${ENTREPRISE_ID}&periode=${periode}`);
+      if (!json || !json.data) return;
+      const d = json.data;
+
+      document.getElementById("kpi-revenus").textContent = formaterEuros(d.revenus);
+      document.getElementById("kpi-depenses").textContent = formaterEuros(d.depenses);
+      document.getElementById("kpi-marge").textContent = formaterEuros(d.marge_nette);
+      document.getElementById("badge-taux").textContent = `${d.taux_marge}%`;
+      document.getElementById("badge-taux").className = "stat-badge " + (d.taux_marge >= 20 ? "badge-success" : d.taux_marge >= 10 ? "badge-yellow" : "badge-danger");
+
+      // Catégories dépenses
+      renderCategories(d.depenses_par_categorie);
+
+      // Projection
+      renderProjection(d.projection_tresorerie);
+
+      // Graphique évolution
+      renderChart(d.evolution_mensuelle);
+
+      // Alertes
+      chargerAlertes();
+    }
+
+    async function chargerConges() {
+      if (!ENTREPRISE_ID) return;
+      const json = await apiAuth("GET", `/business/rh/conges?entreprise_id=${ENTREPRISE_ID}&statut=en_attente`);
+      const container = document.getElementById("conges-attente");
+      if (!json || !json.data?.length) {
+        container.innerHTML = '<div class="empty-state">✅ Aucun congé en attente</div>';
+        return;
+      }
+      container.innerHTML = json.data.map(c => `
+        <div class="conge-item">
+          <div>
+            <span class="conge-nom">${c.prenom} ${c.nom}</span>
+            <span class="conge-dates">${c.date_debut} → ${c.date_fin} (${c.nb_jours}j)</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn-sm badge-success" onclick="validerConge('${c.id}','approuve')">✓ Valider</button>
+            <button class="btn-sm btn-danger" onclick="validerConge('${c.id}','refuse')">✗ Refuser</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function validerConge(cid, statut) {
+      await apiAuth("PUT", `/business/rh/conges/${cid}/valider`, { entreprise_id: ENTREPRISE_ID, statut });
+      chargerConges();
+    }
+
+    async function chargerMasseSalariale() {
+      if (!ENTREPRISE_ID) return;
+      const json = await apiAuth("GET", `/business/rh/masse-salariale?entreprise_id=${ENTREPRISE_ID}`);
+      const d = json?.data;
+      const container = document.getElementById("masse-salariale");
+      if (!d) { container.innerHTML = '<div class="empty-state">Aucune donnée</div>'; return; }
+
+      document.getElementById("kpi-employes").textContent = d.nb_employes_actifs;
+      container.innerHTML = `
+        <div class="stat-row"><span>Salaires bruts / mois</span><strong>${formaterEuros(d.total_salaires_bruts)}</strong></div>
+        <div class="stat-row"><span>Charges patronales</span><strong>${formaterEuros(d.charges_patronales_totales)}</strong></div>
+        <div class="stat-row"><span>Coût total employeur / mois</span><strong style="color:var(--accent2)">${formaterEuros(d.cout_total_mensuel)}</strong></div>
+        <div class="stat-row"><span>Coût total annuel</span><strong>${formaterEuros(d.cout_total_annuel)}</strong></div>
+        <div style="margin-top:12px;font-size:0.75rem;color:var(--text-muted)">⚠️ Taux indicatifs 2024 — consultez votre comptable</div>
+      `;
+    }
+
+    async function chargerAlertes() {
+      if (!ENTREPRISE_ID) return;
+      const json = await apiAuth("GET", `/business/finances/anomalies?entreprise_id=${ENTREPRISE_ID}`);
+      const container = document.getElementById("alertes-container");
+      if (!json?.data?.length) { container.innerHTML = ""; return; }
+      container.innerHTML = json.data.map(a => `
+        <div class="alerte-banner alerte-${a.niveau}">
+          <span>⚠️ <strong>${a.categorie}</strong> : dépense ${a.ecart_pct}% supérieure à la moyenne (${formaterEuros(a.montant_actuel)} vs moy. ${formaterEuros(a.montant_moyen)})</span>
+          <a href="finances.html" style="margin-left:auto;color:inherit;font-size:0.8rem">Voir →</a>
+        </div>
+      `).join("");
+    }
+
+    function renderCategories(cats) {
+      if (!cats?.length) { document.getElementById("categories-depenses").innerHTML = '<div class="empty-state">Aucune dépense</div>'; return; }
+      const max = cats[0].montant;
+      document.getElementById("categories-depenses").innerHTML = cats.slice(0, 8).map(c => `
+        <div class="bar-row">
+          <span class="bar-label">${c.categorie}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${max > 0 ? Math.round(c.montant/max*100) : 0}%;background:var(--accent)"></div></div>
+          <span class="bar-value-text">${formaterEuros(c.montant)}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderProjection(proj) {
+      if (!proj?.length) { document.getElementById("projection-tresorerie").innerHTML = '<div class="empty-state">Données insuffisantes</div>'; return; }
+      document.getElementById("projection-tresorerie").innerHTML = `
+        <table class="table">
+          <thead><tr><th>Mois</th><th>Revenus</th><th>Dépenses</th><th>Solde</th></tr></thead>
+          <tbody>
+            ${proj.map(p => `
+              <tr>
+                <td>${p.mois}</td>
+                <td style="color:var(--success)">${formaterEuros(p.revenus_prevus)}</td>
+                <td style="color:var(--danger)">${formaterEuros(p.depenses_prevues)}</td>
+                <td style="color:${p.solde_mensuel >= 0 ? 'var(--success)' : 'var(--danger)'}">
+                  ${p.solde_mensuel >= 0 ? '+' : ''}${formaterEuros(p.solde_mensuel)}
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderChart(evolution) {
+      if (!evolution?.length) return;
+      const recent = evolution.slice(-6);
+      const max = Math.max(...recent.map(e => Math.max(e.revenus, e.depenses)), 1);
+      const h = 120;
+      document.getElementById("chart-evolution").innerHTML = `
+        <div class="chart-bars">
+          ${recent.map(e => `
+            <div class="chart-col">
+              <div class="chart-pair">
+                <div class="chart-bar bar-rev" style="height:${Math.round(e.revenus/max*h)}px" title="Revenus: ${formaterEuros(e.revenus)}"></div>
+                <div class="chart-bar bar-dep" style="height:${Math.round(e.depenses/max*h)}px" title="Dépenses: ${formaterEuros(e.depenses)}"></div>
+              </div>
+              <span class="chart-label">${e.mois.slice(5)}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="chart-legend">
+          <span class="legend-dot" style="background:var(--success)"></span> Revenus
+          <span class="legend-dot" style="background:var(--danger);margin-left:12px"></span> Dépenses
+        </div>
+      `;
+    }
+
+    function formaterEuros(n) {
+      if (n === undefined || n === null) return "—";
+      return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+    }
+
+    init();
+  </script>
+</body>
+</html>
