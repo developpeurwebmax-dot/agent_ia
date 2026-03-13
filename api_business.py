@@ -1,6 +1,5 @@
 """
 api_business.py — Routes API pour Agent IA Business
-À importer dans api.py ou à lancer séparément sur un sous-préfixe /business
 """
 
 from flask import Blueprint, request, jsonify
@@ -10,7 +9,7 @@ import jwt
 import os
 from functools import wraps
 
-# ── Fonctions utilitaires (évite import circulaire avec api.py) ──
+# ── Fonctions utilitaires ──
 
 def reponse_ok(data, message="Succès", code=200):
     return jsonify({"statut": "ok", "message": message, "data": data}), code
@@ -27,6 +26,9 @@ def generer_id(prefix):
 def token_requis(f):
     @wraps(f)
     def decorateur(*args, **kwargs):
+        # Laisser passer les OPTIONS sans token (preflight CORS)
+        if request.method == "OPTIONS":
+            return jsonify({}), 200
         token = None
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
@@ -43,6 +45,7 @@ def token_requis(f):
             return reponse_erreur("Token invalide", 401)
         return f(*args, **kwargs)
     return decorateur
+
 from users import (
     creer_entreprise, get_entreprises_user, get_entreprise, modifier_entreprise,
     inviter_membre, get_membres, modifier_role_membre, retirer_membre, get_role_user
@@ -75,58 +78,52 @@ def _check_acces(entreprise_id: str, user_id: str) -> bool:
 # ENTREPRISES
 # ─────────────────────────────────────────────
 
-@business.route("/entreprises", methods=["POST"])
+@business.route("/entreprises", methods=["GET", "POST", "OPTIONS"])
 @token_requis
-def creer_ent():
-    try:
-        data = get_json()
-        ent = creer_entreprise(request.user_id, data)
-        return reponse_ok(ent, "Entreprise créée", 201)
-    except ValueError as e:
-        return reponse_erreur(str(e))
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
+def entreprises_route():
+    if request.method == "POST":
+        try:
+            data = get_json()
+            ent = creer_entreprise(request.user_id, data)
+            return reponse_ok(ent, "Entreprise créée", 201)
+        except ValueError as e:
+            return reponse_erreur(str(e))
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+    else:  # GET
+        try:
+            entreprises = get_entreprises_user(request.user_id)
+            return reponse_ok({"entreprises": entreprises, "total": len(entreprises)})
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
 
 
-@business.route("/entreprises", methods=["GET"])
+@business.route("/entreprises/<eid>", methods=["GET", "PUT", "OPTIONS"])
 @token_requis
-def list_entreprises():
-    try:
-        entreprises = get_entreprises_user(request.user_id)
-        return reponse_ok({"entreprises": entreprises, "total": len(entreprises)})
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
-
-
-@business.route("/entreprises/<eid>", methods=["GET"])
-@token_requis
-def get_ent(eid):
-    if not _check_acces(eid, request.user_id):
-        return reponse_erreur("Accès refusé", 403)
-    ent = get_entreprise(eid)
-    if not ent:
-        return reponse_erreur("Entreprise non trouvée", 404)
-    return reponse_ok(ent)
-
-
-@business.route("/entreprises/<eid>", methods=["PUT"])
-@token_requis
-def update_ent(eid):
-    try:
-        data = get_json()
-        ent = modifier_entreprise(eid, request.user_id, data)
-        return reponse_ok(ent, "Entreprise mise à jour")
-    except PermissionError as e:
-        return reponse_erreur(str(e), 403)
-    except Exception as e:
-        return reponse_erreur(str(e))
+def entreprise_detail(eid):
+    if request.method == "PUT":
+        try:
+            data = get_json()
+            ent = modifier_entreprise(eid, request.user_id, data)
+            return reponse_ok(ent, "Entreprise mise à jour")
+        except PermissionError as e:
+            return reponse_erreur(str(e), 403)
+        except Exception as e:
+            return reponse_erreur(str(e))
+    else:  # GET
+        if not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        ent = get_entreprise(eid)
+        if not ent:
+            return reponse_erreur("Entreprise non trouvée", 404)
+        return reponse_ok(ent)
 
 
 # ─────────────────────────────────────────────
 # MEMBRES
 # ─────────────────────────────────────────────
 
-@business.route("/membres", methods=["GET"])
+@business.route("/membres", methods=["GET", "OPTIONS"])
 @token_requis
 def list_membres():
     eid = request.args.get("entreprise_id")
@@ -135,7 +132,7 @@ def list_membres():
     return reponse_ok({"membres": get_membres(eid)})
 
 
-@business.route("/membres/inviter", methods=["POST"])
+@business.route("/membres/inviter", methods=["POST", "OPTIONS"])
 @token_requis
 def inviter():
     try:
@@ -151,7 +148,7 @@ def inviter():
         return reponse_erreur(str(e), 500)
 
 
-@business.route("/membres/<uid>/role", methods=["PUT"])
+@business.route("/membres/<uid>/role", methods=["PUT", "OPTIONS"])
 @token_requis
 def update_role(uid):
     try:
@@ -163,7 +160,7 @@ def update_role(uid):
         return reponse_erreur(str(e))
 
 
-@business.route("/membres/<uid>", methods=["DELETE"])
+@business.route("/membres/<uid>", methods=["DELETE", "OPTIONS"])
 @token_requis
 def retirer(uid):
     try:
@@ -175,74 +172,68 @@ def retirer(uid):
 
 
 # ─────────────────────────────────────────────
-# FINANCES
+# FINANCES — TRANSACTIONS
 # ─────────────────────────────────────────────
 
-@business.route("/finances/transactions", methods=["POST"])
+@business.route("/finances/transactions", methods=["GET", "POST", "OPTIONS"])
 @token_requis
-def ajouter_transaction():
-    try:
-        data = get_json()
-        eid = data.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        txn = creer_transaction(eid, data)
-        return reponse_ok(txn, "Transaction créée", 201)
-    except ValueError as e:
-        return reponse_erreur(str(e))
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
+def transactions_route():
+    if request.method == "POST":
+        try:
+            data = get_json()
+            eid = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            txn = creer_transaction(eid, data)
+            return reponse_ok(txn, "Transaction créée", 201)
+        except ValueError as e:
+            return reponse_erreur(str(e))
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+    else:  # GET
+        try:
+            eid = request.args.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            filtres = {
+                "type": request.args.get("type"),
+                "categorie": request.args.get("categorie"),
+                "mois": request.args.get("mois"),
+                "date_debut": request.args.get("date_debut"),
+                "date_fin": request.args.get("date_fin")
+            }
+            txns = get_transactions(eid, {k: v for k, v in filtres.items() if v})
+            return reponse_ok({"transactions": txns, "total": len(txns)})
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
 
 
-@business.route("/finances/transactions", methods=["GET"])
+@business.route("/finances/transactions/<tid>", methods=["PUT", "DELETE", "OPTIONS"])
 @token_requis
-def lister_transactions():
-    try:
-        eid = request.args.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        filtres = {
-            "type": request.args.get("type"),
-            "categorie": request.args.get("categorie"),
-            "mois": request.args.get("mois"),
-            "date_debut": request.args.get("date_debut"),
-            "date_fin": request.args.get("date_fin")
-        }
-        txns = get_transactions(eid, {k: v for k, v in filtres.items() if v})
-        return reponse_ok({"transactions": txns, "total": len(txns)})
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
+def transaction_detail(tid):
+    if request.method == "PUT":
+        try:
+            data = get_json()
+            eid = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            txn = modifier_transaction(tid, eid, data)
+            return reponse_ok(txn, "Transaction mise à jour")
+        except Exception as e:
+            return reponse_erreur(str(e))
+    elif request.method == "DELETE":
+        try:
+            data = get_json()
+            eid = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            supprimer_transaction(tid, eid)
+            return reponse_ok({}, "Transaction supprimée")
+        except Exception as e:
+            return reponse_erreur(str(e))
 
 
-@business.route("/finances/transactions/<tid>", methods=["PUT"])
-@token_requis
-def update_transaction(tid):
-    try:
-        data = get_json()
-        eid = data.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        txn = modifier_transaction(tid, eid, data)
-        return reponse_ok(txn, "Transaction mise à jour")
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@business.route("/finances/transactions/<tid>", methods=["DELETE"])
-@token_requis
-def delete_transaction(tid):
-    try:
-        data = get_json()
-        eid = data.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        supprimer_transaction(tid, eid)
-        return reponse_ok({}, "Transaction supprimée")
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@business.route("/finances/import-csv", methods=["POST"])
+@business.route("/finances/import-csv", methods=["POST", "OPTIONS"])
 @token_requis
 def import_csv():
     try:
@@ -259,7 +250,7 @@ def import_csv():
         return reponse_erreur(str(e), 500)
 
 
-@business.route("/finances/dashboard", methods=["GET"])
+@business.route("/finances/dashboard", methods=["GET", "OPTIONS"])
 @token_requis
 def dashboard_finances():
     try:
@@ -273,7 +264,20 @@ def dashboard_finances():
         return reponse_erreur(str(e), 500)
 
 
-@business.route("/finances/anomalies", methods=["GET"])
+@business.route("/finances/projection", methods=["GET", "OPTIONS"])
+@token_requis
+def projection():
+    try:
+        eid = request.args.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        data = calculer_projection(eid, int(request.args.get("mois", 3)))
+        return reponse_ok(data)
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
+@business.route("/finances/anomalies", methods=["GET", "OPTIONS"])
 @token_requis
 def anomalies():
     try:
@@ -290,76 +294,65 @@ def anomalies():
 # RH — EMPLOYÉS
 # ─────────────────────────────────────────────
 
-@business.route("/rh/employes", methods=["POST"])
+@business.route("/rh/employes", methods=["GET", "POST", "OPTIONS"])
 @token_requis
-def add_employe():
-    try:
-        data = get_json()
-        eid = data.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        emp = creer_employe(eid, data)
-        return reponse_ok(emp, "Employé créé", 201)
-    except ValueError as e:
-        return reponse_erreur(str(e))
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
+def employes_route():
+    if request.method == "POST":
+        try:
+            data = get_json()
+            eid = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            emp = creer_employe(eid, data)
+            return reponse_ok(emp, "Employé créé", 201)
+        except ValueError as e:
+            return reponse_erreur(str(e))
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+    else:  # GET
+        try:
+            eid = request.args.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            employes = get_employes(eid, request.args.get("statut"))
+            return reponse_ok({"employes": employes, "total": len(employes)})
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
 
 
-@business.route("/rh/employes", methods=["GET"])
+@business.route("/rh/employes/<empid>", methods=["GET", "PUT", "DELETE", "OPTIONS"])
 @token_requis
-def list_employes():
-    try:
+def employe_detail(empid):
+    if request.method == "GET":
         eid = request.args.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
-        statut = request.args.get("statut")
-        employes = get_employes(eid, statut)
-        return reponse_ok({"employes": employes, "total": len(employes)})
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
+        emp = get_employe(empid, eid)
+        if not emp:
+            return reponse_erreur("Employé non trouvé", 404)
+        return reponse_ok(emp)
+    elif request.method == "PUT":
+        try:
+            data = get_json()
+            eid = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            emp = modifier_employe(empid, eid, data)
+            return reponse_ok(emp, "Employé mis à jour")
+        except Exception as e:
+            return reponse_erreur(str(e))
+    elif request.method == "DELETE":
+        try:
+            eid = request.args.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            supprimer_employe(empid, eid)
+            return reponse_ok({}, "Employé supprimé")
+        except Exception as e:
+            return reponse_erreur(str(e))
 
 
-@business.route("/rh/employes/<empid>", methods=["GET"])
-@token_requis
-def get_emp(empid):
-    eid = request.args.get("entreprise_id")
-    if not eid or not _check_acces(eid, request.user_id):
-        return reponse_erreur("Accès refusé", 403)
-    emp = get_employe(empid, eid)
-    if not emp:
-        return reponse_erreur("Employé non trouvé", 404)
-    return reponse_ok(emp)
-
-
-@business.route("/rh/employes/<empid>", methods=["PUT"])
-@token_requis
-def update_emp(empid):
-    try:
-        data = get_json()
-        eid = data.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        emp = modifier_employe(empid, eid, data)
-        return reponse_ok(emp, "Employé mis à jour")
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@business.route("/rh/employes/<empid>", methods=["DELETE"])
-@token_requis
-def delete_emp(empid):
-    try:
-        eid = request.args.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        supprimer_employe(empid, eid)
-        return reponse_ok({}, "Employé supprimé")
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@business.route("/rh/masse-salariale", methods=["GET"])
+@business.route("/rh/masse-salariale", methods=["GET", "OPTIONS"])
 @token_requis
 def masse_sal():
     try:
@@ -376,36 +369,33 @@ def masse_sal():
 # RH — CONGÉS
 # ─────────────────────────────────────────────
 
-@business.route("/rh/conges", methods=["POST"])
+@business.route("/rh/conges", methods=["GET", "POST", "OPTIONS"])
 @token_requis
-def add_conge():
-    try:
-        data = get_json()
-        eid = data.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        conge = creer_conge(eid, data)
-        return reponse_ok(conge, "Demande de congé créée", 201)
-    except ValueError as e:
-        return reponse_erreur(str(e))
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
+def conges_route():
+    if request.method == "POST":
+        try:
+            data = get_json()
+            eid = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            conge = creer_conge(eid, data)
+            return reponse_ok(conge, "Demande de congé créée", 201)
+        except ValueError as e:
+            return reponse_erreur(str(e))
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+    else:  # GET
+        try:
+            eid = request.args.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            data = get_conges(eid, request.args.get("employe_id"), request.args.get("statut"))
+            return reponse_ok(data)
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
 
 
-@business.route("/rh/conges", methods=["GET"])
-@token_requis
-def list_conges():
-    try:
-        eid = request.args.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        data = get_conges(eid, request.args.get("employe_id"), request.args.get("statut"))
-        return reponse_ok(data)
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
-
-
-@business.route("/rh/conges/<cid>/valider", methods=["PUT"])
+@business.route("/rh/conges/<cid>/valider", methods=["PUT", "OPTIONS"])
 @token_requis
 def valider(cid):
     try:
@@ -425,73 +415,67 @@ def valider(cid):
 # RH — POINTAGES
 # ─────────────────────────────────────────────
 
-@business.route("/rh/pointages", methods=["POST"])
+@business.route("/rh/pointages", methods=["GET", "POST", "OPTIONS"])
 @token_requis
-def add_pointage():
-    try:
-        data = get_json()
-        eid = data.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        ptg = pointer_heures(eid, data)
-        return reponse_ok(ptg, "Pointage enregistré", 201)
-    except ValueError as e:
-        return reponse_erreur(str(e))
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
-
-
-@business.route("/rh/pointages", methods=["GET"])
-@token_requis
-def list_pointages():
-    try:
-        eid = request.args.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        data = get_pointages(eid, request.args.get("employe_id"), request.args.get("mois"))
-        return reponse_ok(data)
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
+def pointages_route():
+    if request.method == "POST":
+        try:
+            data = get_json()
+            eid = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            ptg = pointer_heures(eid, data)
+            return reponse_ok(ptg, "Pointage enregistré", 201)
+        except ValueError as e:
+            return reponse_erreur(str(e))
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+    else:  # GET
+        try:
+            eid = request.args.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            data = get_pointages(eid, request.args.get("employe_id"), request.args.get("mois"))
+            return reponse_ok(data)
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
 
 
 # ─────────────────────────────────────────────
 # RH — ÉVALUATIONS
 # ─────────────────────────────────────────────
 
-@business.route("/rh/evaluations", methods=["POST"])
+@business.route("/rh/evaluations", methods=["GET", "POST", "OPTIONS"])
 @token_requis
-def add_evaluation():
-    try:
-        data = get_json()
-        eid = data.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        eval_ = creer_evaluation(eid, data)
-        return reponse_ok(eval_, "Évaluation créée", 201)
-    except ValueError as e:
-        return reponse_erreur(str(e))
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
-
-
-@business.route("/rh/evaluations", methods=["GET"])
-@token_requis
-def list_evaluations():
-    try:
-        eid = request.args.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        data = get_evaluations(eid, request.args.get("employe_id"))
-        return reponse_ok(data)
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
+def evaluations_route():
+    if request.method == "POST":
+        try:
+            data = get_json()
+            eid = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            eval_ = creer_evaluation(eid, data)
+            return reponse_ok(eval_, "Évaluation créée", 201)
+        except ValueError as e:
+            return reponse_erreur(str(e))
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+    else:  # GET
+        try:
+            eid = request.args.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            data = get_evaluations(eid, request.args.get("employe_id"))
+            return reponse_ok(data)
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
 
 
 # ─────────────────────────────────────────────
 # ANALYTICS IA
 # ─────────────────────────────────────────────
 
-@business.route("/analytics/analyser", methods=["POST"])
+@business.route("/analytics/analyser", methods=["POST", "OPTIONS"])
 @token_requis
 def analyser_business():
     try:
@@ -500,7 +484,6 @@ def analyser_business():
         if not eid or not _check_acces(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
 
-        # Collecter les données
         dashboard = get_dashboard_financier(eid, "annee")
         masse_sal = get_masse_salariale(eid)
 
@@ -523,14 +506,3 @@ def analyser_business():
         return reponse_ok(analyse, "Analyse générée")
     except Exception as e:
         return reponse_erreur(str(e), 500)
-
-
-# ─────────────────────────────────────────────
-# ENREGISTREMENT DU BLUEPRINT dans api.py
-# ─────────────────────────────────────────────
-# Dans api.py, ajouter APRÈS la création de app :
-#
-#   from api_business import business
-#   app.register_blueprint(business)
-#   from database_business import init_db_business
-#   init_db_business()
