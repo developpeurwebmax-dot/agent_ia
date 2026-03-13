@@ -17,16 +17,23 @@ from auth import (
 )
 
 app = Flask(__name__)
-CORS(app)
 
-# Initialiser la base de données au démarrage
-init_db()
-
-# ── MODULE BUSINESS ──
+# ── MODULE BUSINESS (enregistrer AVANT CORS) ──
 from api_business import business
 app.register_blueprint(business)
 from database_business import init_db_business
 init_db_business()
+
+# ── CORS — après register_blueprint pour couvrir TOUTES les routes ──
+CORS(app, resources={r"/*": {
+    "origins": "*",
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    "allow_headers": ["Content-Type", "Authorization", "Accept"],
+    "supports_credentials": False
+}})
+
+# Initialiser la base de données au démarrage
+init_db()
 
 
 # ─────────────────────────────────────────────
@@ -177,14 +184,14 @@ def creer_prospect():
             INSERT INTO prospects (id, user_id, nom, entreprise, email, telephone,
                 linkedin, secteur, besoin, source, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (pid, request.user_id, data.get("nom"), data.get("entreprise",""),
+        """, (pid, request.user_id, data["nom"], data.get("entreprise",""),
               data.get("email",""), data.get("telephone",""), data.get("linkedin",""),
               data.get("secteur",""), data.get("besoin",""), data.get("source",""),
               data.get("notes","")))
         conn.commit()
-        prospect = row_to_dict(conn.execute("SELECT * FROM prospects WHERE id=?", (pid,)).fetchone())
+        row = conn.execute("SELECT * FROM prospects WHERE id=?", (pid,)).fetchone()
         conn.close()
-        return reponse_ok(prospect, "Prospect ajouté", 201)
+        return reponse_ok(row_to_dict(row), "Prospect créé", 201)
     except Exception as e:
         return reponse_erreur(str(e))
 
@@ -193,31 +200,22 @@ def creer_prospect():
 @token_requis
 def get_prospects():
     try:
-        statut = request.args.get("statut")
         conn = get_db()
+        statut = request.args.get("statut")
         if statut:
-            rows = conn.execute("SELECT * FROM prospects WHERE user_id=? AND statut=? ORDER BY date_ajout DESC",
-                               (request.user_id, statut)).fetchall()
+            rows = conn.execute(
+                "SELECT * FROM prospects WHERE user_id=? AND statut=? ORDER BY date_creation DESC",
+                (request.user_id, statut)
+            ).fetchall()
         else:
-            rows = conn.execute("SELECT * FROM prospects WHERE user_id=? ORDER BY date_ajout DESC",
-                               (request.user_id,)).fetchall()
+            rows = conn.execute(
+                "SELECT * FROM prospects WHERE user_id=? ORDER BY date_creation DESC",
+                (request.user_id,)
+            ).fetchall()
         conn.close()
-        prospects = rows_to_list(rows)
-        return reponse_ok({"prospects": prospects, "total": len(prospects)})
+        return reponse_ok({"prospects": rows_to_list(rows), "total": len(rows)})
     except Exception as e:
         return reponse_erreur(str(e))
-
-
-@app.route("/crm/prospects/<pid>", methods=["GET"])
-@token_requis
-def get_prospect(pid):
-    conn = get_db()
-    row = conn.execute("SELECT * FROM prospects WHERE id=? AND user_id=?",
-                      (pid, request.user_id)).fetchone()
-    conn.close()
-    if not row:
-        return reponse_erreur("Prospect non trouvé", 404)
-    return reponse_ok(row_to_dict(row))
 
 
 @app.route("/crm/prospects/<pid>", methods=["PUT"])
@@ -226,11 +224,14 @@ def update_prospect(pid):
     try:
         data = get_json()
         conn = get_db()
-        champs_ok = ["nom","entreprise","email","telephone","linkedin","secteur",
-                    "besoin","source","notes","statut","score","valeur_estimee",
-                    "dernier_contact","prochain_contact"]
-        sets = [f"{k}=?" for k in data if k in champs_ok]
-        vals = [data[k] for k in data if k in champs_ok]
+        champs = ["nom","entreprise","email","telephone","linkedin","secteur",
+                  "besoin","source","notes","statut","valeur_estimee","dernier_contact"]
+        sets = []
+        vals = []
+        for k in champs:
+            if k in data:
+                sets.append(f"{k}=?")
+                vals.append(data[k])
         if sets:
             vals += [pid, request.user_id]
             conn.execute(f"UPDATE prospects SET {','.join(sets)} WHERE id=? AND user_id=?", vals)
@@ -252,108 +253,58 @@ def delete_prospect(pid):
     return reponse_ok({}, "Prospect supprimé")
 
 
-@app.route("/crm/prospects/<pid>/statut", methods=["PUT"])
+@app.route("/crm/prospects/<pid>/interactions", methods=["POST"])
 @token_requis
-def update_statut_prospect(pid):
+def ajouter_interaction(pid):
     try:
         data = get_json()
-        statut = data.get("statut")
-        statuts_valides = ["nouveau","contacte","en_discussion","devis_envoye",
-                          "relance","gagne","perdu","en_pause"]
-        if statut not in statuts_valides:
-            return reponse_erreur(f"Statut invalide")
-        conn = get_db()
-        conn.execute("UPDATE prospects SET statut=? WHERE id=? AND user_id=?",
-                    (statut, pid, request.user_id))
-        conn.commit()
-        row = conn.execute("SELECT * FROM prospects WHERE id=?", (pid,)).fetchone()
-        conn.close()
-        return reponse_ok(row_to_dict(row), f"Statut changé en {statut}")
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@app.route("/crm/prospects/relancer", methods=["GET"])
-@token_requis
-def get_a_relancer():
-    try:
-        jours = int(request.args.get("jours", 7))
-        seuil = (datetime.now() - timedelta(days=jours)).isoformat()
-        conn = get_db()
-        rows = conn.execute("""
-            SELECT * FROM prospects
-            WHERE user_id=? AND statut NOT IN ('gagne','perdu')
-            AND (dernier_contact IS NULL OR dernier_contact < ? OR dernier_contact = '')
-            ORDER BY dernier_contact ASC NULLS FIRST
-        """, (request.user_id, seuil)).fetchall()
-        conn.close()
-        # Calculer jours_sans_contact en Python
-        result = []
-        for r in rows_to_list(rows):
-            ref = r.get("dernier_contact") or r.get("date_ajout", "")
-            try:
-                jsc = (datetime.now() - datetime.fromisoformat(ref)).days if ref else 999
-            except Exception:
-                jsc = 999
-            r["jours_sans_contact"] = jsc
-            result.append(r)
-        result.sort(key=lambda x: x["jours_sans_contact"], reverse=True)
-        return reponse_ok({"prospects": result, "total": len(result)})
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@app.route("/crm/interactions", methods=["POST"])
-@token_requis
-def creer_interaction():
-    try:
-        data = get_json()
-        if not data.get("prospect_id") or not data.get("type_interaction"):
-            return reponse_erreur("prospect_id et type_interaction requis")
         conn = get_db()
         iid = generer_id("INT")
         conn.execute("""
-            INSERT INTO interactions (id, user_id, prospect_id, type, contenu, resultat, prochain_contact)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (iid, request.user_id, data["prospect_id"], data["type_interaction"],
-              data.get("contenu",""), data.get("resultat",""), data.get("prochain_contact")))
-        # Mettre à jour le prospect
-        conn.execute("""
-            UPDATE prospects SET dernier_contact=?,
-            nb_interactions=nb_interactions+1,
-            prochain_contact=?
-            WHERE id=? AND user_id=?
-        """, (datetime.now().isoformat(), data.get("prochain_contact"), data["prospect_id"], request.user_id))
+            INSERT INTO interactions (id, prospect_id, user_id, type, note, date)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (iid, pid, request.user_id, data.get("type","note"),
+              data.get("note",""), data.get("date", date.today().isoformat())))
+        conn.execute(
+            "UPDATE prospects SET dernier_contact=? WHERE id=? AND user_id=?",
+            (date.today().isoformat(), pid, request.user_id)
+        )
         conn.commit()
-        row = conn.execute("SELECT * FROM interactions WHERE id=?", (iid,)).fetchone()
         conn.close()
-        return reponse_ok(row_to_dict(row), "Interaction enregistrée", 201)
+        return reponse_ok({}, "Interaction ajoutée", 201)
     except Exception as e:
         return reponse_erreur(str(e))
 
 
-@app.route("/crm/prospects/<pid>/historique", methods=["GET"])
+@app.route("/crm/prospects/<pid>/interactions", methods=["GET"])
 @token_requis
-def get_historique(pid):
-    conn = get_db()
-    rows = conn.execute("SELECT * FROM interactions WHERE prospect_id=? AND user_id=? ORDER BY date DESC",
-                       (pid, request.user_id)).fetchall()
-    conn.close()
-    return reponse_ok({"interactions": rows_to_list(rows), "total": len(rows)})
+def get_interactions(pid):
+    try:
+        conn = get_db()
+        rows = conn.execute(
+            "SELECT * FROM interactions WHERE prospect_id=? AND user_id=? ORDER BY date DESC",
+            (pid, request.user_id)
+        ).fetchall()
+        conn.close()
+        return reponse_ok({"interactions": rows_to_list(rows)})
+    except Exception as e:
+        return reponse_erreur(str(e))
 
 
 @app.route("/crm/stats", methods=["GET"])
 @token_requis
-def get_stats_crm():
+def crm_stats():
     try:
         conn = get_db()
         uid = request.user_id
-        seuil = (datetime.now() - timedelta(days=3)).isoformat()
+        seuil = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
 
         def scalar(row):
-            if row is None: return 0
-            if isinstance(row, dict): return list(row.values())[0] or 0
-            return row[0] or 0
+            if row is None:
+                return 0
+            if isinstance(row, dict):
+                return list(row.values())[0]
+            return row[0]
 
         total       = scalar(conn.execute("SELECT COUNT(*) as c FROM prospects WHERE user_id=?", (uid,)).fetchone())
         clients     = scalar(conn.execute("SELECT COUNT(*) as c FROM prospects WHERE user_id=? AND statut='gagne'", (uid,)).fetchone())
@@ -420,8 +371,10 @@ def creer_devis():
 def get_devis():
     try:
         conn = get_db()
-        rows = conn.execute("SELECT * FROM devis WHERE user_id=? ORDER BY date_creation DESC",
-                           (request.user_id,)).fetchall()
+        rows = conn.execute(
+            "SELECT * FROM devis WHERE user_id=? ORDER BY date_creation DESC",
+            (request.user_id,)
+        ).fetchall()
         conn.close()
         devis = []
         for r in rows_to_list(rows):
@@ -439,7 +392,7 @@ def update_devis(did):
         data = get_json()
         conn = get_db()
         champs = ["numero","client","adresse_client","objet","lignes","montant_ht",
-                 "montant_ttc","tva","statut","date","validite","delai","conditions"]
+                  "montant_ttc","tva","statut","date","validite","delai","conditions"]
         sets = []
         vals = []
         for k in champs:
@@ -474,8 +427,7 @@ def delete_devis(did):
 
 @app.route("/devis/<did>/convertir", methods=["POST"])
 @token_requis
-def convertir_devis_en_facture(did):
-    """Convertit un devis accepté en facture."""
+def convertir_devis(did):
     try:
         conn = get_db()
         devis_row = conn.execute("SELECT * FROM devis WHERE id=? AND user_id=?",
@@ -485,7 +437,6 @@ def convertir_devis_en_facture(did):
             return reponse_erreur("Devis non trouvé", 404)
 
         d = dict(devis_row)
-        # Compter les factures pour le numéro
         nb_row = conn.execute("SELECT COUNT(*) as c FROM factures WHERE user_id=?", (request.user_id,)).fetchone()
         nb = list(nb_row.values())[0] if isinstance(nb_row, dict) else nb_row[0]
         annee = datetime.now().year
@@ -504,7 +455,6 @@ def convertir_devis_en_facture(did):
               datetime.now().strftime("%Y-%m-%d"), echeance,
               "Virement bancaire", d.get("conditions",""), did))
 
-        # Marquer le devis comme accepté
         conn.execute("UPDATE devis SET statut='accepte' WHERE id=?", (did,))
         conn.commit()
 
@@ -607,97 +557,20 @@ def delete_facture(fid):
     return reponse_ok({}, "Facture supprimée")
 
 
-@app.route("/factures/stats", methods=["GET"])
+@app.route("/factures/<fid>/statut", methods=["PUT"])
 @token_requis
-def get_stats_factures():
+def update_statut_facture(fid):
     try:
+        data = get_json()
+        statut = data.get("statut")
+        if statut not in ["non_payee", "payee", "en_retard", "annulee"]:
+            return reponse_erreur("Statut invalide")
         conn = get_db()
-        uid = request.user_id
-        today = date.today().isoformat()
-
-        def scalar(row):
-            if row is None: return 0
-            if isinstance(row, dict): return list(row.values())[0] or 0
-            return row[0] or 0
-
-        ca         = scalar(conn.execute("SELECT COALESCE(SUM(montant_ttc),0) as c FROM factures WHERE user_id=? AND statut='payee'", (uid,)).fetchone())
-        en_attente = scalar(conn.execute("SELECT COALESCE(SUM(montant_ttc),0) as c FROM factures WHERE user_id=? AND statut='non_payee'", (uid,)).fetchone())
-        en_retard  = scalar(conn.execute("SELECT COUNT(*) as c FROM factures WHERE user_id=? AND statut='non_payee' AND date_echeance < ?", (uid, today)).fetchone())
+        conn.execute("UPDATE factures SET statut=? WHERE id=? AND user_id=?",
+                    (statut, fid, request.user_id))
+        conn.commit()
         conn.close()
-        return reponse_ok({"ca_encaisse": ca, "en_attente": en_attente, "en_retard": en_retard})
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-# ─────────────────────────────────────────────
-# ROUTES AGENT IA (conservées)
-# ─────────────────────────────────────────────
-
-@app.route("/agent/plan-journalier", methods=["POST"])
-@token_requis
-def plan_journalier():
-    try:
-        from agent import generer_plan_journalier
-        data = get_json()
-        metier = data.get("metier", "indépendant")
-        plan = generer_plan_journalier([], [], metier)
-        return reponse_ok(plan, "Plan journalier généré")
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@app.route("/agent/email", methods=["POST"])
-@token_requis
-def generer_email():
-    try:
-        from agent import generer_email_prospect
-        data = get_json()
-        email = generer_email_prospect(
-            data.get("prospect", {}),
-            data.get("contexte", "premier contact"),
-            data.get("metier", "indépendant"),
-            data.get("style", "professionnel")
-        )
-        return reponse_ok(email, "Email généré")
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@app.route("/agent/post-linkedin", methods=["POST"])
-@token_requis
-def post_linkedin():
-    try:
-        from agent import generer_post_linkedin
-        data = get_json()
-        if not data.get("sujet"):
-            return reponse_erreur("Le champ 'sujet' est requis")
-        post = generer_post_linkedin(data["sujet"], data.get("metier","indépendant"), data.get("objectif","notoriété"))
-        return reponse_ok(post, "Post LinkedIn généré")
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@app.route("/agent/relance", methods=["POST"])
-@token_requis
-def relance():
-    try:
-        from agent import generer_relance
-        data = get_json()
-        msg = generer_relance(data.get("prospect",{}), data.get("nb_jours_sans_reponse",5), data.get("metier","indépendant"))
-        return reponse_ok(msg, "Relance générée")
-    except Exception as e:
-        return reponse_erreur(str(e))
-
-
-@app.route("/agent/analyser-activite", methods=["POST"])
-@token_requis
-def analyser_activite_route():
-    try:
-        from agent import analyser_activite
-        data = get_json()
-        metier = data.pop("metier", "indépendant")
-        analyse = analyser_activite(data, metier)
-        return reponse_ok(analyse, "Analyse générée")
+        return reponse_ok({}, "Statut mis à jour")
     except Exception as e:
         return reponse_erreur(str(e))
 
@@ -707,6 +580,6 @@ def analyser_activite_route():
 # ─────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("🚀 Agent IA v2 — API sécurisée démarrée")
-    print("📡 http://localhost:5000")
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    import os
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
