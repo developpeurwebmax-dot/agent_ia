@@ -15,7 +15,6 @@ from auth import verifier_token
 # ── BLUEPRINT ── (nom de variable = 'business', obligatoire pour api.py)
 business = Blueprint('business', __name__)
 
-
 # ─────────────────────────────────────────────
 # UTILITAIRES
 # ─────────────────────────────────────────────
@@ -848,3 +847,4 @@ def get_alertes():
         return ok({"alertes": alertes})
     except Exception as e:
         return err(str(e))
+
