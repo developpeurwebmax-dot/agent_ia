@@ -1,6 +1,5 @@
 """
 database_business.py — Tables supplémentaires pour Agent IA Business
-À appeler depuis database.py init_db() ou séparément
 """
 
 from database import get_db, USE_POSTGRES
@@ -40,8 +39,7 @@ def _tables_sqlite():
             nb_employes_max INTEGER DEFAULT 50,
             plan TEXT DEFAULT 'business',
             owner_id TEXT NOT NULL,
-            created_at TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (owner_id) REFERENCES users(id)
+            created_at TEXT DEFAULT (datetime('now'))
         )""",
 
         # ── MEMBRES ENTREPRISE ──
@@ -52,8 +50,7 @@ def _tables_sqlite():
             role TEXT DEFAULT 'employe',
             actif INTEGER DEFAULT 1,
             date_ajout TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (entreprise_id) REFERENCES entreprises(id),
-            FOREIGN KEY (user_id) REFERENCES users(id)
+            FOREIGN KEY (entreprise_id) REFERENCES entreprises(id)
         )""",
 
         # ── TRANSACTIONS FINANCIÈRES ──
@@ -175,6 +172,4 @@ def _tables_postgres():
         pg.append(sql)
     return pg
 
-
-# Initialiser automatiquement
-init_db_business()
+# ⚠️  PAS d'appel automatique ici — c'est api.py qui appelle init_db_business()
