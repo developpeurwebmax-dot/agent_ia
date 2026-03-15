@@ -62,7 +62,7 @@ def get_transactions(entreprise_id: str, filtres: dict = None) -> list:
         sql = "SELECT * FROM transactions WHERE entreprise_id=?"
         params = [entreprise_id]
 
-                if filtres:
+        if filtres:
             if filtres.get("type"):
                 sql += " AND type=?"
                 params.append(filtres["type"])
@@ -271,8 +271,7 @@ def get_dashboard_financier(entreprise_id: str, periode: str = None) -> dict:
         ).fetchall()
         depenses_par_categorie = [{"categorie": r["categorie"], "montant": float(r["total"] or 0)} for r in rows_to_list(rows_cat)]
 
-                # Évolution mensuelle (12 derniers mois)
-               
+        # Évolution mensuelle (12 derniers mois)
         evolution = []
         for i in range(11, -1, -1):
             d = today.replace(day=1) - timedelta(days=i * 30)
@@ -320,7 +319,7 @@ def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
                 v = row.get("c") if isinstance(row, dict) else row[0]
                 return float(v or 0)
 
-                r = sc(conn.execute(
+            r = sc(conn.execute(
                 "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='revenu' AND substr(date, 1, 7)=?",
                 (entreprise_id, mois_str)
             ).fetchone())
@@ -387,7 +386,7 @@ def detecter_anomalies(entreprise_id: str) -> list:
             if moyenne == 0:
                 continue
 
-                        # Mois courant
+            # Mois courant
             row_actuel = conn.execute(
                 "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='depense' AND categorie=? AND substr(date, 1, 7)=?",
                 (entreprise_id, cat, mois_courant)
@@ -405,5 +404,4 @@ def detecter_anomalies(entreprise_id: str) -> list:
 
         return sorted(alertes, key=lambda x: x["ecart_pct"], reverse=True)
     finally:
-
         conn.close()
