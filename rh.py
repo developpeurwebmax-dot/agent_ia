@@ -378,5 +378,4 @@ def get_evaluations(entreprise_id: str, employe_id: str = None) -> list:
             ).fetchall()
         return rows_to_list(rows)
     finally:
-
         conn.close()
