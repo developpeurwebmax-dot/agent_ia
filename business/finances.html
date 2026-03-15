@@ -113,10 +113,10 @@
       <div class="form-grid">
         <div class="form-group">
           <label>Type *</label>
-          <select id="f-type">
-            <option value="revenu">💰 Revenu</option>
-            <option value="depense">📤 Dépense</option>
-          </select>
+          <select id="f-type" onchange="majCategories()">
+			<option value="revenu">💰 Revenu</option>
+			<option value="depense">📤 Dépense</option>
+		  </select>
         </div>
         <div class="form-group">
           <label>Montant (€) *</label>
@@ -332,29 +332,68 @@ document.getElementById("f-date").value = `${now2.getFullYear()}-${String(now2.g
       `).join("");
     }
 
-    // ── MODAL TRANSACTION ──
-    function ouvrirModal(txn = null) {
-      txnIdEdition = txn?.id || null;
-      document.getElementById("modal-titre").textContent = txn ? "Modifier la transaction" : "Nouvelle transaction";
-      if (txn) {
-        document.getElementById("f-type").value     = txn.type || "depense";
-        document.getElementById("f-montant").value  = txn.montant || "";
-        document.getElementById("f-date").value     = txn.date || "";
-        document.getElementById("f-categorie").value= txn.categorie || "autre";
-        document.getElementById("f-description").value = txn.description || "";
-        document.getElementById("f-mode").value     = txn.mode_paiement || "virement";
-        document.getElementById("f-reference").value= txn.reference || "";
-      } else {
-        document.getElementById("f-type").value     = "depense";
-        document.getElementById("f-montant").value  = "";
-        document.getElementById("f-date").value     = new Date().toISOString().slice(0, 10);
-        document.getElementById("f-categorie").value= "autre";
-        document.getElementById("f-description").value = "";
-        document.getElementById("f-mode").value     = "virement";
-        document.getElementById("f-reference").value= "";
-      }
-      document.getElementById("modal-txn").style.display = "flex";
-    }
+// ── CATÉGORIES DYNAMIQUES ──
+function majCategories() {
+  const type = document.getElementById("f-type").value;
+  const sel = document.getElementById("f-categorie");
+  const valActuelle = sel.value;
+
+  const cats = {
+    revenu: [
+      { value: "vente_produit",     label: "🛒 Vente produit" },
+      { value: "prestation",        label: "💼 Prestation de service" },
+      { value: "abonnement",        label: "🔄 Abonnement / Licence" },
+      { value: "subvention",        label: "🏛️ Subvention / Aide" },
+      { value: "remboursement",     label: "↩️ Remboursement" },
+      { value: "placement",         label: "📈 Placement / Dividende" },
+      { value: "autre",             label: "❓ Autre" },
+    ],
+    depense: [
+      { value: "salaires",          label: "👥 Salaires" },
+      { value: "loyer",             label: "🏢 Loyer" },
+      { value: "charges_fixes",     label: "⚡ Charges fixes" },
+      { value: "fournitures",       label: "📦 Fournitures" },
+      { value: "marketing",         label: "📣 Marketing" },
+      { value: "deplacement_repas", label: "🚗 Déplacements / Repas" },
+      { value: "assurances",        label: "🛡️ Assurances" },
+      { value: "honoraires",        label: "⚖️ Honoraires" },
+      { value: "materiel",          label: "🖥️ Matériel / Équipement" },
+      { value: "logiciels",         label: "💻 Logiciels / Abonnements" },
+      { value: "autre",             label: "❓ Autre" },
+    ]
+  };
+
+  sel.innerHTML = (cats[type] || cats.depense)
+    .map(c => `<option value="${c.value}" ${c.value === valActuelle ? "selected" : ""}>${c.label}</option>`)
+    .join("");
+}
+
+// ── MODAL TRANSACTION ──
+// ── MODAL TRANSACTION ──
+function ouvrirModal(txn = null) {
+  txnIdEdition = txn?.id || null;
+  document.getElementById("modal-titre").textContent = txn ? "Modifier la transaction" : "Nouvelle transaction";
+  if (txn) {
+    document.getElementById("f-type").value          = txn.type || "depense";
+    majCategories(); // ✅ met à jour les catégories selon le type
+    document.getElementById("f-montant").value       = txn.montant || "";
+    document.getElementById("f-date").value          = txn.date || "";
+    document.getElementById("f-categorie").value     = txn.categorie || "autre";
+    document.getElementById("f-description").value   = txn.description || "";
+    document.getElementById("f-mode").value          = txn.mode_paiement || "virement";
+    document.getElementById("f-reference").value     = txn.reference || "";
+  } else {
+    document.getElementById("f-type").value          = "depense";
+    majCategories(); // ✅ met à jour les catégories selon le type
+    document.getElementById("f-montant").value       = "";
+    document.getElementById("f-date").value          = new Date().toISOString().slice(0, 10);
+    document.getElementById("f-categorie").value     = "autre";
+    document.getElementById("f-description").value   = "";
+    document.getElementById("f-mode").value          = "virement";
+    document.getElementById("f-reference").value     = "";
+  }
+  document.getElementById("modal-txn").style.display = "flex";
+}
 
     function fermerModal() {
       document.getElementById("modal-txn").style.display = "none";
