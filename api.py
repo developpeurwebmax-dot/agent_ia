@@ -1,11 +1,13 @@
 """
 api.py — API Flask sécurisée avec SQLite
+Authentification JWT + bcrypt pour les mots de passe
 """
 
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from functools import wraps
 import json
+import traceback
 from datetime import datetime, date, timedelta
 
 from database import get_db, row_to_dict, rows_to_list, init_db
@@ -13,35 +15,33 @@ from auth import (
     inscrire_user, connecter_user, get_user_by_id,
     modifier_user, changer_plan, supprimer_user, verifier_token
 )
+from agent import (
+    generer_plan_journalier,
+    generer_email_prospect,
+    generer_message_linkedin,
+    generer_offre_commerciale,
+    generer_relance,
+    analyser_activite,
+)
 
 app = Flask(__name__)
 
-# ── CORS — handler manuel, couvre 100% des routes y compris blueprints ──
-@app.before_request
-def gerer_preflight():
-    if request.method == "OPTIONS":
-        r = make_response()
-        r.headers["Access-Control-Allow-Origin"]  = "*"
-        r.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        r.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept"
-        r.headers["Access-Control-Max-Age"]       = "3600"
-        return r, 200
-
-@app.after_request
-def ajouter_cors(response):
-    response.headers["Access-Control-Allow-Origin"]  = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Accept"
-    return response
-
-# ── Initialiser DB en premier ──
-init_db()
-
-# ── MODULE BUSINESS ──
+# ── MODULE BUSINESS (enregistrer AVANT CORS) ──
 from api_business import business
 app.register_blueprint(business)
 from database_business import init_db_business
 init_db_business()
+
+# ── CORS — après register_blueprint pour couvrir TOUTES les routes ──
+CORS(app, resources={r"/*": {
+    "origins": "*",
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    "allow_headers": ["Content-Type", "Authorization", "Accept"],
+    "supports_credentials": False
+}})
+
+# Initialiser la base de données au démarrage
+init_db()
 
 
 # ─────────────────────────────────────────────
@@ -67,17 +67,24 @@ def generer_id(prefix):
 # ─────────────────────────────────────────────
 
 def token_requis(f):
+    """Décorateur qui vérifie le token JWT."""
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
+
+        # Chercher le token dans le header Authorization
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
+
         if not token:
             return reponse_erreur("Token manquant", 401)
+
         user_id = verifier_token(token)
         if not user_id:
             return reponse_erreur("Token invalide ou expiré", 401)
+
+        # Injecter le user_id dans la requête
         request.user_id = user_id
         return f(*args, **kwargs)
     return decorated
@@ -94,6 +101,7 @@ def accueil():
 
 @app.route("/auth/inscription", methods=["POST"])
 def inscription():
+    """Inscrit un nouvel utilisateur."""
     try:
         data = get_json()
         result = inscrire_user(data)
@@ -106,6 +114,7 @@ def inscription():
 
 @app.route("/auth/connexion", methods=["POST"])
 def connexion():
+    """Connecte un utilisateur."""
     try:
         data = get_json()
         email = data.get("email", "")
@@ -123,6 +132,7 @@ def connexion():
 @app.route("/auth/profil", methods=["GET"])
 @token_requis
 def get_profil():
+    """Récupère le profil de l'utilisateur connecté."""
     user = get_user_by_id(request.user_id)
     if not user:
         return reponse_erreur("Utilisateur non trouvé", 404)
@@ -132,6 +142,7 @@ def get_profil():
 @app.route("/auth/profil", methods=["PUT"])
 @token_requis
 def update_profil():
+    """Modifie le profil."""
     try:
         data = get_json()
         user = modifier_user(request.user_id, data)
@@ -143,6 +154,7 @@ def update_profil():
 @app.route("/auth/plan", methods=["PUT"])
 @token_requis
 def update_plan():
+    """Change le plan d'abonnement."""
     try:
         data = get_json()
         plan = data.get("plan")
@@ -157,8 +169,152 @@ def update_plan():
 @app.route("/auth/supprimer", methods=["DELETE"])
 @token_requis
 def delete_compte():
+    """Supprime le compte et toutes les données."""
     supprimer_user(request.user_id)
     return reponse_ok({}, "Compte supprimé")
+
+
+# ─────────────────────────────────────────────
+# ROUTES AGENT IA (freelance)
+# ─────────────────────────────────────────────
+
+
+@app.route("/agent/plan-journalier", methods=["POST"])
+@token_requis
+def agent_plan_journalier():
+    """
+    Génère le plan d'action du matin pour l'utilisateur connecté.
+    Le front envoie {prospects, taches_en_cours, metier}.
+    """
+    try:
+        data = get_json()
+        prospects = data.get("prospects", [])
+        taches = data.get("taches_en_cours", [])
+
+        # Si le métier n'est pas fourni par le front, on prend celui du profil
+        metier = data.get("metier") or (get_user_by_id(request.user_id) or {}).get("metier", "indépendant")
+
+        plan = generer_plan_journalier(prospects, taches, metier)
+        return reponse_ok(plan)
+    except Exception as e:
+        return reponse_erreur(f"Erreur génération plan: {e}", 500)
+
+
+@app.route("/agent/email", methods=["POST"])
+@token_requis
+def agent_email():
+    """
+    Génère un email de prospection / relance.
+    Payload attendu:
+      {
+        "prospect": {...},
+        "contexte": "...",
+        "metier": "...",
+        "style": "professionnel|chaleureux|direct"
+      }
+    """
+    try:
+        data = get_json()
+        prospect = data.get("prospect") or {}
+        contexte = data.get("contexte", "premier contact")
+        metier = data.get("metier") or (get_user_by_id(request.user_id) or {}).get("metier", "indépendant")
+        style = data.get("style", "professionnel")
+
+        email = generer_email_prospect(prospect, contexte, metier, style)
+        return reponse_ok(email)
+    except Exception as e:
+        return reponse_erreur(f"Erreur génération email: {e}", 500)
+
+
+@app.route("/agent/post-linkedin", methods=["POST"])
+@token_requis
+def agent_post_linkedin():
+    """
+    Génère un post LinkedIn.
+    Payload attendu:
+      { "sujet": "...", "metier": "...", "objectif": "notoriété|prospection|expertise|engagement" }
+    """
+    try:
+        data = get_json()
+        sujet = data.get("sujet", "")
+        metier = data.get("metier") or (get_user_by_id(request.user_id) or {}).get("metier", "indépendant")
+        objectif = data.get("objectif", "notoriété")
+
+        post = generer_post_linkedin(sujet, metier, objectif)
+        return reponse_ok(post)
+    except Exception as e:
+        return reponse_erreur(f"Erreur génération post LinkedIn: {e}", 500)
+
+
+@app.route("/agent/offre-commerciale", methods=["POST"])
+@token_requis
+def agent_offre_commerciale():
+    """
+    Génère une offre commerciale structurée.
+    Payload attendu:
+      { "service": {...}, "cible": {...}, "metier": "..." }
+    """
+    try:
+        data = get_json()
+        service = data.get("service") or {}
+        cible = data.get("cible") or {}
+        metier = data.get("metier") or (get_user_by_id(request.user_id) or {}).get("metier", "indépendant")
+
+        offre = generer_offre_commerciale(service, cible, metier)
+        return reponse_ok(offre)
+    except Exception as e:
+        return reponse_erreur(f"Erreur génération offre: {e}", 500)
+
+
+@app.route("/agent/relance", methods=["POST"])
+@token_requis
+def agent_relance():
+    """
+    Génère un message de relance.
+    Payload attendu:
+      {
+        "prospect": {...},
+        "nb_jours_sans_reponse": int,
+        "metier": "..."
+      }
+    """
+    try:
+        data = get_json()
+        prospect = data.get("prospect") or {}
+        nb_jours = int(data.get("nb_jours_sans_reponse", 3))
+        metier = data.get("metier") or (get_user_by_id(request.user_id) or {}).get("metier", "indépendant")
+
+        relance = generer_relance(prospect, nb_jours, metier)
+        return reponse_ok(relance)
+    except Exception as e:
+        return reponse_erreur(f"Erreur génération relance: {e}", 500)
+
+
+@app.route("/agent/analyser-activite", methods=["POST"])
+@token_requis
+def agent_analyser_activite():
+    """
+    Analyse l'activité de l'indépendant et propose une stratégie.
+    Payload attendu:
+      {
+        "metier": "...",
+        "donnees": {...}  # structure libre inspirée de analyser_activite()
+      }
+    Le front freelance/analytics envoie déjà un gros payload; on le passe tel quel.
+    """
+    try:
+        data = get_json()
+        metier = data.get("metier") or (get_user_by_id(request.user_id) or {}).get("metier", "indépendant")
+
+        # Compatibilité avec deux formats possibles:
+        # - { donnees_activite: {...}, metier: "..." }
+        # - tout le reste directement au premier niveau (cas actuel du front)
+        donnees = data.get("donnees_activite") or data
+
+        analyse = analyser_activite(donnees, metier)
+        return reponse_ok(analyse)
+    except Exception as e:
+        return reponse_erreur(f"Erreur analyse activité: {e}", 500)
 
 
 # ─────────────────────────────────────────────
@@ -172,6 +328,7 @@ def creer_prospect():
         data = get_json()
         if not data.get("nom"):
             return reponse_erreur("Le champ 'nom' est requis")
+
         conn = get_db()
         pid = generer_id("PRO")
         conn.execute("""
@@ -199,11 +356,13 @@ def get_prospects():
         if statut:
             rows = conn.execute(
                 "SELECT * FROM prospects WHERE user_id=? AND statut=? ORDER BY date_creation DESC",
-                (request.user_id, statut)).fetchall()
+                (request.user_id, statut)
+            ).fetchall()
         else:
             rows = conn.execute(
                 "SELECT * FROM prospects WHERE user_id=? ORDER BY date_creation DESC",
-                (request.user_id,)).fetchall()
+                (request.user_id,)
+            ).fetchall()
         conn.close()
         return reponse_ok({"prospects": rows_to_list(rows), "total": len(rows)})
     except Exception as e:
@@ -218,7 +377,8 @@ def update_prospect(pid):
         conn = get_db()
         champs = ["nom","entreprise","email","telephone","linkedin","secteur",
                   "besoin","source","notes","statut","valeur_estimee","dernier_contact"]
-        sets, vals = [], []
+        sets = []
+        vals = []
         for k in champs:
             if k in data:
                 sets.append(f"{k}=?")
@@ -258,7 +418,8 @@ def ajouter_interaction(pid):
               data.get("note",""), data.get("date", date.today().isoformat())))
         conn.execute(
             "UPDATE prospects SET dernier_contact=? WHERE id=? AND user_id=?",
-            (date.today().isoformat(), pid, request.user_id))
+            (date.today().isoformat(), pid, request.user_id)
+        )
         conn.commit()
         conn.close()
         return reponse_ok({}, "Interaction ajoutée", 201)
@@ -273,7 +434,8 @@ def get_interactions(pid):
         conn = get_db()
         rows = conn.execute(
             "SELECT * FROM interactions WHERE prospect_id=? AND user_id=? ORDER BY date DESC",
-            (pid, request.user_id)).fetchall()
+            (pid, request.user_id)
+        ).fetchall()
         conn.close()
         return reponse_ok({"interactions": rows_to_list(rows)})
     except Exception as e:
@@ -289,26 +451,33 @@ def crm_stats():
         seuil = (datetime.now() - timedelta(days=14)).strftime("%Y-%m-%d")
 
         def scalar(row):
-            if row is None: return 0
-            if isinstance(row, dict): return list(row.values())[0]
+            if row is None:
+                return 0
+            if isinstance(row, dict):
+                return list(row.values())[0]
             return row[0]
 
-        total        = scalar(conn.execute("SELECT COUNT(*) as c FROM prospects WHERE user_id=?", (uid,)).fetchone())
-        clients      = scalar(conn.execute("SELECT COUNT(*) as c FROM prospects WHERE user_id=? AND statut='gagne'", (uid,)).fetchone())
-        interactions = scalar(conn.execute("SELECT COUNT(*) as c FROM interactions WHERE user_id=?", (uid,)).fetchone())
-        pipeline     = scalar(conn.execute("SELECT COALESCE(SUM(valeur_estimee),0) as c FROM prospects WHERE user_id=? AND statut NOT IN ('gagne','perdu')", (uid,)).fetchone())
-        a_relancer   = scalar(conn.execute("""
+        total       = scalar(conn.execute("SELECT COUNT(*) as c FROM prospects WHERE user_id=?", (uid,)).fetchone())
+        clients     = scalar(conn.execute("SELECT COUNT(*) as c FROM prospects WHERE user_id=? AND statut='gagne'", (uid,)).fetchone())
+        interactions= scalar(conn.execute("SELECT COUNT(*) as c FROM interactions WHERE user_id=?", (uid,)).fetchone())
+        pipeline    = scalar(conn.execute("SELECT COALESCE(SUM(valeur_estimee),0) as c FROM prospects WHERE user_id=? AND statut NOT IN ('gagne','perdu')", (uid,)).fetchone())
+        a_relancer  = scalar(conn.execute("""
             SELECT COUNT(*) as c FROM prospects WHERE user_id=? AND statut NOT IN ('gagne','perdu')
             AND (dernier_contact IS NULL OR dernier_contact < ? OR dernier_contact = '')
         """, (uid, seuil)).fetchone())
+
         rows = conn.execute("SELECT statut, COUNT(*) as nb FROM prospects WHERE user_id=? GROUP BY statut", (uid,)).fetchall()
         repartition = {r["statut"]: r["nb"] for r in rows_to_list(rows)}
         conn.close()
+
         taux = round((clients / total * 100), 1) if total > 0 else 0
         return reponse_ok({
-            "total_prospects": total, "total_clients": clients,
-            "total_interactions": interactions, "taux_conversion": taux,
-            "valeur_pipeline": pipeline, "a_relancer_urgence": a_relancer,
+            "total_prospects": total,
+            "total_clients": clients,
+            "total_interactions": interactions,
+            "taux_conversion": taux,
+            "valeur_pipeline": pipeline,
+            "a_relancer_urgence": a_relancer,
             "repartition_statuts": repartition
         })
     except Exception as e:
@@ -355,7 +524,8 @@ def get_devis():
         conn = get_db()
         rows = conn.execute(
             "SELECT * FROM devis WHERE user_id=? ORDER BY date_creation DESC",
-            (request.user_id,)).fetchall()
+            (request.user_id,)
+        ).fetchall()
         conn.close()
         devis = []
         for r in rows_to_list(rows):
@@ -374,7 +544,8 @@ def update_devis(did):
         conn = get_db()
         champs = ["numero","client","adresse_client","objet","lignes","montant_ht",
                   "montant_ttc","tva","statut","date","validite","delai","conditions"]
-        sets, vals = [], []
+        sets = []
+        vals = []
         for k in champs:
             if k in data:
                 val = data[k]
@@ -415,12 +586,14 @@ def convertir_devis(did):
         if not devis_row:
             conn.close()
             return reponse_erreur("Devis non trouvé", 404)
+
         d = dict(devis_row)
         nb_row = conn.execute("SELECT COUNT(*) as c FROM factures WHERE user_id=?", (request.user_id,)).fetchone()
         nb = list(nb_row.values())[0] if isinstance(nb_row, dict) else nb_row[0]
         annee = datetime.now().year
         num = f"FAC-{annee}-{str(nb+1).zfill(3)}"
         echeance = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+
         fid = generer_id("FAC")
         conn.execute("""
             INSERT INTO factures (id, user_id, numero, client, adresse_client, objet,
@@ -432,8 +605,10 @@ def convertir_devis(did):
               d.get("montant_ttc",0), d.get("tva",20), "non_payee",
               datetime.now().strftime("%Y-%m-%d"), echeance,
               "Virement bancaire", d.get("conditions",""), did))
+
         conn.execute("UPDATE devis SET statut='accepte' WHERE id=?", (did,))
         conn.commit()
+
         facture = row_to_dict(conn.execute("SELECT * FROM factures WHERE id=?", (fid,)).fetchone())
         conn.close()
         facture["lignes"] = json.loads(facture.get("lignes") or "[]")
@@ -501,7 +676,8 @@ def update_facture(fid):
         conn = get_db()
         champs = ["numero","client","adresse_client","objet","lignes","montant_ht",
                  "montant_ttc","tva","statut","date","date_echeance","paiement","conditions","mentions"]
-        sets, vals = [], []
+        sets = []
+        vals = []
         for k in champs:
             if k in data:
                 val = data[k]
