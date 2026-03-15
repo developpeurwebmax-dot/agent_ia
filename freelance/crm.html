@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA — CRM</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    .statut-select { background:var(--bg3); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:var(--font-body); font-size:0.78rem; padding:4px 8px; cursor:pointer; outline:none; transition:border-color 0.15s; }
+    .statut-select.s-nouveau       { border-color:#6366f1; color:#818cf8; }
+    .statut-select.s-contacte      { border-color:#3b82f6; color:#60a5fa; }
+    .statut-select.s-en_discussion { border-color:#f59e0b; color:#fbbf24; }
+    .statut-select.s-devis_envoye  { border-color:#8b5cf6; color:#a78bfa; }
+    .statut-select.s-relance       { border-color:#f97316; color:#fb923c; }
+    .statut-select.s-gagne         { border-color:#10b981; color:#34d399; }
+    .statut-select.s-perdu         { border-color:#ef4444; color:#f87171; }
+    .statut-select.s-en_pause      { border-color:#6b7280; color:#9ca3af; }
+    .prospect-detail { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+    .detail-item { background:var(--bg3); border-radius:8px; padding:10px 14px; }
+    .detail-label { font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
+    .detail-value { font-size:0.88rem; color:var(--text-soft); }
+    .detail-full { grid-column:span 2; }
+    .toast-notif { position:fixed; bottom:28px; right:28px; padding:12px 20px; border-radius:10px; font-size:0.88rem; font-weight:600; z-index:9999; box-shadow:0 4px 20px rgba(0,0,0,0.3); animation:fadeInUp 0.3s ease; }
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .stats-crm { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">⚡ Agent IA</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
+      <a href="crm.html" class="nav-link active">👥 CRM</a>
+      <a href="contenu.html" class="nav-link">✍️ Contenu</a>
+      <a href="devis.html" class="nav-link">📄 Devis</a>
+      <a href="factures.html" class="nav-link">🧾 Factures</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics</a>
+      <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Indépendant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">CRM Prospects</h1>
+        <p class="page-sub">Gérez vos contacts et opportunités</p>
+      </div>
+      <button class="btn-primary" onclick="document.getElementById('modal-prospect').style.display='flex'">
+        + Ajouter un prospect
+      </button>
+    </header>
+
+    <div class="stats-crm">
+      <div class="stat-card"><span class="stat-icon">👥</span><div><div class="stat-value" id="s-total">—</div><div class="stat-label">Total prospects</div></div></div>
+      <div class="stat-card"><span class="stat-icon">🏆</span><div><div class="stat-value" id="s-clients">—</div><div class="stat-label">Clients gagnés</div></div></div>
+      <div class="stat-card"><span class="stat-icon">📈</span><div><div class="stat-value" id="s-taux">—</div><div class="stat-label">Taux conversion</div></div></div>
+      <div class="stat-card"><span class="stat-icon">🔔</span><div><div class="stat-value" id="s-relances">—</div><div class="stat-label">À relancer</div></div></div>
+    </div>
+
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filtrer('tous',this)">Tous</button>
+      <button class="filter-btn" onclick="filtrer('nouveau',this)">Nouveaux</button>
+      <button class="filter-btn" onclick="filtrer('contacte',this)">Contactés</button>
+      <button class="filter-btn" onclick="filtrer('en_discussion',this)">En discussion</button>
+      <button class="filter-btn" onclick="filtrer('devis_envoye',this)">Devis envoyé</button>
+      <button class="filter-btn" onclick="filtrer('relance',this)">Relance</button>
+      <button class="filter-btn" onclick="filtrer('gagne',this)">Gagnés 🏆</button>
+      <button class="filter-btn" onclick="filtrer('perdu',this)">Perdus</button>
+    </div>
+
+    <div class="card">
+      <div class="table-wrapper">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nom</th><th>Entreprise</th><th>Statut</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="prospects-table">
+            <tr><td colspan="5" class="empty-state">Chargement...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL AJOUTER -->
+  <div class="modal-overlay" id="modal-prospect" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal">
+      <h3>Ajouter un prospect</h3>
+      <div class="form-grid">
+        <div class="form-group"><label>Nom *</label><input type="text" id="p-nom" placeholder="Jean Dupont"/></div>
+        <div class="form-group"><label>Entreprise</label><input type="text" id="p-entreprise" placeholder="Acme Corp"/></div>
+        <div class="form-group"><label>Email</label><input type="email" id="p-email" placeholder="jean@acme.com"/></div>
+        <div class="form-group"><label>Téléphone</label><input type="text" id="p-tel" placeholder="06 00 00 00 00"/></div>
+        <div class="form-group"><label>Secteur</label><input type="text" id="p-secteur" placeholder="Tech, RH, Finance..."/></div>
+        <div class="form-group"><label>Source</label><input type="text" id="p-source" placeholder="LinkedIn, recommandation..."/></div>
+        <div class="form-group form-full"><label>Besoin</label><textarea id="p-besoin" placeholder="Décrivez le besoin..."></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-prospect').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="ajouterProspect()">Ajouter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DETAIL -->
+  <div class="modal-overlay" id="modal-detail" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:620px">
+      <h3 id="detail-titre">Fiche prospect</h3>
+      <div id="detail-contenu"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-detail').style.display='none'">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    var allProspects = [];
+
+    async function initCRM() {
+      showSkeleton(['s-total','s-clients','s-taux','s-relances']);
+      await initSidebar();
+      chargerProspects();
+    }
+
+    initCRM();
+
+    var STATUTS = [
+      { val:'nouveau',       label:'🆕 Nouveau' },
+      { val:'contacte',      label:'📬 Contacte' },
+      { val:'en_discussion', label:'💬 En discussion' },
+      { val:'devis_envoye',  label:'📄 Devis envoye' },
+      { val:'relance',       label:'🔔 Relance' },
+      { val:'gagne',         label:'🏆 Gagne' },
+      { val:'perdu',         label:'❌ Perdu' },
+      { val:'en_pause',      label:'⏸ En pause' }
+    ];
+
+    function toast(msg, color) {
+      color = color || '#10b981';
+      var t = document.createElement('div');
+      t.className = 'toast-notif';
+      t.style.background = color;
+      t.style.color = 'white';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() {
+        t.style.opacity = '0';
+        t.style.transition = 'opacity 0.4s';
+        setTimeout(function(){ t.remove(); }, 400);
+      }, 2500);
+    }
+
+    async function chargerStats() {
+      try {
+        var res  = await fetch(API + '/crm/stats', { headers: authHeaders() });
+        if (!res || res.status === 401) { gerer401(); return; }
+        var json = await res.json();
+        var d = json.data;
+        document.getElementById('s-total').textContent    = d.total_prospects != null ? d.total_prospects : '—';
+        document.getElementById('s-clients').textContent  = d.total_clients != null ? d.total_clients : '—';
+        document.getElementById('s-taux').textContent     = d.taux_conversion != null ? d.taux_conversion + '%' : '—';
+        document.getElementById('s-relances').textContent = d.a_relancer_urgence != null ? d.a_relancer_urgence : '—';
+      } catch(e) {}
+    }
+
+    async function chargerProspects() {
+      try {
+        var res  = await fetch(API + '/crm/prospects', { headers: authHeaders() });
+        var json = await res.json();
+        allProspects = json.data.prospects || [];
+        afficherProspects(allProspects);
+        chargerStats();
+      } catch(e) {
+        document.getElementById("prospects-table").innerHTML = '<tr><td colspan="5" class="empty-state">Erreur de connexion au serveur</td></tr>';
+      }
+    }
+
+    function makeSelectHTML(pid, statut) {
+      var opts = STATUTS.map(function(s) {
+        return '<option value="' + s.val + '"' + (s.val === statut ? ' selected' : '') + '>' + s.label + '</option>';
+      }).join('');
+      return '<select class="statut-select s-' + statut + '" onchange="changerStatut(\'' + pid + '\', this.value, this)">' + opts + '</select>';
+    }
+
+    function afficherProspects(prospects) {
+      var tbody = document.getElementById("prospects-table");
+      if (!prospects.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Aucun prospect</td></tr>';
+        return;
+      }
+      var rows = '';
+      for (var i = 0; i < prospects.length; i++) {
+        var p = prospects[i];
+        var emailStr = p.email ? '<br><span style="font-size:0.75rem;color:var(--text-muted)">' + p.email + '</span>' : '';
+        rows += '<tr>';
+        rows += '<td><strong style="cursor:pointer;color:var(--accent2)" onclick="voirDetail(\'' + p.id + '\')">' + p.nom + '</strong>' + emailStr + '</td>';
+        rows += '<td>' + (p.entreprise || '—') + '</td>';
+        rows += '<td>' + makeSelectHTML(p.id, p.statut) + '</td>';
+        rows += '<td>';
+        rows += '<button class="btn-sm" onclick="voirDetail(\'' + p.id + '\')">👁 Voir</button> ';
+
+        rows += '<button class="btn-sm btn-danger" onclick="supprimerProspect(\'' + p.id + '\')">🗑</button>';
+        rows += '</td></tr>';
+      }
+      tbody.innerHTML = rows;
+    }
+
+    async function changerStatut(id, nouveauStatut, selectEl) {
+      selectEl.className = 'statut-select s-' + nouveauStatut;
+      try {
+        var res = await fetch(API + '/crm/prospects/' + id + '/statut', {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify({ statut: nouveauStatut })
+        });
+        var json = await res.json();
+        if (json.statut === 'ok') {
+          for (var i = 0; i < allProspects.length; i++) {
+            if (allProspects[i].id === id) { allProspects[i].statut = nouveauStatut; break; }
+          }
+          var label = '';
+          for (var j = 0; j < STATUTS.length; j++) {
+            if (STATUTS[j].val === nouveauStatut) { label = STATUTS[j].label; break; }
+          }
+          toast('Statut mis a jour : ' + label);
+          chargerStats();
+        }
+      } catch(e) { toast('Erreur de connexion', '#ef4444'); }
+    }
+
+    function voirDetail(id) {
+      var p = null;
+      for (var i = 0; i < allProspects.length; i++) {
+        if (allProspects[i].id === id) { p = allProspects[i]; break; }
+      }
+      if (!p) return;
+
+      document.getElementById('detail-titre').textContent = 'Fiche : ' + p.nom;
+
+      var html = '<div class="prospect-detail">';
+      html += '<div class="detail-item"><div class="detail-label">Entreprise</div><div class="detail-value">' + (p.entreprise||'—') + '</div></div>';
+      html += '<div class="detail-item"><div class="detail-label">Statut — modifier ici</div><div class="detail-value">' + makeSelectHTML(p.id, p.statut) + '</div></div>';
+
+      if (p.email) {
+        html += '<div class="detail-item"><div class="detail-label">Email</div><div class="detail-value"><a href="mailto:' + p.email + '" style="color:var(--accent2)">' + p.email + '</a></div></div>';
+      } else {
+        html += '<div class="detail-item"><div class="detail-label">Email</div><div class="detail-value">—</div></div>';
+      }
+
+      html += '<div class="detail-item"><div class="detail-label">Telephone</div><div class="detail-value">' + (p.telephone||'—') + '</div></div>';
+      html += '<div class="detail-item"><div class="detail-label">Secteur</div><div class="detail-value">' + (p.secteur||'—') + '</div></div>';
+      html += '<div class="detail-item"><div class="detail-label">Source</div><div class="detail-value">' + (p.source||'—') + '</div></div>';
+
+      var dateStr = p.dernier_contact ? new Date(p.dernier_contact).toLocaleDateString('fr-FR') : 'Jamais';
+      html += '<div class="detail-item"><div class="detail-label">Dernier contact</div><div class="detail-value">' + dateStr + '</div></div>';
+      html += '<div class="detail-item"><div class="detail-label">Interactions</div><div class="detail-value">' + (p.nb_interactions||0) + ' echange(s)</div></div>';
+
+      if (p.besoin) {
+        html += '<div class="detail-item detail-full"><div class="detail-label">Besoin</div><div class="detail-value">' + p.besoin + '</div></div>';
+      }
+      if (p.notes) {
+        html += '<div class="detail-item detail-full"><div class="detail-label">Notes</div><div class="detail-value">' + p.notes + '</div></div>';
+      }
+      html += '</div>';
+
+      html += '<div style="background:var(--bg3);border-radius:8px;padding:14px 16px">';
+      html += '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">📝 Ajouter une note</div>';
+      html += '<div style="display:flex;gap:8px">';
+      html += '<textarea id="note-input" placeholder="Ex: Appel effectue, RDV prevu..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:var(--font-body);font-size:0.82rem;resize:none;height:58px;outline:none"></textarea>';
+      html += '<button class="btn-secondary" style="align-self:flex-end;white-space:nowrap" onclick="ajouterNote(\'' + id + '\')">💾 Sauver</button>';
+      html += '</div></div>';
+
+      document.getElementById('detail-contenu').innerHTML = html;
+
+      document.getElementById('modal-detail').style.display = 'flex';
+    }
+
+    async function ajouterNote(id) {
+      var note = document.getElementById('note-input').value.trim();
+      if (!note) return;
+      try {
+        await fetch(API + '/crm/prospects/' + id, {
+          method: 'PUT',
+          headers: authHeaders(),
+          body: JSON.stringify({ notes: note })
+        });
+        toast('Note sauvegardee');
+        chargerProspects();
+      } catch(e) { toast('Erreur', '#ef4444'); }
+    }
+
+    function filtrer(statut, btn) {
+      document.querySelectorAll(".filter-btn").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      if (statut === 'tous') {
+        afficherProspects(allProspects);
+      } else {
+        afficherProspects(allProspects.filter(function(p){ return p.statut === statut; }));
+      }
+    }
+
+    async function ajouterProspect() {
+      var nom = document.getElementById("p-nom").value.trim();
+      if (!nom) { alert("Le nom est requis"); return; }
+      try {
+        await fetch(API + '/crm/prospects', {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            nom: nom,
+            entreprise: document.getElementById("p-entreprise").value,
+            email:      document.getElementById("p-email").value,
+            telephone:  document.getElementById("p-tel").value,
+            secteur:    document.getElementById("p-secteur").value,
+            source:     document.getElementById("p-source").value,
+            besoin:     document.getElementById("p-besoin").value
+          })
+        });
+        document.getElementById("modal-prospect").style.display = "none";
+        ['p-nom','p-entreprise','p-email','p-tel','p-secteur','p-source','p-besoin'].forEach(function(id){
+          document.getElementById(id).value = '';
+        });
+        toast('Prospect ajoute');
+        chargerProspects();
+      } catch(e) { toast('Erreur de connexion', '#ef4444'); }
+    }
+
+    async function supprimerProspect(id) {
+      if (!confirm("Supprimer ce prospect ?")) return;
+      await fetch(API + '/crm/prospects/' + id, { method: 'DELETE', headers: authHeaders() });
+      toast('Supprime', '#6b7280');
+      chargerProspects();
+    }
+
+
+    var interactionProspectId = null;
+
+    function ouvrirInteraction(id, nom) {
+      interactionProspectId = id;
+      document.getElementById('interaction-nom-label').textContent = 'Prospect : ' + nom;
+      document.getElementById('i-resultat').value = '';
+      document.getElementById('i-prochain').value = '';
+      document.getElementById('modal-interaction').style.display = 'flex';
+    }
+
+    async function sauverInteraction() {
+      if (!interactionProspectId) return;
+      var type     = document.getElementById('i-type').value;
+      var resultat = document.getElementById('i-resultat').value.trim();
+      var prochain = document.getElementById('i-prochain').value;
+      try {
+        await fetch(API + '/crm/interactions', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            prospect_id: interactionProspectId,
+            type_interaction: type,
+            contenu: type,
+            resultat: resultat,
+            prochain_contact: prochain || null
+          })
+        });
+        document.getElementById('modal-interaction').style.display = 'none';
+        toast('Contact enregistre - date mise a jour');
+        chargerProspects();
+      } catch(e) {
+        toast('Erreur connexion', '#ef4444');
+      }
+    }
+
+  </script>
+
+  <!-- MODAL INTERACTION -->
+  <div class="modal-overlay" id="modal-interaction" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:460px">
+      <h3>📝 Enregistrer un contact</h3>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px" id="interaction-nom-label"></p>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="form-group">
+          <label>Type de contact</label>
+          <select id="i-type">
+            <option value="appel">📞 Appel téléphonique</option>
+            <option value="email_envoye">✉️ Email envoyé</option>
+            <option value="linkedin">💼 Message LinkedIn</option>
+            <option value="reunion">🤝 Réunion / RDV</option>
+            <option value="devis">📄 Envoi devis</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Résultat / note</label>
+          <textarea id="i-resultat" placeholder="Ex: Intéressé, rappel prévu vendredi..." style="height:70px"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Prochain contact prévu (optionnel)</label>
+          <input type="datetime-local" id="i-prochain"/>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-interaction').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="sauverInteraction()">✅ Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

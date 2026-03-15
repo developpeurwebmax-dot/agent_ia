@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA Business — Analytics</title>
+  <link rel="stylesheet" href="../freelance/style.css"/>
+  <link rel="stylesheet" href="style_business.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">🏢 IA Business</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
+      <a href="finances.html" class="nav-link">💰 Finances</a>
+      <a href="employes.html" class="nav-link">👥 Employés</a>
+      <a href="facturation.html" class="nav-link">🧾 Facturation</a>
+      <a href="analytics.html" class="nav-link active">📊 Analytics IA</a>
+      <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Dirigeant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Analytics IA</h1>
+        <p class="page-sub">Analyse de rentabilité, prévisions et recommandations</p>
+      </div>
+      <button class="btn-primary" onclick="lancerAnalyse()">⚡ Analyser avec l'IA</button>
+    </header>
+
+    <!-- LOADER IA -->
+    <div id="loader-ia" style="display:none" class="loader">
+      <div class="loader-bar"></div>
+      🤖 L'IA analyse vos données financières et RH...
+    </div>
+
+    <!-- KPIs SANTÉ BUSINESS -->
+    <div class="stats-row" id="kpis-analytics">
+      <div class="stat-card">
+        <div class="stat-icon">❤️</div>
+        <div><div class="stat-value" id="score-sante">—/10</div><div class="stat-label">Santé business</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📈</div>
+        <div><div class="stat-value" id="kpi-taux-marge">—%</div><div class="stat-label">Taux de marge</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💸</div>
+        <div><div class="stat-value" id="kpi-cout-employe">—</div><div class="stat-label">Coût moyen / employé</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🔭</div>
+        <div><div class="stat-value" id="kpi-ca-projete">—</div><div class="stat-label">CA projeté 6 mois</div></div>
+      </div>
+    </div>
+
+    <div class="grid">
+
+      <!-- ANALYSE IA (résultat) -->
+      <div class="card card-wide" id="card-analyse-ia">
+        <div class="card-header">
+          <span class="card-icon">🤖</span>
+          <h2>Analyse IA de votre activité</h2>
+        </div>
+        <div id="resultat-ia" class="empty-state">
+          Cliquez sur "Analyser avec l'IA" pour obtenir une analyse complète de votre santé financière, vos points forts, points d'amélioration et recommandations personnalisées.
+        </div>
+      </div>
+
+      <!-- ANOMALIES DE DÉPENSES -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">⚠️</span>
+          <h2>Détection d'anomalies</h2>
+          <button class="btn-sm" onclick="chargerAnomalies()" style="margin-left:auto">🔄</button>
+        </div>
+        <div id="anomalies-list">
+          <div class="empty-state">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- PROJECTION CA -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📉</span>
+          <h2>Prévisions CA — 6 mois</h2>
+        </div>
+        <div id="projection-ca">
+          <div class="empty-state">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- RENTABILITÉ PAR CATÉGORIE -->
+      <div class="card card-wide">
+        <div class="card-header">
+          <span class="card-icon">🗂️</span>
+          <h2>Répartition des dépenses — 12 mois</h2>
+        </div>
+        <div id="repartition-depenses" class="deux-col-analyse">
+          <div class="empty-state">Chargement...</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="auth.js"></script>
+  <script>
+    let ENTREPRISE_ID = null;
+
+    async function init() {
+      const user = await initSidebar();
+      if (!user) return;
+      const json = await apiAuth("GET", "/business/entreprises");
+      if (!json?.data?.entreprises?.length) return;
+      ENTREPRISE_ID = json.data.entreprises[0].id;
+      await chargerKPIs();
+      await chargerAnomalies();
+      await chargerProjection();
+      await chargerRepartition();
+    }
+
+    async function chargerKPIs() {
+      const json = await apiAuth("GET", `/business/finances/dashboard?entreprise_id=${ENTREPRISE_ID}&periode=annee`);
+      const d = json?.data;
+      if (!d) return;
+      document.getElementById("kpi-taux-marge").textContent = d.taux_marge + "%";
+
+      const jsonRH = await apiAuth("GET", `/business/rh/masse-salariale?entreprise_id=${ENTREPRISE_ID}`);
+      const rh = jsonRH?.data;
+      if (rh && rh.nb_employes_actifs > 0) {
+        document.getElementById("kpi-cout-employe").textContent = euros(rh.cout_total_mensuel / rh.nb_employes_actifs);
+      }
+
+      const proj = d.projection_tresorerie;
+      if (proj?.length >= 6) {
+        const caProj = proj.slice(0, 6).reduce((s, p) => s + p.revenus_prevus, 0);
+        document.getElementById("kpi-ca-projete").textContent = euros(caProj);
+      }
+    }
+
+    async function lancerAnalyse() {
+      if (!ENTREPRISE_ID) return;
+      document.getElementById("loader-ia").style.display = "block";
+      document.getElementById("resultat-ia").innerHTML = '<div class="loading-spin">⚡ Analyse en cours...</div>';
+
+      try {
+        const json = await apiAuth("POST", "/business/analytics/analyser", {
+          entreprise_id: ENTREPRISE_ID
+        });
+        document.getElementById("loader-ia").style.display = "none";
+
+        if (!json?.data) { document.getElementById("resultat-ia").innerHTML = '<div style="color:var(--danger)">Erreur lors de l\'analyse.</div>'; return; }
+        const d = json.data;
+
+        // Score santé
+        document.getElementById("score-sante").textContent = `${d.score_sante_business?.note || "—"}/10`;
+
+        document.getElementById("resultat-ia").innerHTML = `
+          <div class="analyse-score">
+            <strong>Score santé business : ${d.score_sante_business?.note || "—"}/10</strong><br>
+            <span style="font-size:0.88rem;color:var(--text-muted)">${d.score_sante_business?.interpretation || ""}</span>
+          </div>
+          <div class="deux-col-analyse">
+            <div>
+              <div style="font-size:0.78rem;font-weight:600;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">✅ Points forts</div>
+              <ul>${(d.points_forts || []).map(p => `<li>${p}</li>`).join("")}</ul>
+            </div>
+            <div>
+              <div style="font-size:0.78rem;font-weight:600;color:var(--warning);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">⚠️ À améliorer</div>
+              <ul>${(d.points_amelioration || []).map(p => `<li>${p}</li>`).join("")}</ul>
+            </div>
+          </div>
+          ${(d.alertes?.length) ? `<div class="alerte-banner alerte-critique" style="margin-bottom:16px">🚨 ${d.alertes.join(" — ")}</div>` : ""}
+          <div style="font-size:0.78rem;font-weight:600;color:var(--accent2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">🎯 Recommandations</div>
+          ${(d.recommandations || []).map(r => `
+            <div class="reco-item">
+              <span class="badge ${r.impact === 'fort' ? 'badge-success' : r.impact === 'moyen' ? 'badge-yellow' : 'badge-grey'}">${r.impact}</span>
+              <span>${r.action}</span>
+              <span class="reco-delai">${r.delai}</span>
+            </div>
+          `).join("")}
+          ${d.conseil_pricing ? `<div class="conseil-box" style="margin-top:16px"><span class="conseil-label">💡 Conseil pricing</span><p>${d.conseil_pricing}</p></div>` : ""}
+        `;
+      } catch (e) {
+        document.getElementById("loader-ia").style.display = "none";
+        document.getElementById("resultat-ia").innerHTML = '<div style="color:var(--danger)">Erreur de connexion à l\'IA.</div>';
+      }
+    }
+
+    async function chargerAnomalies() {
+      const json = await apiAuth("GET", `/business/finances/anomalies?entreprise_id=${ENTREPRISE_ID}`);
+      const container = document.getElementById("anomalies-list");
+      const data = json?.data || [];
+      if (!data.length) {
+        container.innerHTML = '<div class="empty-state">✅ Aucune anomalie détectée ce mois-ci</div>';
+        return;
+      }
+      container.innerHTML = data.map(a => `
+        <div class="alerte-banner alerte-${a.niveau}" style="margin-bottom:8px">
+          <div>
+            <strong>${a.categorie}</strong>
+            <div style="font-size:0.82rem;margin-top:2px">
+              Ce mois : <strong>${euros(a.montant_actuel)}</strong> vs moy. ${euros(a.montant_moyen)}
+              <span style="color:var(--danger)"> (+${a.ecart_pct}%)</span>
+            </div>
+          </div>
+          <span class="badge ${a.niveau === 'critique' ? 'badge-danger' : 'badge-yellow'}">${a.niveau}</span>
+        </div>
+      `).join("");
+    }
+
+    async function chargerProjection() {
+      const json = await apiAuth("GET", `/business/finances/dashboard?entreprise_id=${ENTREPRISE_ID}&periode=mois_courant`);
+      const proj = json?.data?.projection_tresorerie;
+      const container = document.getElementById("projection-ca");
+      if (!proj?.length) { container.innerHTML = '<div class="empty-state">Données insuffisantes (min. 3 mois)</div>'; return; }
+
+      const max = Math.max(...proj.map(p => p.revenus_prevus), 1);
+      container.innerHTML = proj.map(p => `
+        <div class="bar-row">
+          <span class="bar-label">${p.mois.slice(5)}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${Math.round(p.revenus_prevus/max*100)}%;background:${p.solde_mensuel >= 0 ? 'var(--success)' : 'var(--danger)'}"></div>
+          </div>
+          <span class="bar-value-text" style="color:${p.solde_mensuel >= 0 ? 'var(--success)' : 'var(--danger)'}">
+            ${p.solde_mensuel >= 0 ? '+' : ''}${euros(p.solde_mensuel)}
+          </span>
+        </div>
+      `).join("") + `
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-muted)">
+          📌 Projection basée sur la moyenne des 3 derniers mois
+        </div>
+      `;
+    }
+
+    async function chargerRepartition() {
+      const json = await apiAuth("GET", `/business/finances/dashboard?entreprise_id=${ENTREPRISE_ID}&periode=annee`);
+      const cats = json?.data?.depenses_par_categorie;
+      const container = document.getElementById("repartition-depenses");
+      if (!cats?.length) { container.innerHTML = '<div class="empty-state">Aucune dépense enregistrée</div>'; return; }
+
+      const total = cats.reduce((s, c) => s + c.montant, 0);
+      const max = cats[0].montant;
+      container.innerHTML = `
+        <div>
+          ${cats.map(c => `
+            <div class="bar-row">
+              <span class="bar-label">${c.categorie}</span>
+              <div class="bar-track"><div class="bar-fill" style="width:${Math.round(c.montant/max*100)}%;background:var(--accent)"></div></div>
+              <span class="bar-value-text">${euros(c.montant)}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div>
+          <div style="font-size:0.82rem;font-weight:600;color:var(--text-muted);margin-bottom:12px">Répartition en %</div>
+          ${cats.map(c => `
+            <div class="stat-row">
+              <span>${c.categorie}</span>
+              <span>${total > 0 ? (c.montant/total*100).toFixed(1) : 0}%</span>
+            </div>
+          `).join("")}
+          <div class="stat-row" style="border-top:2px solid var(--border);margin-top:4px">
+            <span><strong>Total dépenses</strong></span>
+            <strong>${euros(total)}</strong>
+          </div>
+        </div>
+      `;
+    }
+
+    function euros(n) {
+      if (!n && n !== 0) return "—";
+      return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+    }
+
+    init();
+  </script>
+</body>
+</html>

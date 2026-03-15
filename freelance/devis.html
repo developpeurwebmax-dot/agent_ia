@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA — Devis</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    .devis-num { font-family: var(--font-display); font-size: 0.8rem; color: var(--accent2); font-weight: 600; }
+    .total-cell { font-family: var(--font-display); font-weight: 700; color: var(--text); }
+    .ligne-item { display: grid; grid-template-columns: 1fr 80px 100px 100px 36px; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .ligne-total { font-weight: 600; color: var(--accent2); font-family: var(--font-display); padding: 8px 12px; background: var(--bg3); border-radius: 8px; text-align: right; min-width: 100px; }
+    .btn-remove { background: transparent; border: 1px solid var(--border); color: var(--text-muted); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .btn-remove:hover { border-color: var(--danger); color: var(--danger); }
+    .devis-totaux { background: var(--bg3); border-radius: 10px; padding: 16px 20px; margin-top: 16px; }
+    .totaux-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.9rem; color: var(--text-soft); }
+    .totaux-row.total-final { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text); border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+    .col-header { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .status-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+    .tag-brouillon { background: rgba(107,114,128,0.15); color: #9ca3af; }
+    .tag-envoye { background: rgba(99,102,241,0.15); color: var(--accent2); }
+    .tag-accepte { background: rgba(16,185,129,0.15); color: #34d399; }
+    .tag-refuse { background: rgba(239,68,68,0.15); color: #f87171; }
+    .tag-expire { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .preview-zone { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 28px 32px; font-size: 0.88rem; line-height: 1.6; }
+    .preview-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+    .preview-logo { font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; color: var(--accent2); }
+    .preview-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: var(--text); }
+    .preview-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .preview-table th { background: var(--bg3); padding: 8px 12px; text-align: left; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; }
+    .preview-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-soft); }
+    .preview-total-line { display: flex; justify-content: flex-end; gap: 40px; padding: 4px 0; font-size: 0.88rem; color: var(--text-soft); }
+    .preview-total-final { display: flex; justify-content: flex-end; gap: 40px; padding: 10px 0; font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: var(--text); border-top: 1px solid var(--border); margin-top: 6px; }
+    .tabs-sm { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-sm { padding: 7px 16px; border-radius: 7px; border: none; background: transparent; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; transition: all 0.15s; font-family: var(--font-body); }
+    .tab-sm.active { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+    .signature-box { border: 1px dashed var(--border); border-radius: 8px; padding: 16px; margin-top: 16px; text-align: center; min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+    .mentions-legales { margin-top: 20px; padding: 12px 16px; background: var(--bg3); border-radius: 8px; font-size: 0.75rem; color: var(--text-muted); line-height: 1.8; border-top: 2px solid var(--border); }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">⚡ Agent IA</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
+      <a href="crm.html" class="nav-link">👥 CRM</a>
+      <a href="contenu.html" class="nav-link">✍️ Contenu</a>
+      <a href="devis.html" class="nav-link active">📄 Devis</a>
+      <a href="factures.html" class="nav-link">🧾 Factures</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics</a>
+      <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">M</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Indépendant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Devis</h1>
+        <p class="page-sub">Créez et gérez vos propositions commerciales</p>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-secondary" onclick="window.location.href='parametres.html'">⚙️ Mes infos légales</button>
+        <button class="btn-primary" onclick="ouvrirModalDevis()">+ Nouveau devis</button>
+      </div>
+    </header>
+
+    <div class="stats-row">
+      <div class="stat-card"><span class="stat-icon">📄</span><div><div class="stat-value" id="s-total">0</div><div class="stat-label">Total devis</div></div></div>
+      <div class="stat-card"><span class="stat-icon">⏳</span><div><div class="stat-value" id="s-envoyes">0</div><div class="stat-label">Envoyés</div></div></div>
+      <div class="stat-card"><span class="stat-icon">✅</span><div><div class="stat-value" id="s-acceptes">0</div><div class="stat-label">Acceptés</div></div></div>
+      <div class="stat-card"><span class="stat-icon">💶</span><div><div class="stat-value" id="s-montant">0 €</div><div class="stat-label">Montant total</div></div></div>
+    </div>
+
+    <div id="alerte-profil" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:0.85rem;color:#fbbf24">
+      ⚠️ Vos informations légales sont incomplètes.
+      <a href="#" onclick="window.location.href='parametres.html'" style="color:#fbbf24;font-weight:600;text-decoration:underline;margin-left:6px">Compléter mon profil →</a>
+    </div>
+
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filtrerDevis('tous', this)">Tous</button>
+      <button class="filter-btn" onclick="filtrerDevis('brouillon', this)">Brouillons</button>
+      <button class="filter-btn" onclick="filtrerDevis('envoye', this)">Envoyés</button>
+      <button class="filter-btn" onclick="filtrerDevis('accepte', this)">Acceptés</button>
+      <button class="filter-btn" onclick="filtrerDevis('refuse', this)">Refusés</button>
+    </div>
+
+    <div class="card">
+      <div class="table-wrapper">
+        <table class="table">
+          <thead><tr><th>Numéro</th><th>Client</th><th>Objet</th><th>Montant HT</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody id="devis-table"><tr><td colspan="7" class="empty-state">Aucun devis. Créez-en un !</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL CREATION DEVIS -->
+  <div class="modal-overlay" id="modal-devis" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:820px;max-width:98vw;max-height:90vh;overflow-y:auto">
+      <h3>📄 Nouveau devis</h3>
+      <div class="tabs-sm">
+        <button class="tab-sm active" onclick="switchTabDevis('infos', this)">1. Informations</button>
+        <button class="tab-sm" onclick="switchTabDevis('lignes', this)">2. Prestations</button>
+        <button class="tab-sm" onclick="switchTabDevis('preview', this)">3. Aperçu légal</button>
+      </div>
+
+      <div id="dtab-infos">
+        <div class="form-grid">
+          <div class="form-group"><label>Nom du client / Société *</label><input type="text" id="d-client" placeholder="Nom du client ou entreprise"/></div>
+          <div class="form-group"><label>Numéro de devis</label><input type="text" id="d-numero" placeholder="DEV-2024-001"/></div>
+          <div class="form-group form-full"><label>Adresse complète du client</label><textarea id="d-adresse" placeholder="Adresse, code postal, ville..." style="min-height:60px"></textarea></div>
+          <div class="form-group form-full"><label>Objet du devis *</label><input type="text" id="d-objet" placeholder="Ex: Création site web vitrine"/></div>
+          <div class="form-group"><label>Date d'émission</label><input type="date" id="d-date"/></div>
+          <div class="form-group"><label>Valable jusqu'au</label><input type="date" id="d-validite"/></div>
+          <div class="form-group"><label>TVA (%)</label><input type="number" id="d-tva" value="20" min="0" max="100" oninput="majTotaux()"/></div>
+          <div class="form-group"><label>Délai de réalisation</label><input type="text" id="d-delai" placeholder="Ex: 3 semaines"/></div>
+          <div class="form-group form-full"><label>Conditions particulières</label><textarea id="d-conditions" placeholder="Acompte demandé, conditions de paiement, modalités..."></textarea></div>
+        </div>
+      </div>
+
+      <div id="dtab-lignes" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 80px 100px 100px 36px;gap:10px;margin-bottom:6px" class="col-header">
+          <span>Description de la prestation</span><span>Qté</span><span>Prix unit. HT</span><span>Total HT</span><span></span>
+        </div>
+        <div id="lignes-container"></div>
+        <button class="btn-secondary" onclick="ajouterLigne()" style="margin-top:8px">+ Ajouter une ligne</button>
+        <div class="devis-totaux">
+          <div class="totaux-row"><span>Sous-total HT</span><strong id="total-ht">0,00 €</strong></div>
+          <div class="totaux-row"><span>TVA (<span id="tva-pct">20</span>%)</span><strong id="total-tva">0,00 €</strong></div>
+          <div class="totaux-row total-final"><span>Total TTC</span><strong id="total-ttc">0,00 €</strong></div>
+        </div>
+      </div>
+
+      <div id="dtab-preview" style="display:none">
+        <div class="preview-zone" id="preview-content"></div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="btn-secondary" onclick="document.getElementById('modal-devis').style.display='none'">Annuler</button>
+        <button class="btn-secondary" onclick="sauvegarderDevis('brouillon')">💾 Brouillon</button>
+        <button class="btn-primary" onclick="sauvegarderDevis('envoye')">📤 Sauver & Marquer envoyé</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VOIR DEVIS -->
+  <div class="modal-overlay" id="modal-voir-devis" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:760px;max-width:98vw;max-height:90vh;overflow-y:auto">
+      <div id="voir-devis-content"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-voir-devis').style.display='none'">Fermer</button>
+        <button class="btn-secondary" id="btn-convertir-facture">🧾 Convertir en facture</button>
+        <button class="btn-primary" onclick="imprimerDevis()">🖨️ Imprimer / PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    function getProfil() {
+      try {
+        var u = getUserCache() || {};
+        var p = u.profil_legal || {};
+        if (!p.nom) p.nom = ((u.prenom||'') + ' ' + (u.nom||'')).trim();
+        if (!p.email) p.email = u.email || '';
+        if (!p.metier) p.metier = u.metier || '';
+        return p;
+      } catch(e) { return {}; }
+    }
+    function getUser() { return getUserCache() || {}; }
+    function fmtEur(v) { return (v||0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+    function fmtDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
+
+    let lignes = [];
+
+    // Init sidebar centralisée
+    initSidebar();
+
+    // Profil légal → géré dans Paramètres
+    function ouvrirModalProfil() {
+      window.location.href = 'parametres.html';
+    }
+    function sauvegarderProfil() {}
+
+    function verifierProfilComplet() {
+      const p = getProfil();
+      document.getElementById('alerte-profil').style.display = (!p.nom || !p.siret || !p.adresse) ? 'block' : 'none';
+    }
+
+    // Modal devis
+    function ouvrirModalDevis() {
+      lignes = [{ desc: '', qte: 1, prix: 0 }];
+      renderLignes();
+      const today = new Date();
+      const v = new Date(); v.setDate(today.getDate() + 30);
+      document.getElementById('d-date').value = today.toISOString().split('T')[0];
+      document.getElementById('d-validite').value = v.toISOString().split('T')[0];
+      document.getElementById('d-numero').value = 'DEV-' + today.getFullYear() + '-' + String(getDevis().length + 1).padStart(3, '0');
+      document.getElementById('d-client').value = '';
+      document.getElementById('d-objet').value = '';
+      document.getElementById('d-adresse').value = '';
+      document.getElementById('d-conditions').value = '';
+      document.getElementById('d-delai').value = '';
+      document.getElementById('modal-devis').style.display = 'flex';
+      switchTabDevis('infos', document.querySelector('#modal-devis .tab-sm'));
+    }
+
+    function switchTabDevis(tab, btn) {
+      ['infos','lignes','preview'].forEach(t => document.getElementById('dtab-' + t).style.display = 'none');
+      document.getElementById('dtab-' + tab).style.display = 'block';
+      document.querySelectorAll('#modal-devis .tab-sm').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (tab === 'preview') renderPreview();
+      if (tab === 'lignes') majTotaux();
+    }
+
+    function ajouterLigne() { lignes.push({ desc: '', qte: 1, prix: 0 }); renderLignes(); }
+    function supprimerLigne(i) { lignes.splice(i, 1); renderLignes(); }
+
+    function renderLignes() {
+      document.getElementById('lignes-container').innerHTML = lignes.map((l, i) => `
+        <div class="ligne-item">
+          <input type="text" placeholder="Description" value="${l.desc}" oninput="lignes[${i}].desc=this.value"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font-body);font-size:0.88rem;outline:none"/>
+          <input type="number" value="${l.qte}" min="0.5" step="0.5" oninput="lignes[${i}].qte=parseFloat(this.value)||0;majTotaux()"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:var(--font-body);font-size:0.88rem;outline:none;text-align:center"/>
+          <input type="number" value="${l.prix}" min="0" step="0.01" oninput="lignes[${i}].prix=parseFloat(this.value)||0;majTotaux()"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:var(--font-body);font-size:0.88rem;outline:none;text-align:right"/>
+          <div class="ligne-total" id="lt-${i}">${fmtEur(l.qte * l.prix)}</div>
+          <button class="btn-remove" onclick="supprimerLigne(${i})">×</button>
+        </div>`).join('');
+      majTotaux();
+    }
+
+    function majTotaux() {
+      const ht = lignes.reduce((s, l) => s + l.qte * l.prix, 0);
+      const tvaP = parseFloat(document.getElementById('d-tva')?.value || 20);
+      document.getElementById('total-ht').textContent = fmtEur(ht);
+      document.getElementById('total-tva').textContent = fmtEur(ht * tvaP / 100);
+      document.getElementById('total-ttc').textContent = fmtEur(ht * (1 + tvaP / 100));
+      document.getElementById('tva-pct').textContent = tvaP;
+      lignes.forEach((l, i) => { const el = document.getElementById('lt-' + i); if(el) el.textContent = fmtEur(l.qte * l.prix); });
+    }
+
+    function getProfilComplet() {
+      const p = getProfil(); const u = getUser();
+      return {
+        nom: p.nom || ((u.prenom||'') + ' ' + (u.nom||'')).trim(),
+        metier: p.metier || u.metier || 'Indépendant',
+        adresse: p.adresse || u.localisation || '',
+        siret: p.siret || '', tva_num: p.tva_num || '',
+        email: p.email || u.email || '', tel: p.tel || '',
+        iban: p.iban || '', mention_tva: p.mention_tva || ''
+      };
+    }
+
+    function buildPreviewHTML(data, lignesData) {
+      const p = getProfilComplet();
+      const ht = lignesData.reduce((s, l) => s + l.qte * l.prix, 0);
+      const tvaAmt = ht * data.tva / 100;
+      const ttc = ht + tvaAmt;
+      const montantFinal = p.mention_tva ? ht : ttc;
+
+      return `
+        <div class="preview-header">
+          <div>
+            <div class="preview-logo">⚡ ${p.nom}</div>
+            <div style="font-size:0.82rem;color:var(--text-soft);margin-top:6px;white-space:pre-line">${p.adresse}</div>
+            ${p.siret ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px">SIRET : ${p.siret}</div>` : ''}
+            ${p.tva_num ? `<div style="font-size:0.75rem;color:var(--text-muted)">N° TVA : ${p.tva_num}</div>` : ''}
+            ${p.email ? `<div style="font-size:0.75rem;color:var(--text-muted)">${p.email}</div>` : ''}
+            ${p.tel ? `<div style="font-size:0.75rem;color:var(--text-muted)">${p.tel}</div>` : ''}
+          </div>
+          <div style="text-align:right">
+            <div class="preview-title">DEVIS</div>
+            <div style="color:var(--accent2);font-size:0.9rem;font-weight:600">${data.numero}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Date : ${fmtDate(data.date)}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted)">Valable jusqu'au : ${fmtDate(data.validite)}</div>
+            ${data.delai ? `<div style="font-size:0.8rem;color:var(--text-muted)">Délai : ${data.delai}</div>` : ''}
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+          <div style="background:var(--bg3);padding:14px 16px;border-radius:8px">
+            <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Émetteur</div>
+            <strong>${p.nom}</strong><br><span style="font-size:0.82rem;color:var(--text-soft)">${p.metier}</span>
+          </div>
+          <div style="background:var(--bg3);padding:14px 16px;border-radius:8px">
+            <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Destinataire</div>
+            <strong>${data.client}</strong>
+            ${data.adresse ? `<div style="font-size:0.82rem;color:var(--text-soft);margin-top:2px;white-space:pre-line">${data.adresse}</div>` : ''}
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;padding:10px 14px;background:var(--bg3);border-radius:6px">
+          <span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Objet : </span>
+          <strong>${data.objet}</strong>
+        </div>
+
+        <table class="preview-table">
+          <thead><tr><th>Description</th><th>Qté</th><th>Prix unit. HT</th><th>Total HT</th></tr></thead>
+          <tbody>
+            ${lignesData.filter(l => l.desc || l.prix).map(l => `<tr><td>${l.desc||'—'}</td><td>${l.qte}</td><td>${fmtEur(l.prix)}</td><td>${fmtEur(l.qte*l.prix)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+
+        <div style="text-align:right;margin-top:8px">
+          <div class="preview-total-line"><span>Sous-total HT</span><span>${fmtEur(ht)}</span></div>
+          ${p.mention_tva
+            ? `<div class="preview-total-line"><span style="color:#fbbf24;font-size:0.78rem">${p.mention_tva}</span><span>0,00 €</span></div>`
+            : `<div class="preview-total-line"><span>TVA (${data.tva}%)</span><span>${fmtEur(tvaAmt)}</span></div>`}
+          <div class="preview-total-final"><span>TOTAL ${p.mention_tva ? 'HT' : 'TTC'}</span><span>${fmtEur(montantFinal)}</span></div>
+        </div>
+
+        ${data.conditions ? `<div style="margin-top:16px;padding:12px 16px;background:var(--bg3);border-radius:8px;font-size:0.82rem;color:var(--text-soft)"><strong>Conditions :</strong> ${data.conditions}</div>` : ''}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
+          <div class="signature-box">
+            <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Signature de l'émetteur</div>
+            <div style="font-size:0.82rem;color:var(--text-soft);margin-top:8px">${p.nom}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">${fmtDate(data.date)}</div>
+          </div>
+          <div class="signature-box">
+            <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Bon pour accord — Client</div>
+            <div style="font-size:0.82rem;color:var(--text-soft);margin-top:8px">${data.client}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted)">Date et signature :</div>
+          </div>
+        </div>
+
+        <div class="mentions-legales">
+          ${p.siret ? `<strong>SIRET :</strong> ${p.siret}${p.tva_num ? ' &nbsp;|&nbsp; <strong>N° TVA :</strong> ' + p.tva_num : ''}<br>` : ''}
+          ${p.mention_tva ? `${p.mention_tva}<br>` : ''}
+          Ce devis est valable jusqu'au <strong>${fmtDate(data.validite)}</strong>. Tout devis signé vaut commande ferme et définitive.<br>
+          ${data.delai ? `Délai de réalisation estimé : ${data.delai}.<br>` : ''}
+          Sauf accord particulier, le règlement est dû à réception de facture. Tout retard entraîne des pénalités de retard au taux légal en vigueur, ainsi qu'une indemnité forfaitaire pour frais de recouvrement de <strong>40 €</strong>.
+        </div>`;
+    }
+
+    function renderPreview() {
+      const data = {
+        numero: document.getElementById('d-numero').value || 'DEV-001',
+        client: document.getElementById('d-client').value || 'Client',
+        objet: document.getElementById('d-objet').value || 'Prestation',
+        date: document.getElementById('d-date').value,
+        validite: document.getElementById('d-validite').value,
+        adresse: document.getElementById('d-adresse').value,
+        conditions: document.getElementById('d-conditions').value,
+        delai: document.getElementById('d-delai').value,
+        tva: parseFloat(document.getElementById('d-tva').value || 20)
+      };
+      document.getElementById('preview-content').innerHTML = buildPreviewHTML(data, lignes);
+    }
+
+    // ── CACHE LOCAL DES DEVIS ──
+    var devisCache = [];
+
+    async function chargerDevis() {
+      var json = await apiAuth('GET', '/devis');
+      if (json && json.statut === 'ok') {
+        devisCache = json.data.devis || [];
+      }
+      afficherTable(); majStats();
+    }
+
+    async function sauvegarderDevis(statut) {
+      if (!document.getElementById('d-client').value.trim()) { alert('Le nom du client est requis'); return; }
+      const tvaP = parseFloat(document.getElementById('d-tva').value || 20);
+      const ht = lignes.reduce((s, l) => s + l.qte * l.prix, 0);
+      var payload = {
+        numero: document.getElementById('d-numero').value,
+        client: document.getElementById('d-client').value,
+        objet: document.getElementById('d-objet').value,
+        date: document.getElementById('d-date').value,
+        validite: document.getElementById('d-validite').value,
+        adresse: document.getElementById('d-adresse').value,
+        delai: document.getElementById('d-delai').value,
+        conditions: document.getElementById('d-conditions').value,
+        tva: tvaP, lignes: [...lignes],
+        montant_ht: ht, montant_ttc: ht * (1 + tvaP / 100),
+        statut: statut
+      };
+      var json = await apiAuth('POST', '/devis', payload);
+      if (json && json.statut === 'ok') {
+        document.getElementById('modal-devis').style.display = 'none';
+        await chargerDevis();
+      } else {
+        alert('Erreur : ' + (json ? json.message : 'Connexion échouée'));
+      }
+    }
+
+    var filtreActif = 'tous';
+
+    function afficherTable(filtre) {
+      if (filtre !== undefined) filtreActif = filtre;
+      var list = devisCache.slice();
+      if (filtreActif !== 'tous') list = list.filter(function(d){ return d.statut === filtreActif; });
+      var tbody = document.getElementById('devis-table');
+      if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Aucun devis trouvé</td></tr>'; return; }
+      var tc = { brouillon:'tag-brouillon', envoye:'tag-envoye', accepte:'tag-accepte', refuse:'tag-refuse', expire:'tag-expire' };
+      var tl = { brouillon:'✏️ Brouillon', envoye:'📤 Envoyé', accepte:'✅ Accepté', refuse:'❌ Refusé', expire:'⏰ Expiré' };
+      tbody.innerHTML = list.map(function(d) { return '<tr>' +
+        '<td><span class="devis-num">' + (d.numero||'—') + '</span></td>' +
+        '<td><strong>' + d.client + '</strong></td>' +
+        '<td>' + (d.objet||'—') + '</td>' +
+        '<td class="total-cell">' + fmtEur(d.montant_ht||0) + '</td>' +
+        '<td>' + fmtDate(d.date) + '</td>' +
+        '<td><span class="status-tag ' + (tc[d.statut]||'') + '">' + (tl[d.statut]||d.statut) + '</span></td>' +
+        '<td>' +
+          '<button class="btn-sm" onclick="voirDevis(\'' + d.id + '\')">👁 Voir</button>' +
+          (d.statut !== 'accepte' ? '<button class="btn-sm" style="background:rgba(16,185,129,0.15);color:#34d399;border-color:rgba(16,185,129,0.3)" onclick="accepterEtFacturer(\'' + d.id + '\')">✅ → Facture</button>' : '<span style="font-size:0.75rem;color:#34d399;margin:0 4px">✅ Converti</span>') +
+          '<button class="btn-sm btn-danger" onclick="supprimerDevis(\'' + d.id + '\')">🗑</button>' +
+        '</td></tr>';
+      }).join('');
+    }
+
+    function filtrerDevis(f, btn) {
+      document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      afficherTable(f);
+    }
+
+    function majStats() {
+      var list = devisCache;
+      document.getElementById('s-total').textContent = list.length;
+      document.getElementById('s-envoyes').textContent = list.filter(function(d){ return d.statut==='envoye'; }).length;
+      document.getElementById('s-acceptes').textContent = list.filter(function(d){ return d.statut==='accepte'; }).length;
+      document.getElementById('s-montant').textContent = fmtEur(list.reduce(function(s,d){ return s+(d.montant_ht||0); }, 0));
+    }
+
+    async function changerStatut(id, statut) {
+      await apiAuth('PUT', '/devis/' + id, { statut: statut });
+      await chargerDevis();
+    }
+
+    async function supprimerDevis(id) {
+      if (!confirm('Supprimer ce devis ?')) return;
+      await apiAuth('DELETE', '/devis/' + id);
+      await chargerDevis();
+    }
+
+    async function accepterEtFacturer(devisId) {
+      if (!confirm('Accepter ce devis et créer la facture correspondante ?')) return;
+      var json = await apiAuth('POST', '/devis/' + devisId + '/convertir');
+      if (json && json.statut === 'ok') {
+        var num = json.data.numero;
+        var toast = document.createElement('div');
+        toast.textContent = '✅ Facture ' + num + ' créée !';
+        toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(16,185,129,0.4)';
+        document.body.appendChild(toast);
+        setTimeout(function(){ window.location.href = 'factures.html'; }, 1500);
+      } else {
+        alert('Erreur : ' + (json ? json.message : 'Connexion échouée'));
+      }
+    }
+
+    function voirDevis(id) {
+      var d = devisCache.find(function(x){ return x.id===id; }); if (!d) return;
+      var tc = { brouillon:'tag-brouillon', envoye:'tag-envoye', accepte:'tag-accepte', refuse:'tag-refuse' };
+      var tl = { brouillon:'✏️ Brouillon', envoye:'📤 Envoyé', accepte:'✅ Accepté', refuse:'❌ Refusé' };
+      document.getElementById('voir-devis-content').innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">' +
+          '<h3>Devis — ' + d.numero + '</h3>' +
+          '<span class="status-tag ' + (tc[d.statut]||'') + '">' + (tl[d.statut]||d.statut) + '</span>' +
+        '</div>' +
+        '<div class="preview-zone">' + buildPreviewHTML(d, d.lignes||[]) + '</div>';
+      var btnConv = document.getElementById('btn-convertir-facture');
+      if (d.statut === 'accepte') {
+        btnConv.textContent = '✅ Déjà converti';
+        btnConv.disabled = true;
+        btnConv.style.opacity = '0.5';
+      } else {
+        btnConv.textContent = '🧾 Accepter & créer facture';
+        btnConv.disabled = false;
+        btnConv.style.opacity = '1';
+        btnConv.onclick = function(){ document.getElementById('modal-voir-devis').style.display='none'; accepterEtFacturer(id); };
+      }
+      document.getElementById('modal-voir-devis').style.display = 'flex';
+    }
+
+    function imprimerDevis() { window.print(); }
+
+    verifierProfilComplet();
+    chargerDevis();
+  </script>
+</body>
+</html>

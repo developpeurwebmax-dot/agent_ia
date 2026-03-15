@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA Business — Paramètres</title>
+  <link rel="stylesheet" href="../freelance/style.css"/>
+  <link rel="stylesheet" href="style_business.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">🏢 IA Business</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
+      <a href="finances.html" class="nav-link">💰 Finances</a>
+      <a href="employes.html" class="nav-link">👥 Employés</a>
+      <a href="facturation.html" class="nav-link">🧾 Facturation</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics IA</a>
+      <a href="parametres.html" class="nav-link active">⚙️ Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Dirigeant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Paramètres</h1>
+        <p class="page-sub">Entreprise et gestion des accès</p>
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('entreprise', this)">🏢 Entreprise</button>
+      <button class="tab" onclick="showTab('membres', this)">👥 Membres & Rôles</button>
+      <button class="tab" onclick="showTab('creer', this)">➕ Créer une entreprise</button>
+    </div>
+
+    <!-- ENTREPRISE -->
+    <div class="tab-content active" id="tab-entreprise">
+      <div class="card">
+        <h3 style="margin-bottom:20px">Informations de l'entreprise</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom de l'entreprise *</label>
+            <input type="text" id="ent-nom" placeholder="Ma Société SAS"/>
+          </div>
+          <div class="form-group">
+            <label>SIREN</label>
+            <input type="text" id="ent-siren" placeholder="123 456 789"/>
+          </div>
+          <div class="form-group">
+            <label>Forme juridique</label>
+            <select id="ent-forme">
+              <option value="SAS">SAS</option>
+              <option value="SARL">SARL</option>
+              <option value="SA">SA</option>
+              <option value="EI">EI</option>
+              <option value="EURL">EURL</option>
+              <option value="SCI">SCI</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Secteur d'activité</label>
+            <input type="text" id="ent-secteur" placeholder="Tech, Commerce, BTP..."/>
+          </div>
+          <div class="form-group form-full">
+            <label>Adresse</label>
+            <input type="text" id="ent-adresse" placeholder="1 rue de la Paix, 75001 Paris"/>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="ent-email" placeholder="contact@masociete.fr"/>
+          </div>
+          <div class="form-group">
+            <label>Téléphone</label>
+            <input type="text" id="ent-tel" placeholder="01 23 45 67 89"/>
+          </div>
+          <div class="form-group">
+            <label>TVA intracommunautaire</label>
+            <input type="text" id="ent-tva" placeholder="FR12345678901"/>
+          </div>
+          <div class="form-group">
+            <label>Effectif max prévu</label>
+            <input type="number" id="ent-effectif" min="1" max="200" value="50"/>
+          </div>
+        </div>
+        <div style="margin-top:20px">
+          <button class="btn-primary" onclick="sauvegarderEntreprise()">💾 Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEMBRES -->
+    <div class="tab-content" id="tab-membres">
+      <div class="card" style="margin-bottom:20px">
+        <h3 style="margin-bottom:16px">Inviter un collaborateur</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px">
+          L'utilisateur doit déjà avoir un compte Agent IA. Entrez son email et assignez-lui un rôle.
+        </p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="inv-email" placeholder="collaborateur@email.fr"/>
+          </div>
+          <div class="form-group">
+            <label>Rôle *</label>
+            <select id="inv-role">
+              <option value="admin">🔑 Administrateur (accès total)</option>
+              <option value="rh">👥 Responsable RH</option>
+              <option value="comptable">💰 Comptable</option>
+              <option value="commercial" selected>📊 Commercial</option>
+              <option value="employe">👤 Employé (lecture seule)</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="inviterMembre()" style="margin-top:8px">✉️ Envoyer l'invitation</button>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:16px">Membres actuels</h3>
+        <div id="liste-membres">
+          <div class="empty-state">Chargement...</div>
+        </div>
+      </div>
+
+      <!-- Légende des rôles -->
+      <div class="card" style="margin-top:16px">
+        <h3 style="margin-bottom:16px;font-size:0.9rem">Tableau des permissions</h3>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th>Admin</th>
+                <th>RH</th>
+                <th>Comptable</th>
+                <th>Commercial</th>
+                <th>Employé</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Dashboard</td><td>✅</td><td>Lecture</td><td>Lecture</td><td>Lecture</td><td>❌</td></tr>
+              <tr><td>Finances</td><td>✅</td><td>❌</td><td>✅</td><td>❌</td><td>❌</td></tr>
+              <tr><td>Employés / RH</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td><td>Ses données</td></tr>
+              <tr><td>Facturation / CRM</td><td>✅</td><td>❌</td><td>Lecture</td><td>✅</td><td>❌</td></tr>
+              <tr><td>Analytics IA</td><td>✅</td><td>❌</td><td>✅</td><td>❌</td><td>❌</td></tr>
+              <tr><td>Paramètres</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRÉER ENTREPRISE -->
+    <div class="tab-content" id="tab-creer">
+      <div class="card">
+        <h3 style="margin-bottom:8px">Créer une nouvelle entreprise</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px">
+          Votre compte peut gérer plusieurs entreprises. Vous en serez automatiquement l'administrateur.
+        </p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom de l'entreprise *</label>
+            <input type="text" id="new-nom" placeholder="Nouvelle Société SAS"/>
+          </div>
+          <div class="form-group">
+            <label>Forme juridique</label>
+            <select id="new-forme">
+              <option value="SAS">SAS</option>
+              <option value="SARL">SARL</option>
+              <option value="SA">SA</option>
+              <option value="EI">EI</option>
+              <option value="EURL">EURL</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Secteur</label>
+            <input type="text" id="new-secteur" placeholder="Tech, Commerce, BTP..."/>
+          </div>
+          <div class="form-group">
+            <label>Effectif prévu</label>
+            <input type="number" id="new-effectif" value="10" min="1" max="200"/>
+          </div>
+        </div>
+        <button class="btn-primary" onclick="creerEntreprise()" style="margin-top:16px">🏢 Créer l'entreprise</button>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="auth.js"></script>
+  <script>
+    let ENTREPRISE_ID = null;
+
+    async function init() {
+      const user = await initSidebar();
+      if (!user) return;
+
+      const json = await apiAuth("GET", "/business/entreprises");
+      if (!json?.data?.entreprises?.length) {
+        showTab("creer", document.querySelectorAll(".tabs .tab")[2]);
+        return;
+      }
+
+      const ent = json.data.entreprises[0];
+      ENTREPRISE_ID = ent.id;
+
+      // Remplir le formulaire entreprise
+      document.getElementById("ent-nom").value = ent.nom || "";
+      document.getElementById("ent-siren").value = ent.siren || "";
+      document.getElementById("ent-forme").value = ent.forme_juridique || "SAS";
+      document.getElementById("ent-secteur").value = ent.secteur || "";
+      document.getElementById("ent-adresse").value = ent.adresse || "";
+      document.getElementById("ent-email").value = ent.email || "";
+      document.getElementById("ent-tel").value = ent.telephone || "";
+      document.getElementById("ent-tva").value = ent.tva_intracommunautaire || "";
+      document.getElementById("ent-effectif").value = ent.nb_employes_max || 50;
+
+      await chargerMembres();
+    }
+
+    async function sauvegarderEntreprise() {
+      if (!ENTREPRISE_ID) { alert("Aucune entreprise sélectionnée"); return; }
+      const body = {
+        nom: document.getElementById("ent-nom").value,
+        siren: document.getElementById("ent-siren").value,
+        forme_juridique: document.getElementById("ent-forme").value,
+        secteur: document.getElementById("ent-secteur").value,
+        adresse: document.getElementById("ent-adresse").value,
+        email: document.getElementById("ent-email").value,
+        telephone: document.getElementById("ent-tel").value,
+        tva_intracommunautaire: document.getElementById("ent-tva").value,
+        nb_employes_max: parseInt(document.getElementById("ent-effectif").value) || 50
+      };
+      const json = await apiAuth("PUT", `/business/entreprises/${ENTREPRISE_ID}`, body);
+      if (json?.statut === "ok") alert("✅ Entreprise mise à jour !");
+      else alert(json?.message || "Erreur");
+    }
+
+    async function chargerMembres() {
+      if (!ENTREPRISE_ID) return;
+      const json = await apiAuth("GET", `/business/membres?entreprise_id=${ENTREPRISE_ID}`);
+      const container = document.getElementById("liste-membres");
+      const membres = json?.data?.membres || [];
+      if (!membres.length) { container.innerHTML = '<div class="empty-state">Aucun membre</div>'; return; }
+      container.innerHTML = `
+        <div class="table-wrapper">
+          <table class="table">
+            <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${membres.map(m => `
+                <tr>
+                  <td><strong>${m.prenom} ${m.nom}</strong></td>
+                  <td style="color:var(--text-muted)">${m.email}</td>
+                  <td>
+                    <select class="select-inline" style="padding:4px 8px;font-size:0.8rem"
+                      onchange="changerRole('${m.user_id}', this.value)">
+                      <option value="admin" ${m.role==='admin'?'selected':''}>🔑 Admin</option>
+                      <option value="rh" ${m.role==='rh'?'selected':''}>👥 RH</option>
+                      <option value="comptable" ${m.role==='comptable'?'selected':''}>💰 Comptable</option>
+                      <option value="commercial" ${m.role==='commercial'?'selected':''}>📊 Commercial</option>
+                      <option value="employe" ${m.role==='employe'?'selected':''}>👤 Employé</option>
+                    </select>
+                  </td>
+                  <td>
+                    <button class="btn-sm btn-danger" onclick="retirerMembre('${m.user_id}', '${m.prenom}')">Retirer</button>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function inviterMembre() {
+      const email = document.getElementById("inv-email").value;
+      const role = document.getElementById("inv-role").value;
+      if (!email) { alert("Email requis"); return; }
+      const json = await apiAuth("POST", "/business/membres/inviter", {
+        entreprise_id: ENTREPRISE_ID, email, role
+      });
+      if (json?.statut === "ok") {
+        alert(`✅ ${json.data.user.prenom} ${json.data.user.nom} ajouté comme ${json.data.role_label}`);
+        document.getElementById("inv-email").value = "";
+        chargerMembres();
+      } else alert(json?.message || "Erreur");
+    }
+
+    async function changerRole(userId, role) {
+      await apiAuth("PUT", `/business/membres/${userId}/role`, {
+        entreprise_id: ENTREPRISE_ID, role
+      });
+    }
+
+    async function retirerMembre(userId, prenom) {
+      if (!confirm(`Retirer ${prenom} de l'entreprise ?`)) return;
+      await apiAuth("DELETE", `/business/membres/${userId}?entreprise_id=${ENTREPRISE_ID}`);
+      chargerMembres();
+    }
+
+    async function creerEntreprise() {
+      const body = {
+        nom: document.getElementById("new-nom").value,
+        forme_juridique: document.getElementById("new-forme").value,
+        secteur: document.getElementById("new-secteur").value,
+        nb_employes_max: parseInt(document.getElementById("new-effectif").value) || 10
+      };
+      if (!body.nom) { alert("Nom requis"); return; }
+      const json = await apiAuth("POST", "/business/entreprises", body);
+      if (json?.statut === "ok") {
+        alert(`✅ Entreprise "${json.data.nom}" créée !`);
+        location.reload();
+      } else alert(json?.message || "Erreur");
+    }
+
+    function showTab(name, btn) {
+      document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tabs .tab").forEach(t => t.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.add("active");
+      btn.classList.add("active");
+    }
+
+    init();
+  </script>
+</body>
+</html>

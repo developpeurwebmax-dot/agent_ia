@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA — Paramètres</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .plan-card-settings {
+      border:2px solid var(--border); border-radius:14px; padding:16px 14px;
+      cursor:pointer; transition:all 0.2s; position:relative;
+    }
+    .plan-card-settings:hover { border-color:var(--accent); transform:translateY(-2px); }
+    .plan-card-settings.actuel { border-color:var(--success); background:rgba(16,185,129,0.05); cursor:default; }
+    .plan-card-settings.selected { border-color:var(--accent2); background:var(--accent-glow); }
+    .plan-card-settings.popular::before {
+      content:"Populaire"; position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+      background:var(--accent); color:white; font-size:0.68rem; font-weight:700;
+      padding:3px 10px; border-radius:99px;
+    }
+    .plan-card-settings .actuel-badge {
+      position:absolute; top:-10px; right:14px;
+      background:var(--success); color:white; font-size:0.68rem; font-weight:700;
+      padding:3px 10px; border-radius:99px;
+    }
+    .plan-name-s { font-family:var(--font-display); font-size:1.1rem; font-weight:700; margin-bottom:4px; }
+    .plan-price-s { font-size:1.5rem; font-weight:800; color:var(--accent2); margin:6px 0 2px; }
+    .plan-price-s span { font-size:0.78rem; color:var(--text-muted); font-weight:400; }
+    .plan-features-s { list-style:none; margin-top:12px; display:flex; flex-direction:column; gap:5px; }
+    .plan-features-s li { font-size:0.75rem; color:var(--text-soft); display:flex; align-items:center; gap:6px; }
+    .plan-features-s li.off { color:var(--text-muted); opacity:0.5; }
+    .plan-features-s li::before { content:"✓"; color:var(--success); font-weight:700; flex-shrink:0; }
+    .plan-features-s li.off::before { content:"✗"; color:var(--text-muted); }
+    .section-title { font-family:var(--font-display); font-size:1rem; font-weight:600; margin-bottom:14px; color:var(--text-soft); }
+    .info-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); font-size:0.88rem; }
+    .info-row:last-child { border-bottom:none; }
+    .info-label { color:var(--text-muted); }
+    .info-value { color:var(--text); font-weight:500; }
+    .modal-paiement { display:none; }
+    .toast-notif { position:fixed; bottom:28px; right:28px; padding:12px 20px; border-radius:10px; font-size:0.88rem; font-weight:600; z-index:9999; box-shadow:0 4px 20px rgba(0,0,0,0.3); animation:fadeInUp 0.3s ease; }
+    @keyframes fadeInUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .input-card { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:11px 14px; color:var(--text); font-family:var(--font-body); font-size:0.9rem; outline:none; width:100%; transition:border-color 0.15s; }
+    .input-card:focus { border-color:var(--accent); }
+    .card-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .danger-zone { background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:20px 22px; }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">⚡ Agent IA</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
+      <a href="crm.html" class="nav-link">👥 CRM</a>
+      <a href="contenu.html" class="nav-link">✍️ Contenu</a>
+      <a href="devis.html" class="nav-link">📄 Devis</a>
+      <a href="factures.html" class="nav-link">🧾 Factures</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics</a>
+      <a href="parametres.html" class="nav-link active">⚙️ Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">M</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Indépendant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Paramètres</h1>
+        <p class="page-sub">Gérez votre compte et votre abonnement</p>
+      </div>
+    </header>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px">
+
+      <!-- MON COMPTE -->
+      <div class="card">
+        <div class="card-header"><span class="card-icon">👤</span><h2>Mon compte</h2></div>
+        <div id="infos-compte"></div>
+        <button class="btn-secondary" style="margin-top:12px;width:100%" onclick="document.getElementById('modal-edit').style.display='flex'">✏️ Modifier mes infos</button>
+      </div>
+
+      <!-- MON PLAN ACTUEL -->
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🚀</span><h2>Mon abonnement actuel</h2></div>
+        <div id="plan-actuel-info"></div>
+        <button class="btn-primary" style="margin-top:16px;width:100%" onclick="scrollerVersPlans()">⬆️ Changer de plan</button>
+      </div>
+
+    </div>
+
+    <!-- CHANGER DE PLAN -->
+    <div class="card" style="margin-top:24px" id="section-plans">
+      <div class="card-header"><span class="card-icon">💳</span><h2>Choisir un plan</h2></div>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px">Cliquez sur un plan pour le sélectionner, puis confirmez le changement.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px" id="plans-choix"></div>
+      <div id="zone-paiement-upgrade" style="display:none">
+        <div style="background:var(--bg3);border-radius:10px;padding:16px 18px;margin-bottom:16px">
+          <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">💳 Informations de paiement</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:5px">Numéro de carte</label><input class="input-card" type="text" id="up-card-num" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this)"/></div>
+            <div class="card-row">
+              <div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:5px">Expiration</label><input class="input-card" type="text" id="up-card-exp" placeholder="MM/AA" maxlength="5" oninput="fmtExp(this)"/></div>
+              <div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:5px">CVV</label><input class="input-card" type="text" id="up-card-cvv" placeholder="123" maxlength="3"/></div>
+            </div>
+            <div><label style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:5px">Nom sur la carte</label><input class="input-card" type="text" id="up-card-nom" placeholder="JEAN DUPONT"/></div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">🔒 Paiement sécurisé — données chiffrées</div>
+          </div>
+        </div>
+      </div>
+      <div id="zone-downgrade-gratuit" style="display:none">
+        <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:0.85rem;color:#fbbf24">
+          ⚠️ En passant au plan Starter, vous perdrez l'accès au CRM, Analytics et Contenu IA.
+        </div>
+      </div>
+      <button class="btn-primary" id="btn-confirmer-plan" style="display:none" onclick="confirmerChangementPlan()">✅ Confirmer le changement de plan</button>
+    </div>
+
+    <!-- INFOS LÉGALES -->
+    <div class="card" style="margin-top:24px">
+      <div class="card-header"><span class="card-icon">📋</span><h2>Informations légales</h2></div>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:18px">Utilisées automatiquement sur vos devis et factures.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="form-group"><label>Nom / Raison sociale</label><input type="text" id="l-nom" placeholder="Jean Dupont"/></div>
+        <div class="form-group"><label>Activité / Métier</label><input type="text" id="l-metier" placeholder="Développeur freelance"/></div>
+        <div class="form-group" style="grid-column:span 2"><label>Adresse complète</label><textarea id="l-adresse" placeholder="12 rue de la Paix, 75001 Paris" style="min-height:60px"></textarea></div>
+        <div class="form-group"><label>SIRET</label><input type="text" id="l-siret" placeholder="123 456 789 00012"/></div>
+        <div class="form-group"><label>N° TVA intracommunautaire</label><input type="text" id="l-tva-num" placeholder="FR12345678901"/></div>
+        <div class="form-group"><label>Email professionnel</label><input type="email" id="l-email" placeholder="jean@example.com"/></div>
+        <div class="form-group"><label>Téléphone</label><input type="text" id="l-tel" placeholder="06 00 00 00 00"/></div>
+        <div class="form-group" style="grid-column:span 2"><label>IBAN (pour les virements)</label><input type="text" id="l-iban" placeholder="FR76 1234 5678 9012 3456 7890 123"/></div>
+        <div class="form-group" style="grid-column:span 2"><label>Mention TVA</label><input type="text" id="l-mention-tva" placeholder="TVA non applicable, art. 293 B du CGI"/></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+        <span id="legal-saved-msg" style="color:var(--success);font-size:0.85rem;display:none">✅ Informations sauvegardées</span>
+        <button class="btn-primary" style="margin-left:auto" onclick="sauverLegal()">💾 Sauvegarder les infos légales</button>
+      </div>
+    </div>
+
+    <!-- DANGER ZONE -->
+    <div class="card danger-zone" style="margin-top:24px">
+      <div class="card-header"><span class="card-icon">⚠️</span><h2 style="color:#f87171">Zone de danger</h2></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:0.9rem;font-weight:500">Supprimer mon compte</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-top:3px">Action irréversible — toutes vos données seront effacées</div>
+        </div>
+        <button class="btn-secondary" style="border-color:rgba(239,68,68,0.4);color:#f87171" onclick="supprimerCompte()">🗑 Supprimer</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL MODIFIER INFOS -->
+  <div class="modal-overlay" id="modal-edit" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:500px">
+      <h3>✏️ Modifier mes informations</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="form-group"><label>Prénom</label><input type="text" id="edit-prenom"/></div>
+        <div class="form-group"><label>Nom</label><input type="text" id="edit-nom"/></div>
+        <div class="form-group" style="grid-column:span 2"><label>Email</label><input type="email" id="edit-email"/></div>
+        <div class="form-group" style="grid-column:span 2"><label>Métier</label><input type="text" id="edit-metier"/></div>
+        <div class="form-group" style="grid-column:span 2"><label>Nouveau mot de passe (laisser vide = inchangé)</label><input type="password" id="edit-pwd" placeholder="••••••••"/></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-edit').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="sauverInfos()">💾 Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    var user = null;
+    var planSelecte = null;
+
+    var PLANS = {
+      starter: {
+        nom: "Starter", prix: 0, periode: "Gratuit",
+        modules: ["dashboard","devis","factures","taches"],
+        features: [
+          {txt:"Devis et Factures", on:true},
+          {txt:"Taches du jour", on:true},
+          {txt:"Dashboard", on:true},
+          {txt:"CRM Prospects", on:false},
+          {txt:"Analytics", on:false},
+          {txt:"Plan IA du matin", on:false},
+          {txt:"Contenu IA illimite", on:false}
+        ]
+      },
+      pro: {
+        nom: "Pro", prix: 19, periode: "/mois",
+        modules: ["dashboard","devis","factures","taches","crm","analytics","plan_ia"],
+        features: [
+          {txt:"Devis et Factures", on:true},
+          {txt:"Taches du jour", on:true},
+          {txt:"Dashboard", on:true},
+          {txt:"CRM Prospects", on:true},
+          {txt:"Analytics", on:true},
+          {txt:"Plan IA du matin", on:true},
+          {txt:"Contenu IA illimite", on:false}
+        ]
+      },
+      premium: {
+        nom: "Premium", prix: 39, periode: "/mois",
+        modules: ["dashboard","devis","factures","taches","crm","analytics","plan_ia","contenu_ia"],
+        features: [
+          {txt:"Devis et Factures", on:true},
+          {txt:"Taches du jour", on:true},
+          {txt:"Dashboard", on:true},
+          {txt:"CRM Prospects", on:true},
+          {txt:"Analytics", on:true},
+          {txt:"Plan IA du matin", on:true},
+          {txt:"Contenu IA illimite", on:true}
+        ]
+      }
+    };
+
+    function toast(msg, color) {
+      color = color || "#10b981";
+      var t = document.createElement("div");
+      t.className = "toast-notif";
+      t.style.background = color;
+      t.style.color = "white";
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function() { t.style.opacity="0"; t.style.transition="opacity 0.4s"; setTimeout(function(){t.remove();},400); }, 2500);
+    }
+
+    async function chargerUser() {
+      var json = await apiAuth("GET", "/auth/profil");
+      if (json && json.statut === "ok") {
+        user = json.data;
+        setUserCache(user);
+        _afficherUser();
+      } else if (!getUserCache()) {
+        window.location.href = "connexion.html";
+      } else {
+        user = getUserCache();
+        _afficherUser();
+      }
+    }
+
+    function _afficherUser() {
+      if (!user) return;
+      document.getElementById("sidebar-avatar").textContent = (user.prenom||"M")[0].toUpperCase();
+      document.getElementById("sidebar-nom").textContent    = (user.prenom||"") + " " + (user.nom||"");
+      document.getElementById("sidebar-role").textContent   = user.metier || "Independant";
+
+      // Infos compte
+      document.getElementById("infos-compte").innerHTML =
+        "<div class=\"info-row\"><span class=\"info-label\">Prénom</span><span class=\"info-value\">" + (user.prenom||"—") + "</span></div>" +
+        "<div class=\"info-row\"><span class=\"info-label\">Nom</span><span class=\"info-value\">" + (user.nom||"—") + "</span></div>" +
+        "<div class=\"info-row\"><span class=\"info-label\">Email</span><span class=\"info-value\">" + (user.email||"—") + "</span></div>" +
+        "<div class=\"info-row\"><span class=\"info-label\">Métier</span><span class=\"info-value\">" + (user.metier||"—") + "</span></div>" +
+        "<div class=\"info-row\"><span class=\"info-label\">Inscrit le</span><span class=\"info-value\">" + (user.date_inscription ? new Date(user.date_inscription).toLocaleDateString("fr-FR") : "—") + "</span></div>";
+
+      // Plan actuel
+      var plan = PLANS[user.plan || "starter"];
+      document.getElementById("plan-actuel-info").innerHTML =
+        "<div style=\"background:var(--accent-glow);border:1px solid var(--accent);border-radius:10px;padding:16px 18px\">" +
+        "<div style=\"font-family:var(--font-display);font-size:1.1rem;font-weight:700;color:var(--accent2);margin-bottom:4px\">" + plan.nom + "</div>" +
+        "<div style=\"font-size:1.3rem;font-weight:800;margin-bottom:4px\">" + (plan.prix===0?"Gratuit":plan.prix+"€<span style=\"font-size:0.8rem;font-weight:400;color:var(--text-muted)\">/mois</span>") + "</div>" +
+        "<div style=\"font-size:0.8rem;color:var(--text-muted)\">" + plan.modules.length + " modules activés</div>" +
+        "</div>";
+
+      // Pré-remplir modal edit
+      document.getElementById("edit-prenom").value = user.prenom || "";
+      document.getElementById("edit-nom").value    = user.nom    || "";
+      document.getElementById("edit-email").value  = user.email  || "";
+      document.getElementById("edit-metier").value = user.metier || "";
+
+      // Afficher les plans
+      afficherPlans();
+    }
+
+    function afficherPlans() {
+      var html = "";
+      ["starter","pro","premium"].forEach(function(key) {
+        var p = PLANS[key];
+        var isActuel = (user.plan || "starter") === key;
+        var feats = p.features.map(function(f) {
+          return "<li" + (f.on ? "" : " class=\"off\"") + ">" + f.txt + "</li>";
+        }).join("");
+        html += "<div class=\"plan-card-settings" + (key==="pro"?" popular":"") + (isActuel?" actuel":"") + "\" id=\"ps-" + key + "\" onclick=\"" + (isActuel ? "" : "choisirPlan('" + key + "')") + "\">";
+        if (isActuel) html += "<div class=\"actuel-badge\">Actuel</div>";
+        html += "<div class=\"plan-name-s\">" + p.nom + "</div>";
+        html += "<div class=\"plan-price-s\">" + (p.prix===0?"Gratuit":p.prix+"€") + " <span>" + (p.prix===0?"":"/ mois") + "</span></div>";
+        html += "<ul class=\"plan-features-s\">" + feats + "</ul>";
+        if (!isActuel) html += "<button class=\"btn-primary\" style=\"width:100%;margin-top:14px;font-size:0.82rem\" onclick=\"event.stopPropagation();choisirPlan('" + key + "')\">Choisir ce plan</button>";
+        html += "</div>";
+      });
+      document.getElementById("plans-choix").innerHTML = html;
+    }
+
+    function choisirPlan(key) {
+      planSelecte = key;
+      var plan = PLANS[key];
+      var actuel = user.plan || "starter";
+
+      // Reset selection visuelle
+      ["starter","pro","premium"].forEach(function(k) {
+        var el = document.getElementById("ps-" + k);
+        if (el && k !== actuel) el.classList.remove("selected");
+      });
+      var el = document.getElementById("ps-" + key);
+      if (el) el.classList.add("selected");
+
+      document.getElementById("zone-paiement-upgrade").style.display = "none";
+      document.getElementById("zone-downgrade-gratuit").style.display = "none";
+
+      if (plan.prix > 0) {
+        document.getElementById("zone-paiement-upgrade").style.display = "block";
+        document.getElementById("btn-confirmer-plan").textContent = "Payer " + plan.prix + "€ et changer de plan";
+      } else {
+        document.getElementById("zone-downgrade-gratuit").style.display = "block";
+        document.getElementById("btn-confirmer-plan").textContent = "Passer au plan Starter (gratuit)";
+      }
+      document.getElementById("btn-confirmer-plan").style.display = "block";
+    }
+
+    function confirmerChangementPlan() {
+      if (!planSelecte) return;
+      var plan = PLANS[planSelecte];
+
+      if (plan.prix > 0) {
+        var num = document.getElementById("up-card-num").value.replace(/\s/g,"");
+        var exp = document.getElementById("up-card-exp").value;
+        var cvv = document.getElementById("up-card-cvv").value;
+        var nom = document.getElementById("up-card-nom").value.trim();
+        if (num.length < 16 || exp.length < 5 || cvv.length < 3 || !nom) {
+          toast("Veuillez remplir les infos de paiement", "#ef4444");
+          return;
+        }
+      }
+
+      // Appel API pour changer le plan
+      fetch(API + "/auth/plan", {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ plan: planSelecte })
+      }).then(function(r){ return r.json(); }).then(function(json){
+        if (json.statut === "ok") {
+          setUserCache(json.data);
+          toast("Plan mis a jour : " + plan.nom + " !");
+        } else {
+          toast("Erreur : " + json.message, "#ef4444");
+        }
+        document.getElementById("btn-confirmer-plan").style.display = "none";
+        document.getElementById("zone-paiement-upgrade").style.display = "none";
+        document.getElementById("zone-downgrade-gratuit").style.display = "none";
+        planSelecte = null;
+        chargerUser();
+      });
+    }
+
+    function sauverInfos() {
+      var prenom = document.getElementById("edit-prenom").value.trim();
+      var nom    = document.getElementById("edit-nom").value.trim();
+      var email  = document.getElementById("edit-email").value.trim();
+      var metier = document.getElementById("edit-metier").value.trim();
+      var pwd    = document.getElementById("edit-pwd").value;
+
+      if (!prenom || !email) { toast("Prenom et email requis", "#ef4444"); return; }
+
+      var payload = { prenom: prenom, nom: nom, metier: metier };
+      if (pwd && pwd.length >= 8) payload.new_password = pwd;
+
+      fetch(API + "/auth/profil", {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify(payload)
+      }).then(function(r){ return r.json(); }).then(function(json){
+        if (json.statut === "ok") {
+          setUserCache(json.data);
+          document.getElementById("modal-edit").style.display = "none";
+          toast("Informations mises a jour !");
+          chargerUser();
+        } else {
+          toast("Erreur : " + json.message, "#ef4444");
+        }
+      });
+    }
+
+    function scrollerVersPlans() {
+      document.getElementById("section-plans").scrollIntoView({behavior:"smooth"});
+    }
+
+    function supprimerCompte() {
+      if (!confirm("Supprimer definitivement votre compte et TOUTES vos données ?")) return;
+      fetch(API + "/auth/supprimer", {
+        method: "DELETE",
+        headers: authHeaders()
+      }).then(function(){
+        removeToken();
+        window.location.href = "connexion.html";
+      });
+    }
+
+    // ── INFOS LÉGALES ──
+    function chargerLegal() {
+      var p = (user.profil_legal && typeof user.profil_legal === "object") ? user.profil_legal : {};
+      document.getElementById('l-nom').value     = p.nom     || (user.prenom + ' ' + (user.nom||'')).trim();
+      document.getElementById('l-metier').value  = p.metier  || user.metier || '';
+      document.getElementById('l-adresse').value = p.adresse || user.localisation || '';
+      document.getElementById('l-siret').value   = p.siret   || '';
+      document.getElementById('l-tva-num').value = p.tva_num || '';
+      document.getElementById('l-email').value   = p.email   || user.email || '';
+      document.getElementById('l-tel').value     = p.tel     || '';
+      document.getElementById('l-iban').value    = p.iban    || '';
+      document.getElementById('l-mention-tva').value = p.mention_tva || 'TVA non applicable, art. 293 B du CGI';
+    }
+
+    function sauverLegal() {
+      var profil = {
+        nom:         document.getElementById('l-nom').value.trim(),
+        metier:      document.getElementById('l-metier').value.trim(),
+        adresse:     document.getElementById('l-adresse').value.trim(),
+        siret:       document.getElementById('l-siret').value.trim(),
+        tva_num:     document.getElementById('l-tva-num').value.trim(),
+        email:       document.getElementById('l-email').value.trim(),
+        tel:         document.getElementById('l-tel').value.trim(),
+        iban:        document.getElementById('l-iban').value.trim(),
+        mention_tva: document.getElementById('l-mention-tva').value.trim()
+      };
+      fetch(API + "/auth/profil", {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ profil_legal: profil })
+      }).then(function(r){ return r.json(); }).then(function(json){
+        if (json.statut === "ok") {
+          setUserCache(json.data);
+          var msg = document.getElementById('legal-saved-msg');
+          msg.style.display = 'inline';
+          setTimeout(function(){ msg.style.display = 'none'; }, 3000);
+        } else {
+          toast("Erreur sauvegarde : " + json.message, "#ef4444");
+        }
+      });
+    }
+
+    function fmtCard(el) {
+      var v = el.value.replace(/\D/g,"").substring(0,16);
+      el.value = v.replace(/(\d{4})(?=\d)/g,"$1 ");
+    }
+    function fmtExp(el) {
+      var v = el.value.replace(/\D/g,"").substring(0,4);
+      if (v.length >= 2) v = v.substring(0,2) + "/" + v.substring(2);
+      el.value = v;
+    }
+
+    // initSidebar gère auth + sidebar + lock modules
+    initSidebar().then(function(u) {
+      if (!u) return;
+      user = u;
+      _afficherUser();
+    });
+    chargerLegal();
+  </script>
+</body>
+</html>

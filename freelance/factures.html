@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA — Factures</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    .fac-num { font-family: var(--font-display); font-size: 0.8rem; color: #34d399; font-weight: 600; }
+    .total-cell { font-family: var(--font-display); font-weight: 700; color: var(--text); }
+    .status-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+    .tag-non_payee { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .tag-payee { background: rgba(16,185,129,0.15); color: #34d399; }
+    .tag-retard { background: rgba(239,68,68,0.15); color: #f87171; }
+    .tag-annulee { background: rgba(107,114,128,0.15); color: #9ca3af; }
+    .tag-avoir { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .ligne-item { display: grid; grid-template-columns: 1fr 80px 100px 100px 36px; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .ligne-total { font-weight: 600; color: #34d399; font-family: var(--font-display); padding: 8px 12px; background: var(--bg3); border-radius: 8px; text-align: right; min-width: 100px; }
+    .btn-remove { background: transparent; border: 1px solid var(--border); color: var(--text-muted); width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .btn-remove:hover { border-color: var(--danger); color: var(--danger); }
+    .devis-totaux { background: var(--bg3); border-radius: 10px; padding: 16px 20px; margin-top: 16px; }
+    .totaux-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.9rem; color: var(--text-soft); }
+    .totaux-row.total-final { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: #34d399; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+    .preview-zone { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 28px 32px; font-size: 0.88rem; line-height: 1.6; }
+    .preview-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+    .preview-logo { font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; color: #34d399; }
+    .preview-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: var(--text); }
+    .preview-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    .preview-table th { background: var(--bg3); padding: 8px 12px; text-align: left; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; }
+    .preview-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-soft); }
+    .preview-total-line { display: flex; justify-content: flex-end; gap: 40px; padding: 4px 0; font-size: 0.88rem; color: var(--text-soft); }
+    .preview-total-final { display: flex; justify-content: flex-end; gap: 40px; padding: 10px 0; font-family: var(--font-display); font-size: 1rem; font-weight: 700; color: #34d399; border-top: 1px solid var(--border); margin-top: 6px; }
+    .tabs-sm { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab-sm { padding: 7px 16px; border-radius: 7px; border: none; background: transparent; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; transition: all 0.15s; font-family: var(--font-body); }
+    .tab-sm.active { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+    .col-header span { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .mentions-legales { margin-top: 20px; padding: 12px 16px; background: var(--bg3); border-radius: 8px; font-size: 0.75rem; color: var(--text-muted); line-height: 1.8; border-top: 2px solid var(--border); }
+    .alerte-retard { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.88rem; color: #f87171; display: flex; align-items: center; gap: 10px; }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">⚡ Agent IA</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
+      <a href="crm.html" class="nav-link">👥 CRM</a>
+      <a href="contenu.html" class="nav-link">✍️ Contenu</a>
+      <a href="devis.html" class="nav-link">📄 Devis</a>
+      <a href="factures.html" class="nav-link active">🧾 Factures</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics</a>
+      <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">M</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Indépendant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Factures</h1>
+        <p class="page-sub">Gestion de votre facturation et suivi des paiements</p>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-secondary" onclick="window.location.href='parametres.html'">⚙️ Mes infos légales</button>
+        <button class="btn-primary" onclick="ouvrirModalFacture()">+ Nouvelle facture</button>
+      </div>
+    </header>
+
+    <div class="alerte-retard" id="alerte-retard" style="display:none">
+      ⚠️ <span id="alerte-retard-text"></span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card"><span class="stat-icon">🧾</span><div><div class="stat-value" id="s-total">0</div><div class="stat-label">Total factures</div></div></div>
+      <div class="stat-card"><span class="stat-icon">⏳</span><div><div class="stat-value" id="s-attente">0</div><div class="stat-label">En attente</div></div></div>
+      <div class="stat-card"><span class="stat-icon">✅</span><div><div class="stat-value" id="s-payees">0</div><div class="stat-label">Payées</div></div></div>
+      <div class="stat-card"><span class="stat-icon">💶</span><div><div class="stat-value" id="s-ca">0 €</div><div class="stat-label">CA encaissé</div></div></div>
+    </div>
+
+    <div id="alerte-profil" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:0.85rem;color:#fbbf24">
+      ⚠️ Vos informations légales sont incomplètes.
+      <a href="#" onclick="window.location.href='parametres.html'" style="color:#fbbf24;font-weight:600;text-decoration:underline;margin-left:6px">Compléter mon profil →</a>
+    </div>
+
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filtrerFactures('tous', this)">Toutes</button>
+      <button class="filter-btn" onclick="filtrerFactures('non_payee', this)">En attente</button>
+      <button class="filter-btn" onclick="filtrerFactures('payee', this)">Payées</button>
+      <button class="filter-btn" onclick="filtrerFactures('retard', this)">En retard 🔴</button>
+      <button class="filter-btn" onclick="filtrerFactures('avoir', this)">Avoirs</button>
+    </div>
+
+    <div class="card">
+      <div class="table-wrapper">
+        <table class="table">
+          <thead><tr><th>Numéro</th><th>Client</th><th>Objet</th><th>Montant TTC</th><th>Échéance</th><th>Statut</th><th>Actions</th></tr></thead>
+          <tbody id="factures-table"><tr><td colspan="7" class="empty-state">Aucune facture.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL CREATION FACTURE -->
+  <div class="modal-overlay" id="modal-facture" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:820px;max-width:98vw;max-height:90vh;overflow-y:auto">
+      <h3>🧾 Nouvelle facture</h3>
+      <div class="tabs-sm">
+        <button class="tab-sm active" onclick="switchTabFac('infos', this)">1. Informations</button>
+        <button class="tab-sm" onclick="switchTabFac('lignes', this)">2. Prestations</button>
+        <button class="tab-sm" onclick="switchTabFac('preview', this)">3. Aperçu légal</button>
+      </div>
+
+      <div id="ftab-infos">
+        <div class="form-grid">
+          <div class="form-group"><label>Client *</label><input type="text" id="f-client" placeholder="Nom du client ou société"/></div>
+          <div class="form-group"><label>Numéro de facture</label><input type="text" id="f-numero" placeholder="FAC-2024-001"/></div>
+          <div class="form-group form-full"><label>Adresse complète du client</label><textarea id="f-adresse" placeholder="Adresse, code postal, ville..." style="min-height:60px"></textarea></div>
+          <div class="form-group form-full"><label>Objet *</label><input type="text" id="f-objet" placeholder="Ex: Prestation de développement web"/></div>
+          <div class="form-group"><label>Type</label>
+            <select id="f-type"><option value="facture">Facture</option><option value="avoir">Avoir</option><option value="acompte">Acompte</option></select>
+          </div>
+          <div class="form-group"><label>Mode de paiement</label>
+            <select id="f-paiement"><option value="Virement bancaire">Virement bancaire</option><option value="Chèque">Chèque</option><option value="Carte bancaire">Carte bancaire</option><option value="Espèces">Espèces</option><option value="PayPal">PayPal</option></select>
+          </div>
+          <div class="form-group"><label>Date d'émission</label><input type="date" id="f-date"/></div>
+          <div class="form-group"><label>Date d'échéance</label><input type="date" id="f-echeance"/></div>
+          <div class="form-group"><label>TVA (%)</label><input type="number" id="f-tva" value="20" min="0" max="100" oninput="fMajTotaux()"/></div>
+          <div class="form-group"><label>Numéro de devis associé</label><input type="text" id="f-ref-devis" placeholder="DEV-2024-001 (optionnel)"/></div>
+          <div class="form-group form-full"><label>Mentions / IBAN pour virement</label><textarea id="f-mentions" placeholder="IBAN: FR76...&#10;BIC: BNPAFRPP"></textarea></div>
+        </div>
+      </div>
+
+      <div id="ftab-lignes" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 80px 100px 100px 36px;gap:10px;margin-bottom:6px" class="col-header">
+          <span>Description</span><span>Qté</span><span>Prix unit. HT</span><span>Total HT</span><span></span>
+        </div>
+        <div id="flignes-container"></div>
+        <button class="btn-secondary" onclick="fAjouterLigne()" style="margin-top:8px">+ Ajouter une ligne</button>
+        <div class="devis-totaux">
+          <div class="totaux-row"><span>Sous-total HT</span><strong id="f-total-ht">0,00 €</strong></div>
+          <div class="totaux-row"><span>TVA (<span id="f-tva-pct">20</span>%)</span><strong id="f-total-tva">0,00 €</strong></div>
+          <div class="totaux-row total-final"><span>Net à payer TTC</span><strong id="f-total-ttc">0,00 €</strong></div>
+        </div>
+      </div>
+
+      <div id="ftab-preview" style="display:none">
+        <div class="preview-zone" id="fpreview-content"></div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="btn-secondary" onclick="document.getElementById('modal-facture').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="sauvegarderFacture()">💾 Créer la facture</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VOIR FACTURE -->
+  <div class="modal-overlay" id="modal-voir-facture" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:760px;max-width:98vw;max-height:90vh;overflow-y:auto">
+      <div id="voir-facture-content"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-voir-facture').style.display='none'">Fermer</button>
+        <button class="btn-secondary" id="btn-marquer-payee">✅ Marquer comme payée</button>
+        <button class="btn-primary" onclick="imprimerFacture()">🖨️ Imprimer / PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    var facturesCache = [];
+    function getFactures() { return facturesCache; }
+    async function chargerFactures() {
+      var json = await apiAuth('GET', '/factures');
+      if (json && json.statut === 'ok') facturesCache = json.data.factures || [];
+      afficherTable(); majStats(); verifierRetards();
+    }
+    // Infos légales : lire depuis user_connecte (saisies une seule fois dans Paramètres)
+    function getProfil() {
+      try {
+        var u = JSON.parse(localStorage.getItem('user_cache') || '{}');
+        var p = u.profil_legal || {};
+        // Fallback sur les infos du compte si profil légal vide
+        if (!p.nom) p.nom = ((u.prenom||'') + ' ' + (u.nom||'')).trim();
+        if (!p.email) p.email = u.email || '';
+        if (!p.metier) p.metier = u.metier || '';
+        return p;
+      } catch(e) { return {}; }
+    }
+    function getUser() { try { return JSON.parse(localStorage.getItem('user_cache') || '{}'); } catch(e) { return {}; } }
+    function fmtEur(v) { return (v||0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+    function fmtDate(d) { return d ? new Date(d).toLocaleDateString('fr-FR') : '—'; }
+
+    let fLignes = [];
+
+    // Init sidebar centralisée
+    initSidebar();
+
+    function getProfilComplet() {
+      const p = getProfil(); const u = getUser();
+      return {
+        nom: p.nom || ((u.prenom||'') + ' ' + (u.nom||'')).trim(),
+        metier: p.metier || u.metier || 'Indépendant',
+        adresse: p.adresse || u.localisation || '',
+        siret: p.siret || '', tva_num: p.tva_num || '',
+        email: p.email || u.email || '', tel: p.tel || '',
+        iban: p.iban || '', mention_tva: p.mention_tva || ''
+      };
+    }
+
+    // Profil légal
+    // Profil légal → géré dans Paramètres
+    function ouvrirModalProfil() {
+      window.location.href = 'parametres.html';
+    }
+    function sauvegarderProfil() {}
+
+    function verifierProfilComplet() {
+      const p = getProfil();
+      document.getElementById('alerte-profil').style.display = (!p.nom || !p.siret || !p.adresse) ? 'block' : 'none';
+    }
+
+    // Init modal facture
+    function ouvrirModalFacture() {
+      fLignes = [{ desc: '', qte: 1, prix: 0 }];
+      fRenderLignes();
+      const today = new Date();
+      const ech = new Date(); ech.setDate(today.getDate() + 30);
+      document.getElementById('f-date').value = today.toISOString().split('T')[0];
+      document.getElementById('f-echeance').value = ech.toISOString().split('T')[0];
+      document.getElementById('f-numero').value = 'FAC-' + today.getFullYear() + '-' + String(getFactures().length + 1).padStart(3, '0');
+      document.getElementById('f-client').value = '';
+      document.getElementById('f-objet').value = '';
+      document.getElementById('f-adresse').value = '';
+      document.getElementById('f-mentions').value = getProfilComplet().iban ? 'Virement IBAN : ' + getProfilComplet().iban : '';
+      document.getElementById('f-ref-devis').value = '';
+      document.getElementById('modal-facture').style.display = 'flex';
+      switchTabFac('infos', document.querySelector('#modal-facture .tab-sm'));
+    }
+
+    function switchTabFac(tab, btn) {
+      ['infos','lignes','preview'].forEach(t => document.getElementById('ftab-' + t).style.display = 'none');
+      document.getElementById('ftab-' + tab).style.display = 'block';
+      document.querySelectorAll('#modal-facture .tab-sm').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (tab === 'preview') fRenderPreview();
+      if (tab === 'lignes') fMajTotaux();
+    }
+
+    function fAjouterLigne() { fLignes.push({ desc: '', qte: 1, prix: 0 }); fRenderLignes(); }
+    function fSupprimerLigne(i) { fLignes.splice(i, 1); fRenderLignes(); }
+
+    function fRenderLignes() {
+      document.getElementById('flignes-container').innerHTML = fLignes.map((l, i) => `
+        <div class="ligne-item">
+          <input type="text" placeholder="Description" value="${l.desc}" oninput="fLignes[${i}].desc=this.value"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font-body);font-size:0.88rem;outline:none"/>
+          <input type="number" value="${l.qte}" min="0.5" step="0.5" oninput="fLignes[${i}].qte=parseFloat(this.value)||0;fMajTotaux()"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:var(--font-body);font-size:0.88rem;outline:none;text-align:center"/>
+          <input type="number" value="${l.prix}" min="0" step="0.01" oninput="fLignes[${i}].prix=parseFloat(this.value)||0;fMajTotaux()"
+            style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:var(--font-body);font-size:0.88rem;outline:none;text-align:right"/>
+          <div class="ligne-total" id="flt-${i}">${fmtEur(l.qte * l.prix)}</div>
+          <button class="btn-remove" onclick="fSupprimerLigne(${i})">×</button>
+        </div>`).join('');
+      fMajTotaux();
+    }
+
+    function fMajTotaux() {
+      const ht = fLignes.reduce((s, l) => s + l.qte * l.prix, 0);
+      const tvaP = parseFloat(document.getElementById('f-tva')?.value || 20);
+      document.getElementById('f-total-ht').textContent = fmtEur(ht);
+      document.getElementById('f-total-tva').textContent = fmtEur(ht * tvaP / 100);
+      document.getElementById('f-total-ttc').textContent = fmtEur(ht * (1 + tvaP / 100));
+      document.getElementById('f-tva-pct').textContent = tvaP;
+      fLignes.forEach((l, i) => { const el = document.getElementById('flt-' + i); if(el) el.textContent = fmtEur(l.qte * l.prix); });
+    }
+
+    function buildFactureHTML(f, lignesData) {
+      const p = getProfilComplet();
+      const ht = lignesData.reduce((s, l) => s + l.qte * l.prix, 0);
+      const tvaAmt = ht * f.tva / 100;
+      const ttc = ht + tvaAmt;
+      const montantFinal = p.mention_tva ? ht : ttc;
+      const typeTitle = { facture: 'FACTURE', avoir: 'AVOIR', acompte: "FACTURE D'ACOMPTE" };
+      const iban = f.mentions || p.iban;
+
+      return `
+        <div class="preview-header">
+          <div>
+            <div class="preview-logo">⚡ ${p.nom}</div>
+            <div style="font-size:0.82rem;color:var(--text-soft);margin-top:6px;white-space:pre-line">${p.adresse}</div>
+            ${p.siret ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px">SIRET : ${p.siret}</div>` : ''}
+            ${p.tva_num ? `<div style="font-size:0.75rem;color:var(--text-muted)">N° TVA : ${p.tva_num}</div>` : ''}
+            ${p.email ? `<div style="font-size:0.75rem;color:var(--text-muted)">${p.email}</div>` : ''}
+            ${p.tel ? `<div style="font-size:0.75rem;color:var(--text-muted)">${p.tel}</div>` : ''}
+          </div>
+          <div style="text-align:right">
+            <div class="preview-title">${typeTitle[f.type] || 'FACTURE'}</div>
+            <div style="color:#34d399;font-size:0.9rem;font-weight:600">${f.numero}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted);margin-top:8px">Date : ${fmtDate(f.date)}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted)">Échéance : ${fmtDate(f.date_echeance)}</div>
+            ${f.ref_devis ? `<div style="font-size:0.78rem;color:var(--text-muted)">Réf. devis : ${f.ref_devis}</div>` : ''}
+            ${f.date_paiement ? `<div style="font-size:0.78rem;color:#34d399;margin-top:4px">✅ Payée le ${fmtDate(f.date_paiement)}</div>` : ''}
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+          <div style="background:var(--bg3);padding:14px 16px;border-radius:8px">
+            <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Émetteur</div>
+            <strong>${p.nom}</strong><br><span style="font-size:0.82rem;color:var(--text-soft)">${p.metier}</span>
+          </div>
+          <div style="background:var(--bg3);padding:14px 16px;border-radius:8px">
+            <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Facturé à</div>
+            <strong>${f.client}</strong>
+            ${f.adresse ? `<div style="font-size:0.82rem;color:var(--text-soft);margin-top:2px;white-space:pre-line">${f.adresse}</div>` : ''}
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;padding:10px 14px;background:var(--bg3);border-radius:6px">
+          <span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">Objet : </span>
+          <strong>${f.objet}</strong>
+        </div>
+
+        <table class="preview-table">
+          <thead><tr><th>Description</th><th>Qté</th><th>Prix unit. HT</th><th>Total HT</th></tr></thead>
+          <tbody>
+            ${lignesData.filter(l => l.desc || l.prix).map(l => `<tr><td>${l.desc||'—'}</td><td>${l.qte}</td><td>${fmtEur(l.prix)}</td><td>${fmtEur(l.qte*l.prix)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+
+        <div style="text-align:right;margin-top:8px">
+          <div class="preview-total-line"><span>Sous-total HT</span><span>${fmtEur(ht)}</span></div>
+          ${p.mention_tva
+            ? `<div class="preview-total-line"><span style="color:#fbbf24;font-size:0.78rem">${p.mention_tva}</span><span>0,00 €</span></div>`
+            : `<div class="preview-total-line"><span>TVA (${f.tva}%)</span><span>${fmtEur(tvaAmt)}</span></div>`}
+          <div class="preview-total-final"><span>NET À PAYER ${p.mention_tva ? 'HT' : 'TTC'}</span><span>${fmtEur(montantFinal)}</span></div>
+        </div>
+
+        <div style="margin-top:16px;padding:14px 16px;background:var(--bg3);border-radius:8px;font-size:0.82rem;color:var(--text-soft)">
+          <strong style="color:var(--text)">Mode de paiement :</strong> ${f.paiement || 'Virement bancaire'}
+          ${iban ? `<br><span style="font-size:0.78rem;color:var(--text-muted)">${iban}</span>` : ''}
+        </div>
+
+        <div class="mentions-legales">
+          ${p.siret ? `<strong>SIRET :</strong> ${p.siret}${p.tva_num ? ' &nbsp;|&nbsp; <strong>N° TVA :</strong> ' + p.tva_num : ''}<br>` : ''}
+          ${p.mention_tva ? `${p.mention_tva}<br>` : ''}
+          Facture émise le <strong>${fmtDate(f.date)}</strong>. Règlement dû avant le <strong>${fmtDate(f.date_echeance)}</strong>.<br>
+          Tout retard de paiement entraîne des pénalités au taux légal en vigueur (art. L441-6 du Code de Commerce), ainsi qu'une indemnité forfaitaire pour frais de recouvrement de <strong>40 €</strong> (art. D441-5 C.com.).<br>
+          Pas d'escompte pour paiement anticipé, sauf accord préalable écrit.
+        </div>`;
+    }
+
+    function fRenderPreview() {
+      const data = {
+        numero: document.getElementById('f-numero').value || 'FAC-001',
+        client: document.getElementById('f-client').value || 'Client',
+        objet: document.getElementById('f-objet').value || 'Prestation',
+        type: document.getElementById('f-type').value,
+        date: document.getElementById('f-date').value,
+        date_echeance: document.getElementById('f-echeance').value,
+        adresse: document.getElementById('f-adresse').value,
+        mentions: document.getElementById('f-mentions').value,
+        paiement: document.getElementById('f-paiement').value,
+        ref_devis: document.getElementById('f-ref-devis').value,
+        tva: parseFloat(document.getElementById('f-tva').value || 20)
+      };
+      document.getElementById('fpreview-content').innerHTML = buildFactureHTML(data, fLignes);
+    }
+
+    function sauvegarderFacture() {
+      if (!document.getElementById('f-client').value.trim()) { alert('Le nom du client est requis'); return; }
+      const tvaP = parseFloat(document.getElementById('f-tva').value || 20);
+      const ht = fLignes.reduce((s, l) => s + l.qte * l.prix, 0);
+      const list = getFactures();
+      list.unshift({
+        id: 'FAC_' + Date.now(),
+        numero: document.getElementById('f-numero').value,
+        client: document.getElementById('f-client').value,
+        objet: document.getElementById('f-objet').value,
+        type: document.getElementById('f-type').value,
+        date: document.getElementById('f-date').value,
+        date_echeance: document.getElementById('f-echeance').value,
+        adresse: document.getElementById('f-adresse').value,
+        mentions: document.getElementById('f-mentions').value,
+        paiement: document.getElementById('f-paiement').value,
+        ref_devis: document.getElementById('f-ref-devis').value,
+        tva: tvaP, lignes: [...fLignes],
+        montant_ht: ht, montant_tva: ht * tvaP / 100, montant_ttc: ht * (1 + tvaP / 100),
+        statut: 'non_payee', date_creation: new Date().toISOString()
+      });
+      saveFactures(list);
+      document.getElementById('modal-facture').style.display = 'none';
+      afficherTable(); majStats(); verifierRetards();
+    }
+
+    let filtreActif = 'tous';
+
+    function afficherTable(filtre) {
+      if (filtre !== undefined) filtreActif = filtre;
+      const today = new Date().toISOString().split('T')[0];
+      let list = getFactures().map(f => ({
+        ...f, statut: (f.statut === 'non_payee' && f.date_echeance && f.date_echeance < today) ? 'retard' : f.statut
+      }));
+      if (filtreActif !== 'tous') list = list.filter(f => f.statut === filtreActif);
+      const tbody = document.getElementById('factures-table');
+      if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Aucune facture trouvée</td></tr>'; return; }
+      const tc = { non_payee:'tag-non_payee', payee:'tag-payee', retard:'tag-retard', annulee:'tag-annulee', avoir:'tag-avoir' };
+      const tl = { non_payee:'⏳ En attente', payee:'✅ Payée', retard:'🔴 En retard', annulee:'❌ Annulée', avoir:'↩️ Avoir' };
+      const typeL = { facture:'', avoir:'✦ ', acompte:'◎ ' };
+      tbody.innerHTML = list.map(f => `<tr>
+        <td><span class="fac-num">${f.numero||'—'}</span></td>
+        <td><strong>${f.client}</strong></td>
+        <td>${(typeL[f.type]||'')}${f.objet||'—'}</td>
+        <td class="total-cell">${fmtEur(f.montant_ttc||0)}</td>
+        <td style="${f.statut==='retard'?'color:var(--danger)':''}">${fmtDate(f.date_echeance)}</td>
+        <td><span class="status-tag ${tc[f.statut]||''}">${tl[f.statut]||f.statut}</span></td>
+        <td>
+          <button class="btn-sm" onclick="voirFacture('${f.id}')">👁 Voir</button>
+          ${f.statut!=='payee'?`<button class="btn-sm" onclick="marquerPayee('${f.id}')" title="Marquer comme payée">✅ Payée</button>`:''}
+          <button class="btn-sm btn-danger" onclick="supprimerFacture('${f.id}')">🗑</button>
+        </td></tr>`).join('');
+    }
+
+    function filtrerFactures(f, btn) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active'); afficherTable(f);
+    }
+
+    function majStats() {
+      const today = new Date().toISOString().split('T')[0];
+      const list = getFactures().map(f => ({ ...f, statut: (f.statut==='non_payee' && f.date_echeance && f.date_echeance<today) ? 'retard' : f.statut }));
+      document.getElementById('s-total').textContent = list.length;
+      document.getElementById('s-attente').textContent = list.filter(f => f.statut==='non_payee'||f.statut==='retard').length;
+      document.getElementById('s-payees').textContent = list.filter(f => f.statut==='payee').length;
+      document.getElementById('s-ca').textContent = fmtEur(list.filter(f => f.statut==='payee').reduce((s,f) => s+(f.montant_ttc||0), 0));
+    }
+
+    function verifierRetards() {
+      const today = new Date().toISOString().split('T')[0];
+      const retards = getFactures().filter(f => f.statut==='non_payee' && f.date_echeance && f.date_echeance < today);
+      const el = document.getElementById('alerte-retard');
+      if (retards.length > 0) {
+        document.getElementById('alerte-retard-text').textContent = `${retards.length} facture(s) en retard ! Total : ${fmtEur(retards.reduce((s,f) => s+(f.montant_ttc||0), 0))}`;
+        el.style.display = 'flex';
+      } else { el.style.display = 'none'; }
+    }
+
+    async function marquerPayee(id) {
+      var json = await apiAuth('PUT', '/factures/' + id, { statut: 'payee' });
+      if (json && json.statut === 'ok') {
+        document.getElementById('modal-voir-facture').style.display = 'none';
+        await chargerFactures();
+        const toast = document.createElement('div');
+        toast.innerHTML = '✅ Facture marquée comme payée !';
+        toast.style.cssText = 'position:fixed;bottom:30px;right:30px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(16,185,129,0.4);transition:opacity 0.5s';
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 2500);
+      }
+    }
+
+    async function supprimerFacture(id) {
+      if (!confirm('Supprimer cette facture ?')) return;
+      await apiAuth('DELETE', '/factures/' + id);
+      await chargerFactures();
+    }
+
+    function voirFacture(id) {
+      const all = getFactures();
+      const today = new Date().toISOString().split('T')[0];
+      const f = all.find(x => x.id===id); if (!f) return;
+      const statutReel = (f.statut==='non_payee' && f.date_echeance && f.date_echeance<today) ? 'retard' : f.statut;
+      const tc = { non_payee:'tag-non_payee', payee:'tag-payee', retard:'tag-retard', annulee:'tag-annulee' };
+      const tl = { non_payee:'⏳ En attente', payee:'✅ Payée', retard:'🔴 En retard', annulee:'❌ Annulée' };
+      const typeTitle = { facture:'FACTURE', avoir:'AVOIR', acompte:"FACTURE D'ACOMPTE" };
+
+      document.getElementById('voir-facture-content').innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3>${typeTitle[f.type]||'FACTURE'} — ${f.numero}</h3>
+          <span class="status-tag ${tc[statutReel]||''}">${tl[statutReel]||statutReel}</span>
+        </div>
+        <div class="preview-zone">${buildFactureHTML(f, f.lignes||[])}</div>`;
+
+      document.getElementById('btn-marquer-payee').style.display = statutReel === 'payee' ? 'none' : 'inline-flex';
+      document.getElementById('btn-marquer-payee').onclick = () => { marquerPayee(id); };
+      document.getElementById('modal-voir-facture').style.display = 'flex';
+    }
+
+    function imprimerFacture() { window.print(); }
+
+    verifierProfilComplet();
+    chargerFactures();
+  </script>
+</body>
+</html>

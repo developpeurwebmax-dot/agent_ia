@@ -1,0 +1,324 @@
+/* ─────────────────────────────────────────────
+   AGENT IA BUSINESS — style_business.css
+   Complément de style.css (thème business)
+───────────────────────────────────────────── */
+
+/* ── SIDEBAR BUSINESS ── */
+.logo { color: #60a5fa !important; }
+
+.nav-sep {
+  border-top: 1px solid var(--border);
+  margin: 12px 0;
+}
+
+.nav-switch {
+  font-size: 0.82rem !important;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.nav-switch:hover {
+  border-color: var(--accent) !important;
+  background: var(--accent-glow) !important;
+  color: var(--accent2) !important;
+}
+
+/* ── SELECT INLINE ── */
+.select-inline {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.select-inline:focus { border-color: var(--accent); }
+
+/* ── STAT TREND ── */
+.stat-trend {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.stat-badge {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+/* ── BAR VALUE TEXT ── */
+.bar-value-text {
+  min-width: 80px;
+  text-align: right;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ── ALERTES ── */
+.alerte-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.alerte-critique {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.alerte-attention {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.alerte-info {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: var(--accent2);
+}
+
+/* ── CHART ── */
+.chart-container {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.chart-loading {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  text-align: center;
+  padding: 40px;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  height: 130px;
+  padding-bottom: 28px;
+}
+
+.chart-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.chart-pair {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 120px;
+}
+
+.chart-bar {
+  width: 14px;
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: opacity 0.2s;
+}
+
+.chart-bar:hover { opacity: 0.7; }
+
+.bar-rev { background: var(--success); }
+.bar-dep { background: var(--danger); }
+
+.chart-label {
+  position: absolute;
+  bottom: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+/* ── CONGÉ ITEMS ── */
+.conge-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.conge-nom {
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: block;
+}
+
+.conge-dates {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+/* ── EMPLOYÉS GRID ── */
+.employes-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emp-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: border-color 0.2s;
+}
+
+.emp-card:hover { border-color: rgba(99, 102, 241, 0.3); }
+
+.emp-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.1rem;
+  flex-shrink: 0;
+  color: white;
+}
+
+.emp-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+}
+
+.emp-info strong { font-size: 0.95rem; }
+.emp-info span { font-size: 0.82rem; color: var(--text-muted); }
+
+.emp-stats {
+  display: flex;
+  gap: 24px;
+  margin-left: auto;
+}
+
+.emp-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.emp-stat-val {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.emp-stat-lbl {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.emp-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 100px;
+}
+
+/* ── CSV PREVIEW ── */
+.csv-info {
+  padding: 2px;
+}
+
+/* ── CARD LINK ── */
+.card-link {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--accent2);
+  text-decoration: none;
+}
+
+.card-link:hover { text-decoration: underline; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .emp-stats { display: none; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .grid { grid-template-columns: 1fr; }
+  .card-wide { grid-column: span 1; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-full { grid-column: span 1; }
+}
+
+/* ── OVERRIDE FILTER BUTTONS BUSINESS ── */
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  background: var(--bg3);
+  padding: 4px;
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.filter-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 7px 16px;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-body);
+}
+
+.filter-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.filter-btn.active {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}

@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA — Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">⚡ Agent IA</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link active">🏠 Dashboard</a>
+      <a href="crm.html" class="nav-link">👥 CRM</a>
+      <a href="contenu.html" class="nav-link">✍️ Contenu</a>
+      <a href="devis.html" class="nav-link">📄 Devis</a>
+      <a href="factures.html" class="nav-link">🧾 Factures</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics</a>
+      <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Indépendant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- HEADER -->
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Bonjour 👋</h1>
+        <p class="page-sub" id="date-today"></p>
+      </div>
+      <button class="btn-primary" id="btn-generer" onclick="genererPlan()">
+        <span>⚡ Générer mon plan</span>
+      </button>
+    </header>
+
+    <!-- LOADING -->
+    <div class="loader" id="loader">
+      <div class="loader-bar"></div>
+      <p>L'IA analyse votre activité...</p>
+    </div>
+
+    <!-- STATS ROW -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <span class="stat-icon">👥</span>
+        <div>
+          <div class="stat-value" id="stat-prospects">—</div>
+          <div class="stat-label">Prospects actifs</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">✅</span>
+        <div>
+          <div class="stat-value" id="stat-taches">—</div>
+          <div class="stat-label">Tâches du jour</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🔔</span>
+        <div>
+          <div class="stat-value" id="stat-relances">—</div>
+          <div class="stat-label">Relances urgentes</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">💶</span>
+        <div>
+          <div class="stat-value" id="stat-ca">—</div>
+          <div class="stat-label">CA encaissé</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GRID -->
+    <div class="grid">
+
+      <!-- MOTIVATION -->
+      <div class="card card-motivation">
+        <div class="card-header">
+          <span class="card-icon">💬</span>
+          <h2>Message du jour</h2>
+        </div>
+        <p class="motivation-text" id="motivation">Cliquez sur "Générer mon plan" pour démarrer votre journée avec l'IA.</p>
+        <div class="conseil-box" id="conseil-box" style="display:none">
+          <span class="conseil-label">💡 Conseil</span>
+          <p id="conseil"></p>
+        </div>
+      </div>
+
+      <!-- PRIORITES -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">🎯</span>
+          <h2>Priorités du jour</h2>
+        </div>
+        <ul class="priority-list" id="priorites">
+          <li class="empty-state">Aucune priorité générée</li>
+        </ul>
+      </div>
+
+      <!-- TACHES -->
+      <div class="card card-wide">
+        <div class="card-header">
+          <span class="card-icon">✅</span>
+          <h2>Tâches du jour</h2>
+          <button class="btn-secondary" style="margin-left:auto;padding:5px 14px;font-size:0.82rem" onclick="document.getElementById('modal-tache').style.display='flex'">+ Ajouter</button>
+        </div>
+        <div class="task-list" id="taches">
+          <div class="empty-state">Aucune tâche générée</div>
+        </div>
+      </div>
+
+      <!-- PROSPECTS -->
+      <div class="card card-wide">
+        <div class="card-header">
+          <span class="card-icon">👥</span>
+          <h2>Prospects à contacter</h2>
+        </div>
+        <div class="prospect-list" id="prospects-list">
+          <div class="empty-state">Aucun prospect à contacter</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <style>
+    .task-actions { display:flex; gap:6px; margin-left:auto; flex-shrink:0; }
+    .btn-valider  { background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.35); color:#34d399; padding:5px 12px; border-radius:6px; font-size:0.78rem; font-weight:600; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+    .btn-valider:hover  { background:rgba(16,185,129,0.25); }
+    .btn-annuler  { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#f87171; padding:5px 12px; border-radius:6px; font-size:0.78rem; font-weight:600; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+    .btn-annuler:hover  { background:rgba(239,68,68,0.2); }
+    .task-item.done   { opacity:0.55; border-left-color:#10b981 !important; }
+    .task-item.done .task-title   { text-decoration:line-through; color:var(--text-muted); }
+    .task-item.cancelled { opacity:0.45; border-left-color:#ef4444 !important; }
+    .task-item.cancelled .task-title { text-decoration:line-through; color:var(--text-muted); }
+    .task-status-badge { font-size:0.72rem; padding:2px 8px; border-radius:99px; font-weight:600; }
+    .task-status-done { background:rgba(16,185,129,0.15); color:#34d399; }
+    .task-status-cancelled { background:rgba(239,68,68,0.15); color:#f87171; }
+    .plan-compteur { font-size:0.78rem; color:var(--text-muted); margin-left:auto; display:flex; align-items:center; gap:6px; }
+    .plan-compteur strong { color:var(--accent2); }
+  </style>
+
+  <script src="auth.js"></script>
+  <script>
+    // ── INIT ──
+    const PLAN_KEY   = "plan_journalier_"    + getUserId();
+    const TACHES_KEY = "plan_taches_statuts_" + getUserId();
+
+    let userConnecte = null;
+
+    // ── STATS CA DEPUIS L'API ──
+    async function chargerStatsLocales() {
+      showSkeleton(["stat-ca"]);
+      try {
+        const res = await fetch(`${API}/factures`, { headers: authHeaders() });
+        if (!res) return;
+        if (res.status === 401) { gerer401(); return; }
+        const json = await res.json();
+        const factures = (json.statut === 'ok') ? json.data.factures || [] : [];
+        const today = new Date().toISOString().split('T')[0];
+        const ca = factures.filter(f=>f.statut==='payee').reduce((s,f)=>s+(parseFloat(f.montant_ttc)||0),0);
+        document.getElementById("stat-ca").textContent =
+          ca.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}) + " €";
+
+        const enRetard = factures.filter(f=>f.statut==='non_payee'&&f.date_echeance&&f.date_echeance<today).length;
+        let alerteEl = document.getElementById("dash-alerte-retard");
+        if (enRetard > 0) {
+          if (!alerteEl) {
+            alerteEl = document.createElement('div'); alerteEl.id='dash-alerte-retard';
+            alerteEl.style.cssText='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:0.88rem;color:#f87171;display:flex;align-items:center;gap:10px;';
+            document.querySelector('.stats-row').insertAdjacentElement('beforebegin', alerteEl);
+          }
+          alerteEl.innerHTML=`⚠️ <strong>${enRetard} facture${enRetard>1?'s':''} en retard</strong> — <a href="factures.html" style="color:#f87171;text-decoration:underline;margin-left:4px">Voir →</a>`;
+        } else if (alerteEl) { alerteEl.remove(); }
+      } catch(e) {}
+    }
+
+    async function chargerStats() {
+      chargerStatsLocales();
+
+      // Compter les tâches depuis localStorage (source réelle)
+      try {
+        const today   = new Date().toISOString().split('T')[0];
+        const saved   = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
+        const statuts = JSON.parse(localStorage.getItem(TACHES_KEY) || '{}');
+        const taches  = (saved && saved.date === today) ? (saved.data.taches_du_jour || []) : [];
+        const sts     = (statuts.date === today) ? (statuts.statuts || {}) : {};
+        const restantes = taches.filter(function(t, i) { return sts[i] !== 'done' && sts[i] !== 'cancelled'; }).length;
+        document.getElementById("stat-taches").textContent = restantes;
+      } catch(e) {}
+
+      // Stats CRM depuis l'API
+      try {
+        const res  = await fetch(`${API}/crm/stats`, { headers: authHeaders() });
+        if (res && res.status !== 401) {
+          const json = await res.json(); const d = json.data;
+          document.getElementById("stat-prospects").textContent = d.total_prospects ?? "0";
+          document.getElementById("stat-relances").textContent  = d.a_relancer_urgence ?? "0";
+        }
+      } catch(e) {}
+    }
+
+    // ── GESTION STATUTS TACHES ──
+    function getTachesStatuts() {
+      const today = new Date().toISOString().split('T')[0];
+      try {
+        const saved = JSON.parse(localStorage.getItem(TACHES_KEY) || '{}');
+        if (saved.date !== today) return { date: today, statuts: {} };
+        return saved;
+      } catch(e) { return { date: today, statuts: {} }; }
+    }
+
+    // Sauvegarde dans l'historique 7 jours
+    function sauvegarderHistorique(date, taches, statuts) {
+      try {
+        const histo = JSON.parse(localStorage.getItem('historique_plans') || '{}');
+        histo[date] = { taches, statuts };
+        // Garder seulement les 30 derniers jours pour ne pas surcharger
+        const cles = Object.keys(histo).sort().slice(-30);
+        const histoReduit = {};
+        cles.forEach(k => histoReduit[k] = histo[k]);
+        localStorage.setItem('historique_plans', JSON.stringify(histoReduit));
+      } catch(e) {}
+    }
+
+    function saveTacheStatut(idx, statut) {
+      const data = getTachesStatuts();
+      data.statuts[idx] = statut;
+      localStorage.setItem(TACHES_KEY, JSON.stringify(data));
+
+      // Mettre à jour l'historique avec les nouveaux statuts
+      try {
+        const plan = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
+        if (plan && plan.date === data.date) {
+          sauvegarderHistorique(data.date, plan.data?.taches_du_jour || [], data.statuts);
+        }
+      } catch(e) {}
+
+      mettreAJourCompteur();
+    }
+
+    function mettreAJourCompteur() {
+      const data = getTachesStatuts();
+      const statuts = Object.values(data.statuts);
+      const done = statuts.filter(s=>s==='done').length;
+      const cancelled = statuts.filter(s=>s==='cancelled').length;
+      const total = document.querySelectorAll('.task-item[data-idx]').length;
+      const el = document.getElementById('plan-compteur');
+      if (el && total > 0) {
+        el.innerHTML = `<strong style="color:#34d399">${done} ✅</strong> réussies · <strong style="color:#f87171">${cancelled} ✗</strong> annulées · ${total - done - cancelled} restantes`;
+      }
+    }
+
+    function afficherTache(t, idx, statuts) {
+      const statut = statuts[idx] || 'todo';
+      const div = document.createElement("div");
+      div.className = `task-item priority-${t.priorite}${statut==='done'?' done':statut==='cancelled'?' cancelled':''}`;
+      div.dataset.idx = idx;
+
+      let actionsBtns = '';
+      if (statut === 'todo') {
+        actionsBtns = `
+          <div class="task-actions">
+            <button class="btn-valider" onclick="validerTache(${idx})">✅ Réussie</button>
+            <button class="btn-annuler" onclick="annulerTache(${idx})">✗ Annuler</button>
+          </div>`;
+      } else if (statut === 'done') {
+        actionsBtns = `<span class="task-status-badge task-status-done">✅ Réussie</span>`;
+      } else {
+        actionsBtns = `<span class="task-status-badge task-status-cancelled">✗ Annulée</span>`;
+      }
+
+      div.innerHTML = `
+        <div class="task-info" style="flex:1">
+          <span class="task-title">${t.titre}</span>
+          <span class="task-meta">⏱ ${t.duree_estimee} · <span class="badge badge-${t.priorite === 'haute' ? 'orange' : t.priorite === 'basse' ? 'grey' : 'info'}" style="font-size:0.7rem;padding:1px 7px">${t.priorite}</span></span>
+        </div>
+        ${actionsBtns}
+      `;
+      return div;
+    }
+
+    function validerTache(idx) {
+      saveTacheStatut(idx, 'done');
+      const el = document.querySelector(`.task-item[data-idx="${idx}"]`);
+      if (el) {
+        el.classList.add('done');
+        el.querySelector('.task-actions').outerHTML = `<span class="task-status-badge task-status-done">✅ Réussie</span>`;
+      }
+      mettreAJourCompteur();
+      chargerStats();
+    }
+
+    function annulerTache(idx) {
+      saveTacheStatut(idx, 'cancelled');
+      const el = document.querySelector(`.task-item[data-idx="${idx}"]`);
+      if (el) {
+        el.classList.add('cancelled');
+        el.querySelector('.task-actions').outerHTML = `<span class="task-status-badge task-status-cancelled">✗ Annulée</span>`;
+      }
+      mettreAJourCompteur();
+      chargerStats();
+    }
+
+    // ── AFFICHER PLAN SAUVEGARDÉ ──
+    function afficherPlanSauvegarde(d) {
+      const { statuts } = getTachesStatuts();
+
+      document.getElementById("motivation").textContent = d.message_motivation || "";
+      if (d.conseil_du_jour) {
+        document.getElementById("conseil").textContent = d.conseil_du_jour;
+        document.getElementById("conseil-box").style.display = "block";
+      }
+
+      // Priorités
+      const ul = document.getElementById("priorites");
+      ul.innerHTML = "";
+      (d.priorites_du_jour || []).forEach((p, i) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span class="priority-num">${i+1}</span>${p}`;
+        ul.appendChild(li);
+      });
+
+      // En-tête tâches avec compteur
+      const cardHeader = document.querySelector('#taches').closest('.card').querySelector('.card-header');
+      if (!document.getElementById('plan-compteur')) {
+        const compteur = document.createElement('span');
+        compteur.id = 'plan-compteur';
+        compteur.className = 'plan-compteur';
+        cardHeader.appendChild(compteur);
+      }
+
+      // Tâches
+      const tDiv = document.getElementById("taches");
+      tDiv.innerHTML = "";
+      (d.taches_du_jour || []).forEach((t, i) => {
+        tDiv.appendChild(afficherTache(t, i, statuts));
+      });
+      mettreAJourCompteur();
+
+      // Prospects → lire depuis le CRM réel
+      afficherProspectsCRM();
+    }
+
+    // ── PROSPECTS DEPUIS LE CRM ──
+    async function afficherProspectsCRM() {
+      const pDiv = document.getElementById("prospects-list");
+      pDiv.innerHTML = '<div class="empty-state" style="padding:12px">Chargement...</div>';
+
+      try {
+        // Récupérer tous les prospects actifs et trier par ancienneté
+        const res2 = await fetch(`${API}/crm/prospects`);
+        const json2 = await res2.json();
+        const tous = (json2.data && json2.data.prospects) ? json2.data.prospects : [];
+
+        // Filtrer les prospects actifs (pas gagnés/perdus)
+        const actifs = tous.filter(function(p) {
+          return p.statut !== 'gagne' && p.statut !== 'perdu';
+        });
+
+        // Calculer jours depuis dernière action (dernier_contact OU date_ajout)
+        actifs.forEach(function(p) {
+          var refDate = p.dernier_contact || p.date_ajout;
+          p._jours = refDate ? Math.floor((new Date() - new Date(refDate)) / 86400000) : 999;
+        });
+
+        // Trier : les plus anciens en premier
+        actifs.sort(function(a, b) { return b._jours - a._jours; });
+        prospects = actifs.slice(0, 5);
+
+        pDiv.innerHTML = "";
+
+        if (prospects.length === 0) {
+          pDiv.innerHTML = '<div class="empty-state" style="padding:16px">Aucun prospect à contacter pour le moment 🎉</div>';
+          return;
+        }
+
+        // Couleurs par statut
+        var couleurs = {
+          nouveau:'badge-info', contacte:'badge-blue', en_discussion:'badge-orange',
+          devis_envoye:'badge-purple', relance:'badge-yellow', gagne:'badge-success',
+          perdu:'badge-danger', en_pause:'badge-grey'
+        };
+        // Label action selon statut
+        var actions = {
+          nouveau:'email', contacte:'relance', en_discussion:'appel',
+          devis_envoye:'suivi', relance:'relance', en_pause:'email'
+        };
+        var badgeAction = {
+          email:'badge-email', relance:'badge-yellow', appel:'badge-appel',
+          suivi:'badge-purple', linkedin:'badge-linkedin'
+        };
+
+        prospects.forEach(function(p) {
+          // Calculer jours depuis dernier_contact OU date_ajout si pas encore contacté
+          var refDate = p.dernier_contact || p.date_ajout;
+          var jours = 0;
+          if (refDate) {
+            var diff = new Date() - new Date(refDate);
+            jours = Math.floor(diff / (1000 * 60 * 60 * 24));
+          }
+          var source = p.dernier_contact ? 'sans contact' : 'depuis création';
+          var raison = jours >= 7 ? 'Aucune action depuis ' + jours + ' jours (' + source + ')' :
+                       jours >= 3 ? 'À relancer — ' + jours + 'j ' + source :
+                       jours >= 1 ? 'Ajouté il y a ' + jours + ' jour' + (jours > 1 ? 's' : '') :
+                       p.statut === 'devis_envoye' ? 'Devis en attente de réponse' :
+                       p.statut === 'en_discussion' ? 'Suivi en cours' : 'Nouveau prospect';
+          var action = actions[p.statut] || 'email';
+          var div = document.createElement('div');
+          div.className = 'prospect-item';
+          div.style.cursor = 'pointer';
+          div.onclick = function() { window.location.href = 'crm.html'; };
+          div.innerHTML =
+            '<div class="prospect-info">' +
+              '<span class="prospect-name">' + p.nom + (p.entreprise ? ' — <em style="font-weight:400;color:var(--text-muted)">' + p.entreprise + '</em>' : '') + '</span>' +
+              '<span class="prospect-reason">' + raison + '</span>' +
+            '</div>' +
+            '<span class="badge ' + (couleurs[p.statut]||'badge-grey') + '" style="font-size:0.75rem">' + p.statut.replace('_',' ') + '</span>';
+          pDiv.appendChild(div);
+        });
+
+        // Lien voir tous
+        var lien = document.createElement('div');
+        lien.style.cssText = 'text-align:right;margin-top:10px';
+        lien.innerHTML = '<a href="crm.html" style="color:var(--accent2);font-size:0.82rem;text-decoration:none">Voir tous les prospects →</a>';
+        pDiv.appendChild(lien);
+
+      } catch(e) {
+        pDiv.innerHTML = '<div class="empty-state" style="padding:12px;color:var(--text-muted)">Impossible de charger les prospects (API hors ligne)</div>';
+      }
+    }
+
+    // ── GESTION BOUTON GÉNÉRER ──
+    function desactiverBouton() {
+      const btn = document.getElementById("btn-generer");
+      btn.disabled = true;
+      btn.style.opacity = "0.45";
+      btn.style.cursor  = "not-allowed";
+      btn.style.transform = "none";
+      btn.innerHTML = `<span>✅ Plan généré aujourd'hui</span>`;
+
+      // Calcul ms restants jusqu'à minuit
+      const now       = new Date();
+      const minuit    = new Date();
+      minuit.setHours(24, 0, 0, 0);
+      const msRestants = minuit - now;
+
+      setTimeout(() => {
+        const btn2 = document.getElementById("btn-generer");
+        btn2.disabled = false;
+        btn2.style.opacity  = "1";
+        btn2.style.cursor   = "pointer";
+        btn2.style.transform = "";
+        btn2.innerHTML = `<span>⚡ Générer mon plan</span>`;
+      }, msRestants);
+    }
+
+    // ── GÉNÉRER PLAN (avec sauvegarde jusqu'à minuit) ──
+    async function genererPlan() {
+      const loader = document.getElementById("loader");
+      loader.style.display = "block";
+      try {
+        const res = await fetch(API + "/agent/plan-journalier", {
+          method:"POST", headers: authHeaders(),
+          body: JSON.stringify({ metier: userConnecte?.metier || "indépendant", prospects:[], taches_en_cours:[] })
+        });
+        const json = await res.json();
+        const d = json.data;
+
+        // Sauvegarder avec la date du jour → valide jusqu'à minuit
+        const today = new Date().toISOString().split('T')[0];
+        localStorage.setItem(PLAN_KEY, JSON.stringify({ date: today, data: d }));
+
+        // Réinitialiser les statuts des tâches pour le nouveau plan
+        localStorage.setItem(TACHES_KEY, JSON.stringify({ date: today, statuts: {} }));
+
+        // Sauvegarder dans l'historique (tâches sans statuts pour l'instant)
+        sauvegarderHistorique(today, d.taches_du_jour || [], {});
+
+        afficherPlanSauvegarde(d);
+        desactiverBouton();
+      } catch(e) {
+        document.getElementById("motivation").textContent = "Erreur de connexion à l'API.";
+      }
+      loader.style.display = "none";
+    }
+
+    // ── AJOUTER UNE TÂCHE MANUELLEMENT ──
+    function ajouterTache() {
+      const titre = document.getElementById('t-titre').value.trim();
+      if (!titre) { document.getElementById('t-titre').focus(); return; }
+
+      const priorite = document.getElementById('t-priorite').value;
+      const duree    = document.getElementById('t-duree').value;
+
+      // Créer la nouvelle tâche
+      const nouvelleTache = { titre, priorite, duree_estimee: duree };
+
+      // Charger le plan du jour ou créer un plan vide
+      const today = new Date().toISOString().split('T')[0];
+      let planData;
+      try {
+        const saved = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
+        planData = (saved && saved.date === today) ? saved.data : {
+          message_motivation: '', conseil_du_jour: '', priorites_du_jour: [],
+          taches_du_jour: [], prospects_a_contacter: []
+        };
+      } catch(e) {
+        planData = { message_motivation:'', conseil_du_jour:'', priorites_du_jour:[], taches_du_jour:[], prospects_a_contacter:[] };
+      }
+
+      // Ajouter la tâche
+      planData.taches_du_jour.push(nouvelleTache);
+      localStorage.setItem(PLAN_KEY, JSON.stringify({ date: today, data: planData }));
+
+      // Mettre à jour l'historique
+      const statuts = getTachesStatuts();
+      sauvegarderHistorique(today, planData.taches_du_jour, statuts.statuts || {});
+
+      // Réafficher
+      afficherPlanSauvegarde(planData);
+      chargerStats();
+
+      // Fermer modal + reset
+      document.getElementById('modal-tache').style.display = 'none';
+      document.getElementById('t-titre').value = '';
+      document.getElementById('t-priorite').value = 'moyenne';
+      document.getElementById('t-duree').value = '1 heure';
+
+      // Toast
+      const toast = document.createElement('div');
+      toast.textContent = '✅ Tâche ajoutée !';
+      toast.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#6366f1;color:white;padding:11px 18px;border-radius:10px;font-size:0.88rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(99,102,241,0.4)';
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.style.opacity='0'; toast.style.transition='opacity 0.4s'; setTimeout(()=>toast.remove(),400); }, 2000);
+    }
+    async function init() {
+      const user = await initSidebar();
+      if (!user) return;
+      userConnecte = user;
+
+      // Bonjour + date
+      document.querySelector(".page-title").textContent = `Bonjour ${user.prenom} 👋`;
+      document.getElementById("date-today").textContent = new Date().toLocaleDateString("fr-FR", {
+        weekday:"long", day:"numeric", month:"long", year:"numeric"
+      });
+
+      showSkeleton(["stat-prospects","stat-relances","stat-ca"]);
+      chargerStats();
+      afficherProspectsCRM();
+
+      const today = new Date().toISOString().split('T')[0];
+      try {
+        const saved = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null');
+        if (saved && saved.date === today && saved.data) {
+          afficherPlanSauvegarde(saved.data);
+          desactiverBouton();
+        }
+      } catch(e) {}
+    }
+
+    window.addEventListener('storage', function(e) {
+      if (e.key === 'factures_list' || e.key === 'devis_list') chargerStatsLocales();
+    });
+
+    init();
+  </script>
+  <!-- MODAL AJOUTER TÂCHE -->
+  <div class="modal-overlay" id="modal-tache" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:480px">
+      <h3>➕ Ajouter une tâche</h3>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px">
+        <div class="form-group">
+          <label>Titre *</label>
+          <input type="text" id="t-titre" placeholder="Ex : Appeler Jean Dupont"/>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="form-group">
+            <label>Priorité</label>
+            <select id="t-priorite">
+              <option value="haute">🔴 Haute</option>
+              <option value="moyenne" selected>🟡 Moyenne</option>
+              <option value="basse">🟢 Basse</option>
+              <option value="critique">🚨 Critique</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Durée estimée</label>
+            <select id="t-duree">
+              <option value="15 min">15 min</option>
+              <option value="30 min">30 min</option>
+              <option value="1 heure" selected>1 heure</option>
+              <option value="2 heures">2 heures</option>
+              <option value="3 heures">3 heures</option>
+              <option value="+ d'une journée">+ d'une journée</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-tache').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="ajouterTache()">Ajouter la tâche</button>
+      </div>
+    </div>
+  </div>
+
+
+
+</body>
+</html>
