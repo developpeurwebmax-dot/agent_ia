@@ -304,7 +304,7 @@ def get_dashboard_financier(entreprise_id: str, periode: str = None) -> dict:
 
 
 def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
-    """Projection de trésorerie sur N mois basée sur la moyenne des 3 derniers mois."""
+    """Projection de trésorerie sur N mois basée sur la moyenne des 3 derniers mois + masse salariale."""
     today = date.today()
     conn = get_db()
     try:
@@ -333,6 +333,15 @@ def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
         revenus_moy /= 3
         depenses_moy /= 3
 
+        # ✅ AJOUT : inclure la masse salariale mensuelle dans les dépenses projetées
+        row_sal = conn.execute(
+            "SELECT COALESCE(SUM(salaire_brut), 0) as c FROM employes WHERE entreprise_id=? AND statut='actif'",
+            (entreprise_id,)
+        ).fetchone()
+        total_brut = float(row_sal[0] if row_sal else 0)
+        cout_employeur_mensuel = round(total_brut * 1.42, 2)
+        depenses_moy += cout_employeur_mensuel
+
         projection = []
         solde_cumul = 0
         for i in range(1, nb_mois + 1):
@@ -343,7 +352,8 @@ def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
                 "revenus_prevus": round(revenus_moy, 2),
                 "depenses_prevues": round(depenses_moy, 2),
                 "solde_mensuel": round(revenus_moy - depenses_moy, 2),
-                "tresorerie_cumulee": round(solde_cumul, 2)
+                "tresorerie_cumulee": round(solde_cumul, 2),
+                "dont_salaires": round(cout_employeur_mensuel, 2)
             })
         return projection
     finally:
