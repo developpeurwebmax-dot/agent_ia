@@ -33,19 +33,27 @@ def gen_id(prefix="ID"):
 
 def token_requis(f):
     @wraps(f)
-    def decorated(*args, **kwargs):
+    def decorateur(*args, **kwargs):
+        # Laisser passer les OPTIONS sans token (preflight CORS)
+        if request.method == "OPTIONS":
+            return jsonify({}), 200
         token = None
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth.split(" ")[1]
         if not token:
-            return err("Token manquant", 401)
-        user_id = verifier_token(token)
-        if not user_id:
-            return err("Token invalide ou expiré", 401)
-        request.user_id = user_id
+            return reponse_erreur("Token manquant", 401)
+        try:
+            # Même secret que dans auth.py pour garantir la compatibilité des tokens
+            secret = os.environ.get("JWT_SECRET", "agentia_secret_key_change_en_prod")
+            payload = jwt.decode(token, secret, algorithms=["HS256"])
+            request.user_id = payload.get("user_id")
+        except jwt.ExpiredSignatureError:
+            return reponse_erreur("Token expiré", 401)
+        except jwt.InvalidTokenError:
+            return reponse_erreur("Token invalide", 401)
         return f(*args, **kwargs)
-    return decorated
+    return decorateur
 
 def get_entreprise_ids(user_id):
     """Retourne les IDs d'entreprises accessibles par l'utilisateur."""
@@ -325,22 +333,30 @@ def update_transaction(tid):
         return err(str(e))
 
 
-@business.route("/business/finances/transactions/<tid>", methods=["DELETE"])
+@business.route("/finances/transactions/<tid>", methods=["PUT", "DELETE", "OPTIONS"])
 @token_requis
-def delete_transaction(tid):
-    try:
-        data = get_json()
-        eid = data.get("entreprise_id")
-        if not eid or not check_access(eid, request.user_id):
-            return err("Accès refusé", 403)
-        conn = get_db()
-        conn.execute("DELETE FROM transactions WHERE id=? AND entreprise_id=?", (tid, eid))
-        conn.commit()
-        conn.close()
-        return ok({}, "Transaction supprimée")
-    except Exception as e:
-        return err(str(e))
-
+def transaction_detail(tid):
+    if request.method == "PUT":
+        try:
+            data = get_json()
+            eid = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            txn = modifier_transaction(tid, eid, data)
+            return reponse_ok(txn, "Transaction mise à jour")
+        except Exception as e:
+            return reponse_erreur(str(e))
+    elif request.method == "DELETE":
+        try:
+            data = get_json() or {}
+            # Accepte entreprise_id dans le body OU en query string pour les clients qui n'envoient pas de body sur DELETE
+            eid = data.get("entreprise_id") or request.args.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            supprimer_transaction(tid, eid)
+            return reponse_ok({}, "Transaction supprimée")
+        except Exception as e:
+            return reponse_erreur(str(e))
 
 # ─────────────────────────────────────────────
 # FINANCES — DASHBOARD & KPIs
@@ -847,4 +863,5 @@ def get_alertes():
         return ok({"alertes": alertes})
     except Exception as e:
         return err(str(e))
+
 
