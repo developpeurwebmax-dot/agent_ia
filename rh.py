@@ -322,7 +322,8 @@ def get_pointages(entreprise_id: str, employe_id: str = None, mois: str = None) 
             sql += " AND p.employe_id=?"
             params.append(employe_id)
         if mois:
-            sql += " AND strftime('%Y-%m', p.date)=?"
+            # Compatible SQLite et PostgreSQL (date stockée au format texte ISO YYYY-MM-DD)
+            sql += " AND substr(p.date, 1, 7)=?"
             params.append(mois)
         sql += " ORDER BY p.date DESC"
         return rows_to_list(conn.execute(sql, params).fetchall())
@@ -377,4 +378,5 @@ def get_evaluations(entreprise_id: str, employe_id: str = None) -> list:
             ).fetchall()
         return rows_to_list(rows)
     finally:
+
         conn.close()
