@@ -4,8 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Agent IA Business — Finances</title>
-  <link rel="stylesheet" href="../freelance/style.css"/>
-  <link rel="stylesheet" href="style_business.css"/>
+  <link rel="stylesheet" href="../style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
 </head>
 <body>
@@ -210,7 +209,7 @@
       const now = new Date();
       for (let i = 0; i < 12; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const val = d.toISOString().slice(0, 7);
+        const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         const label = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
         const opt = document.createElement("option");
         opt.value = val;
@@ -220,7 +219,8 @@
       }
 
       // Date par défaut dans le formulaire
-      document.getElementById("f-date").value = new Date().toISOString().slice(0, 10);
+      const now2 = new Date();
+document.getElementById("f-date").value = `${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,'0')}-${String(now2.getDate()).padStart(2,'0')}`;
 
       // Charger l'entreprise
       const json = await appelAPI("GET", "/business/entreprises");
@@ -267,7 +267,7 @@
     async function chargerTransactions() {
       if (!ENTREPRISE_ID) return;
       const mois = document.getElementById("select-mois").value;
-      const json = await appelAPI("GET", `/business/finances/transactions?entreprise_id=${ENTREPRISE_ID}&mois=${mois}`);
+      const json = await apiAuth("GET", `/business/finances/transactions?entreprise_id=${ENTREPRISE_ID}&mois=${mois}`);
       toutes_transactions = json?.data?.transactions || [];
       renderTransactions();
       chargerKPIs();
