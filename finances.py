@@ -62,7 +62,7 @@ def get_transactions(entreprise_id: str, filtres: dict = None) -> list:
         sql = "SELECT * FROM transactions WHERE entreprise_id=?"
         params = [entreprise_id]
 
-        if filtres:
+                if filtres:
             if filtres.get("type"):
                 sql += " AND type=?"
                 params.append(filtres["type"])
@@ -76,7 +76,8 @@ def get_transactions(entreprise_id: str, filtres: dict = None) -> list:
                 sql += " AND date <= ?"
                 params.append(filtres["date_fin"])
             if filtres.get("mois"):  # format YYYY-MM
-                sql += " AND strftime('%Y-%m', date) = ?"
+                # Compatible SQLite et PostgreSQL (date stockée en texte ISO YYYY-MM-DD)
+                sql += " AND substr(date, 1, 7) = ?"
                 params.append(filtres["mois"])
 
         sql += " ORDER BY date DESC"
@@ -270,17 +271,18 @@ def get_dashboard_financier(entreprise_id: str, periode: str = None) -> dict:
         ).fetchall()
         depenses_par_categorie = [{"categorie": r["categorie"], "montant": float(r["total"] or 0)} for r in rows_to_list(rows_cat)]
 
-        # Évolution mensuelle (12 derniers mois)
+                # Évolution mensuelle (12 derniers mois)
+               
         evolution = []
         for i in range(11, -1, -1):
             d = today.replace(day=1) - timedelta(days=i * 30)
             mois_str = d.strftime("%Y-%m")
             rev = scalar(conn.execute(
-                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='revenu' AND strftime('%Y-%m', date)=?",
+                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='revenu' AND substr(date, 1, 7)=?",
                 (entreprise_id, mois_str)
             ).fetchone())
             dep = scalar(conn.execute(
-                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='depense' AND strftime('%Y-%m', date)=?",
+                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='depense' AND substr(date, 1, 7)=?",
                 (entreprise_id, mois_str)
             ).fetchone())
             evolution.append({"mois": mois_str, "revenus": rev, "depenses": dep, "marge": rev - dep})
@@ -318,12 +320,12 @@ def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
                 v = row.get("c") if isinstance(row, dict) else row[0]
                 return float(v or 0)
 
-            r = sc(conn.execute(
-                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='revenu' AND strftime('%Y-%m', date)=?",
+                r = sc(conn.execute(
+                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='revenu' AND substr(date, 1, 7)=?",
                 (entreprise_id, mois_str)
             ).fetchone())
             d_val = sc(conn.execute(
-                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='depense' AND strftime('%Y-%m', date)=?",
+                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='depense' AND substr(date, 1, 7)=?",
                 (entreprise_id, mois_str)
             ).fetchone())
             revenus_moy += r
@@ -375,7 +377,7 @@ def detecter_anomalies(entreprise_id: str) -> list:
                 d = today.replace(day=1) - timedelta(days=i * 30)
                 mois_str = d.strftime("%Y-%m")
                 row = conn.execute(
-                    "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='depense' AND categorie=? AND strftime('%Y-%m', date)=?",
+                    "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='depense' AND categorie=? AND substr(date, 1, 7)=?",
                     (entreprise_id, cat, mois_str)
                 ).fetchone()
                 val = float((row.get("c") if isinstance(row, dict) else row[0]) or 0)
@@ -385,9 +387,9 @@ def detecter_anomalies(entreprise_id: str) -> list:
             if moyenne == 0:
                 continue
 
-            # Mois courant
+                        # Mois courant
             row_actuel = conn.execute(
-                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='depense' AND categorie=? AND strftime('%Y-%m', date)=?",
+                "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='depense' AND categorie=? AND substr(date, 1, 7)=?",
                 (entreprise_id, cat, mois_courant)
             ).fetchone()
             actuel = float((row_actuel.get("c") if isinstance(row_actuel, dict) else row_actuel[0]) or 0)
@@ -403,4 +405,5 @@ def detecter_anomalies(entreprise_id: str) -> list:
 
         return sorted(alertes, key=lambda x: x["ecart_pct"], reverse=True)
     finally:
+
         conn.close()
