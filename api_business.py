@@ -49,7 +49,8 @@ from users import (
 )
 from finances import (
     creer_transaction, get_transactions, modifier_transaction, supprimer_transaction,
-    importer_csv, get_dashboard_financier, calculer_projection, detecter_anomalies
+    importer_csv, importer_bulk,
+    get_dashboard_financier, calculer_projection, detecter_anomalies
 )
 from rh import (
     creer_employe, get_employes, get_employe, modifier_employe, supprimer_employe,
@@ -193,11 +194,11 @@ def transactions_route():
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
             filtres = {
-                "type": request.args.get("type"),
-                "categorie": request.args.get("categorie"),
-                "mois": request.args.get("mois"),
+                "type":       request.args.get("type"),
+                "categorie":  request.args.get("categorie"),
+                "mois":       request.args.get("mois"),
                 "date_debut": request.args.get("date_debut"),
-                "date_fin": request.args.get("date_fin")
+                "date_fin":   request.args.get("date_fin"),
             }
             txns = get_transactions(eid, {k: v for k, v in filtres.items() if v})
             return reponse_ok({"transactions": txns, "total": len(txns)})
@@ -221,7 +222,7 @@ def transaction_detail(tid):
     elif request.method == "DELETE":
         try:
             data = get_json() or {}
-            # Accepte entreprise_id dans le body OU en query string pour les clients qui n'envoient pas de body sur DELETE
+            # Accepte entreprise_id dans le body OU en query string
             eid = data.get("entreprise_id") or request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
@@ -243,6 +244,28 @@ def import_csv():
         if not contenu:
             return reponse_erreur("contenu_csv requis")
         result = importer_csv(eid, contenu, data.get("mapping"))
+        return reponse_ok(result, f"{result['importees']} transactions importées")
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
+@business.route("/finances/import-bulk", methods=["POST", "OPTIONS"])
+@token_requis
+def import_bulk():
+    """
+    Import de transactions déjà parsées et catégorisées côté front.
+    Utilisé par la nouvelle modale CSV après prévisualisation.
+    Body: { entreprise_id, transactions: [{date, description, montant, type, categorie, reference}] }
+    """
+    try:
+        data = get_json()
+        eid  = data.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        transactions = data.get("transactions", [])
+        if not transactions:
+            return reponse_erreur("Aucune transaction fournie")
+        result = importer_bulk(eid, transactions)
         return reponse_ok(result, f"{result['importees']} transactions importées")
     except Exception as e:
         return reponse_erreur(str(e), 500)
@@ -486,17 +509,17 @@ def analyser_business():
         masse_sal = get_masse_salariale(eid)
 
         donnees = {
-            "ca_annuel": dashboard.get("revenus", 0),
-            "depenses_annuelles": dashboard.get("depenses", 0),
-            "marge_nette": dashboard.get("marge_nette", 0),
-            "taux_marge": dashboard.get("taux_marge", 0),
-            "nb_employes": masse_sal.get("nb_employes_actifs", 0),
+            "ca_annuel":                   dashboard.get("revenus", 0),
+            "depenses_annuelles":          dashboard.get("depenses", 0),
+            "marge_nette":                 dashboard.get("marge_nette", 0),
+            "taux_marge":                  dashboard.get("taux_marge", 0),
+            "nb_employes":                 masse_sal.get("nb_employes_actifs", 0),
             "cout_masse_salariale_mensuel": masse_sal.get("cout_total_mensuel", 0),
             "part_salaires_depenses": round(
                 masse_sal.get("cout_total_mensuel", 0) * 12 / max(dashboard.get("depenses", 1), 1) * 100, 1
             ),
             "depenses_par_categorie": dashboard.get("depenses_par_categorie", []),
-            "evolution_12_mois": dashboard.get("evolution_mensuelle", [])
+            "evolution_12_mois":      dashboard.get("evolution_mensuelle", []),
         }
 
         from agent import analyser_activite
