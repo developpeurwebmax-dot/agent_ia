@@ -8,14 +8,14 @@ import jwt
 import os
 from datetime import datetime, timedelta
 from database import get_db, row_to_dict, rows_to_list
+import uuid
 
 SECRET_KEY = os.environ.get("JWT_SECRET", "agentia_secret_key_change_en_prod")
 JWT_EXPIRE_DAYS = 30
 
 
 def _generer_id():
-    import time
-    return "USR_" + str(int(time.time() * 1000000))
+    return "USR_" + uuid.uuid4().hex
 
 
 # ── MOT DE PASSE ──

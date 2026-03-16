@@ -9,6 +9,7 @@ from functools import wraps
 import json
 import traceback
 from datetime import datetime, date, timedelta
+import uuid
 
 from database import get_db, row_to_dict, rows_to_list, init_db
 from auth import (
@@ -58,8 +59,7 @@ def get_json():
     return request.get_json() or {}
 
 def generer_id(prefix):
-    import time
-    return f"{prefix}_{int(time.time() * 1000000)}"
+    return f"{prefix}_{uuid.uuid4().hex}"
 
 
 # ─────────────────────────────────────────────
@@ -70,6 +70,9 @@ def token_requis(f):
     """Décorateur qui vérifie le token JWT."""
     @wraps(f)
     def decorated(*args, **kwargs):
+        # Laisser passer les OPTIONS sans token (preflight CORS)
+        if request.method == "OPTIONS":
+            return jsonify({}), 200
         token = None
 
         # Chercher le token dans le header Authorization
@@ -412,10 +415,10 @@ def ajouter_interaction(pid):
         conn = get_db()
         iid = generer_id("INT")
         conn.execute("""
-            INSERT INTO interactions (id, prospect_id, user_id, type, note, date)
+            INSERT INTO interactions (id, user_id, prospect_id, type, contenu, date)
             VALUES (?, ?, ?, ?, ?, ?)
         """, (iid, pid, request.user_id, data.get("type","note"),
-              data.get("note",""), data.get("date", date.today().isoformat())))
+              (data.get("contenu") or data.get("note") or ""), data.get("date", date.today().isoformat())))
         conn.execute(
             "UPDATE prospects SET dernier_contact=? WHERE id=? AND user_id=?",
             (date.today().isoformat(), pid, request.user_id)

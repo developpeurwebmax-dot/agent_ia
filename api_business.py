@@ -4,10 +4,10 @@ api_business.py — Routes API pour Agent IA Business
 
 from flask import Blueprint, request, jsonify
 import json
-import time
 import jwt
 import os
 from functools import wraps
+import uuid
 
 # ── Fonctions utilitaires ──
 
@@ -21,7 +21,7 @@ def get_json():
     return request.get_json() or {}
 
 def generer_id(prefix):
-    return f"{prefix}_{int(time.time() * 1000)}"
+    return f"{prefix}_{uuid.uuid4().hex}"
 
 def token_requis(f):
     @wraps(f)
@@ -35,15 +35,11 @@ def token_requis(f):
             token = auth.split(" ")[1]
         if not token:
             return reponse_erreur("Token manquant", 401)
-        try:
-            # Même secret que dans auth.py pour garantir la compatibilité des tokens
-            secret = os.environ.get("JWT_SECRET", "agentia_secret_key_change_en_prod")
-            payload = jwt.decode(token, secret, algorithms=["HS256"])
-            request.user_id = payload.get("user_id")
-        except jwt.ExpiredSignatureError:
-            return reponse_erreur("Token expiré", 401)
-        except jwt.InvalidTokenError:
-            return reponse_erreur("Token invalide", 401)
+        from auth import verifier_token
+        user_id = verifier_token(token)
+        if not user_id:
+            return reponse_erreur("Token invalide ou expiré", 401)
+        request.user_id = user_id
         return f(*args, **kwargs)
     return decorateur
 

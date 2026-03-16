@@ -403,7 +403,3 @@ def init_db():
     conn.commit()
     conn.close()
     print(f"✅ Base de données initialisée ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
-
-
-# Initialiser au démarrage
-init_db()

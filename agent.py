@@ -3,27 +3,44 @@ agent.py — Le cerveau de l'agent IA pour indépendants
 Connexion OpenAI + génération de contenu intelligent
 """
 
-import openai
 import json
 import os
 from datetime import datetime
 
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+try:
+    # SDK OpenAI v1+
+    from openai import OpenAI
+except Exception as e:  # pragma: no cover
+    raise RuntimeError(
+        "Le package 'openai' est requis. Installe-le via requirements.txt."
+    ) from e
 
-MODEL = "gpt-4"
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    # On ne crash pas à l'import, mais on échouera proprement à l'appel.
+    OPENAI_API_KEY = ""
+
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+
+# Modèle configurable par variable d'environnement (évite 'model_not_found' en prod)
+MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
 
 def _appeler_gpt(system_prompt: str, user_prompt: str, temperature: float = 0.7) -> str:
     """Fonction de base pour appeler GPT."""
-    response = openai.chat.completions.create(
+    if client is None:
+        raise RuntimeError("OPENAI_API_KEY manquante (variable d'environnement).")
+    response = client.chat.completions.create(
         model=MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ],
-        temperature=temperature
+        temperature=temperature,
+        timeout=30,
     )
-    return response.choices[0].message.content.strip()
+    content = response.choices[0].message.content
+    return (content or "").strip()
 
 
 # ─────────────────────────────────────────────
