@@ -304,21 +304,20 @@ def get_dashboard_financier(entreprise_id: str, periode: str = None) -> dict:
 
 
 def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
-    """Projection de trésorerie sur N mois basée sur la moyenne des 3 derniers mois + masse salariale."""
     today = date.today()
     conn = get_db()
+
+    def sc(row):
+        if not row: return 0
+        v = row["c"] if isinstance(row, dict) else row[0]
+        return float(v or 0)
+
     try:
         revenus_moy = 0
         depenses_moy = 0
         for i in range(1, 4):
             d = today.replace(day=1) - timedelta(days=i * 30)
             mois_str = d.strftime("%Y-%m")
-
-            def sc(row):
-                if not row: return 0
-                v = row.get("c") if isinstance(row, dict) else row[0]
-                return float(v or 0)
-
             r = sc(conn.execute(
                 "SELECT COALESCE(SUM(montant),0) as c FROM transactions WHERE entreprise_id=? AND type='revenu' AND substr(date, 1, 7)=?",
                 (entreprise_id, mois_str)
@@ -333,13 +332,18 @@ def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
         revenus_moy /= 3
         depenses_moy /= 3
 
-        # ✅ AJOUT : inclure la masse salariale mensuelle dans les dépenses projetées
-        row_sal = conn.execute(
-            "SELECT COALESCE(SUM(salaire_brut), 0) as c FROM employes WHERE entreprise_id=? AND statut='actif'",
-            (entreprise_id,)
-        ).fetchone()
-        total_brut = float(row_sal[0] if row_sal else 0)
-        cout_employeur_mensuel = round(total_brut * 1.42, 2)
+        # ✅ Masse salariale protégée contre table/colonne manquante
+        cout_employeur_mensuel = 0
+        try:
+            row_sal = conn.execute(
+                "SELECT COALESCE(SUM(salaire_brut), 0) as c FROM employes WHERE entreprise_id=? AND statut='actif'",
+                (entreprise_id,)
+            ).fetchone()
+            total_brut = sc(row_sal)
+            cout_employeur_mensuel = round(total_brut * 1.42, 2)
+        except Exception:
+            cout_employeur_mensuel = 0  # table employes absente → on ignore
+
         depenses_moy += cout_employeur_mensuel
 
         projection = []
