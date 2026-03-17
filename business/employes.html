@@ -36,7 +36,10 @@
         <h1 class="page-title">Ressources Humaines</h1>
         <p class="page-sub">Employés, congés, heures, évaluations</p>
       </div>
-      <button class="btn-primary" onclick="ouvrirModalEmploye()">+ Nouvel employé</button>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button class="btn-secondary" id="btn-generer-paie" onclick="ouvrirModalPaie()">💸 Générer paie du mois</button>
+        <button class="btn-primary" onclick="ouvrirModalEmploye()">+ Nouvel employé</button>
+      </div>
     </header>
 
     <!-- TABS -->
@@ -83,48 +86,17 @@
 
     <!-- TAB POINTAGE -->
     <div class="tab-content" id="tab-heures">
-      <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
-        <select id="select-emp-pointage" class="select-inline" style="flex:1">
-          <option value="">Sélectionner un employé</option>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <select id="select-emp-pointage" class="select-inline" onchange="chargerPointages()">
+          <option value="">Tous les employés</option>
         </select>
         <select id="select-mois-pointage" class="select-inline" onchange="chargerPointages()"></select>
-      </div>
-      <div class="card" style="margin-bottom:16px">
-        <h3 style="margin-bottom:16px;font-size:0.95rem">Enregistrer un pointage</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Employé</label>
-            <select id="f-ptg-emp" class="select-inline" style="width:100%">
-              <option value="">Sélectionner...</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Date</label>
-            <input type="date" id="f-ptg-date"/>
-          </div>
-          <div class="form-group">
-            <label>Heure d'arrivée</label>
-            <input type="time" id="f-ptg-arrivee" value="09:00"/>
-          </div>
-          <div class="form-group">
-            <label>Heure de départ</label>
-            <input type="time" id="f-ptg-depart" value="18:00" onchange="calcHeures()"/>
-          </div>
-          <div class="form-group">
-            <label>Heures travaillées</label>
-            <input type="number" id="f-ptg-heures" value="8" min="0" max="24" step="0.5"/>
-          </div>
-          <div class="form-group">
-            <label>Notes</label>
-            <input type="text" id="f-ptg-notes" placeholder="Optionnel"/>
-          </div>
-        </div>
-        <button class="btn-primary" onclick="enregistrerPointage()" style="margin-top:8px">✓ Enregistrer</button>
+        <button class="btn-primary" onclick="ouvrirModalPointage()">+ Pointer des heures</button>
       </div>
       <div class="card">
         <div class="table-wrapper">
           <table class="table">
-            <thead><tr><th>Employé</th><th>Date</th><th>Arrivée</th><th>Départ</th><th>Heures</th><th>H. Supp.</th></tr></thead>
+            <thead><tr><th>Employé</th><th>Date</th><th>Arrivée</th><th>Départ</th><th>Heures</th><th>Supp.</th></tr></thead>
             <tbody id="tbody-pointages"><tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Sélectionnez un employé et un mois</td></tr></tbody>
           </table>
         </div>
@@ -153,7 +125,40 @@
 
   </main>
 
-  <!-- MODAL EMPLOYÉ -->
+
+  <!-- ══════════════════════════════════════
+       MODAL GÉNÉRER PAIE DU MOIS
+  ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-paie" style="display:none">
+    <div class="modal" style="max-width:520px">
+      <h3>💸 Générer la paie du mois</h3>
+      <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:16px">
+        Crée automatiquement une transaction de salaire par employé actif dans la page Finances.
+        Les doublons (salaires déjà générés ce mois) sont ignorés.
+      </p>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Mois de paie</label>
+        <select id="paie-mois" class="select-inline" style="width:100%"></select>
+      </div>
+
+      <!-- Résumé employés -->
+      <div id="paie-resume" style="margin-bottom:16px"></div>
+
+      <!-- Résultat après génération -->
+      <div id="paie-resultat" style="display:none;margin-bottom:16px"></div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="fermerModalPaie()">Annuler</button>
+        <button class="btn-primary" id="btn-confirmer-paie" onclick="genererPaie()">💸 Confirmer et générer</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════
+       MODAL EMPLOYÉ
+  ══════════════════════════════════════ -->
   <div class="modal-overlay" id="modal-employe" style="display:none">
     <div class="modal">
       <h3 id="modal-emp-titre">Nouvel employé</h3>
@@ -176,20 +181,20 @@
         </div>
         <div class="form-group">
           <label>Poste</label>
-          <input type="text" id="f-poste" placeholder="Développeur, Commercial..."/>
+          <input type="text" id="f-poste" placeholder="Développeur, RH..."/>
         </div>
         <div class="form-group">
           <label>Département</label>
-          <input type="text" id="f-dept" placeholder="Tech, Ventes, RH..."/>
+          <input type="text" id="f-dept" placeholder="Tech, Marketing..."/>
         </div>
         <div class="form-group">
           <label>Type de contrat</label>
           <select id="f-contrat">
             <option value="CDI">CDI</option>
             <option value="CDD">CDD</option>
-            <option value="Stage">Stage</option>
-            <option value="Alternance">Alternance</option>
-            <option value="Freelance">Freelance</option>
+            <option value="alternance">Alternance</option>
+            <option value="stage">Stage</option>
+            <option value="freelance">Freelance</option>
           </select>
         </div>
         <div class="form-group">
@@ -198,15 +203,15 @@
         </div>
         <div class="form-group">
           <label>Salaire brut mensuel (€)</label>
-          <input type="number" id="f-salaire" placeholder="3000" min="0"/>
+          <input type="number" id="f-salaire" placeholder="3000" min="0" step="0.01"/>
         </div>
         <div class="form-group">
-          <label>Congés acquis (jours)</label>
+          <label>Congés acquis (jours/an)</label>
           <input type="number" id="f-conges" value="25" min="0"/>
         </div>
         <div class="form-group form-full">
           <label>Notes</label>
-          <textarea id="f-notes-emp" placeholder="Informations complémentaires..."></textarea>
+          <input type="text" id="f-notes-emp" placeholder="Informations complémentaires..."/>
         </div>
       </div>
       <div class="modal-actions">
@@ -216,10 +221,13 @@
     </div>
   </div>
 
-  <!-- MODAL CONGÉ -->
+
+  <!-- ══════════════════════════════════════
+       MODAL CONGÉ
+  ══════════════════════════════════════ -->
   <div class="modal-overlay" id="modal-conge" style="display:none">
-    <div class="modal" style="width:480px">
-      <h3>Demande de congé</h3>
+    <div class="modal">
+      <h3>Nouvelle demande de congé</h3>
       <div class="form-grid">
         <div class="form-group form-full">
           <label>Employé *</label>
@@ -255,14 +263,54 @@
     </div>
   </div>
 
+
+  <!-- ══════════════════════════════════════
+       MODAL POINTAGE
+  ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-pointage" style="display:none">
+    <div class="modal">
+      <h3>Pointer des heures</h3>
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Employé *</label>
+          <select id="f-ptg-emp"></select>
+        </div>
+        <div class="form-group">
+          <label>Date *</label>
+          <input type="date" id="f-ptg-date"/>
+        </div>
+        <div class="form-group">
+          <label>Heure arrivée</label>
+          <input type="time" id="f-ptg-arrivee" value="09:00"/>
+        </div>
+        <div class="form-group">
+          <label>Heure départ</label>
+          <input type="time" id="f-ptg-depart" value="18:00"/>
+        </div>
+        <div class="form-group form-full">
+          <label>Notes</label>
+          <input type="text" id="f-ptg-notes" placeholder="Optionnel"/>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="fermerModalPointage()">Annuler</button>
+        <button class="btn-primary" onclick="sauvegarderPointage()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+
   <script src="auth.js"></script>
   <script>
-    let ENTREPRISE_ID = null;
-    let employes_cache = [];
-    let empIdEdition = null;
-    let filtreStatutEmp = "";
+    let ENTREPRISE_ID    = null;
+    let employes_cache   = [];
+    let empIdEdition     = null;
+    let filtreStatutEmp  = "";
     let filtreStatutConge = "en_attente";
 
+    // ════════════════════════════════════════
+    // INIT
+    // ════════════════════════════════════════
     async function init() {
       const user = await initSidebar();
       if (!user) return;
@@ -271,17 +319,17 @@
       const sel = document.getElementById("select-mois-pointage");
       const now = new Date();
       for (let i = 0; i < 6; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const val = d.toISOString().slice(0, 7);
-        const label = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+        const lbl = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
         const opt = document.createElement("option");
-        opt.value = val; opt.textContent = label;
+        opt.value = val; opt.textContent = lbl;
         if (i === 0) opt.selected = true;
         sel.appendChild(opt);
       }
 
-      document.getElementById("f-ptg-date").value = new Date().toISOString().slice(0, 10);
-      document.getElementById("f-embauche").value = new Date().toISOString().slice(0, 10);
+      document.getElementById("f-ptg-date").value  = new Date().toISOString().slice(0, 10);
+      document.getElementById("f-embauche").value  = new Date().toISOString().slice(0, 10);
 
       const json = await apiAuth("GET", "/business/entreprises");
       if (!json?.data?.entreprises?.length) return;
@@ -292,6 +340,17 @@
       await chargerMasseSalariale();
     }
 
+    function showTab(tab, btn) {
+      document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tabs .tab").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + tab).classList.add("active");
+      btn.classList.add("active");
+      if (tab === "heures") chargerPointages();
+    }
+
+    // ════════════════════════════════════════
+    // EMPLOYÉS
+    // ════════════════════════════════════════
     async function chargerEmployes() {
       const json = await apiAuth("GET", `/business/rh/employes?entreprise_id=${ENTREPRISE_ID}`);
       employes_cache = json?.data?.employes || [];
@@ -316,7 +375,7 @@
       }
       container.innerHTML = liste.map(e => `
         <div class="emp-card">
-          <div class="emp-avatar">${(e.prenom[0] || "?").toUpperCase()}</div>
+          <div class="emp-avatar">${(e.prenom?.[0] || "?").toUpperCase()}</div>
           <div class="emp-info">
             <strong>${e.prenom} ${e.nom}</strong>
             <span>${e.poste || "—"}</span>
@@ -325,11 +384,11 @@
           <div class="emp-stats">
             <div class="emp-stat"><span class="emp-stat-val">${euros(e.salaire_brut)}</span><span class="emp-stat-lbl">Brut/mois</span></div>
             <div class="emp-stat"><span class="emp-stat-val">${euros(e.cout_total_employeur)}</span><span class="emp-stat-lbl">Coût employeur</span></div>
-            <div class="emp-stat"><span class="emp-stat-val">${(e.conges_acquis - e.conges_pris).toFixed(1)}j</span><span class="emp-stat-lbl">Congés restants</span></div>
+            <div class="emp-stat"><span class="emp-stat-val">${((e.conges_acquis||0) - (e.conges_pris||0)).toFixed(1)}j</span><span class="emp-stat-lbl">Congés restants</span></div>
           </div>
           <div class="emp-actions">
-            <span class="badge ${e.statut === 'actif' ? 'badge-success' : 'badge-grey'}">${e.statut}</span>
-            <button class="btn-sm" onclick="editerEmploye(${JSON.stringify(e).replace(/"/g,'&quot;')})">✏️ Modifier</button>
+            <span class="badge ${e.statut === "actif" ? "badge-success" : "badge-grey"}">${e.statut}</span>
+            <button class="btn-sm" onclick='editerEmploye(${JSON.stringify(e).replace(/"/g,"&quot;")})'>✏️ Modifier</button>
           </div>
         </div>
       `).join("");
@@ -352,49 +411,157 @@
       });
     }
 
-    // ── MODAL EMPLOYÉ ──
+    // ── Modal employé ──
     function ouvrirModalEmploye(emp = null) {
       empIdEdition = emp?.id || null;
       document.getElementById("modal-emp-titre").textContent = emp ? "Modifier l'employé" : "Nouvel employé";
-      ["prenom","nom","email","tel","poste","dept","contrat","embauche","salaire","conges","notes-emp"].forEach(id => {
+      const champs = { prenom:"prenom", nom:"nom", email:"email", tel:"telephone", poste:"poste",
+                       dept:"departement", contrat:"type_contrat", embauche:"date_embauche",
+                       salaire:"salaire_brut", conges:"conges_acquis", "notes-emp":"notes" };
+      Object.entries(champs).forEach(([id, champ]) => {
         const el = document.getElementById("f-" + id);
         if (!el) return;
-        const champ = { prenom:"prenom", nom:"nom", email:"email", tel:"telephone", poste:"poste", dept:"departement", contrat:"type_contrat", embauche:"date_embauche", salaire:"salaire_brut", conges:"conges_acquis", "notes-emp":"notes" }[id];
         el.value = emp ? (emp[champ] ?? "") : (id === "conges" ? 25 : "");
       });
       document.getElementById("modal-employe").style.display = "flex";
     }
-
     function fermerModalEmploye() { document.getElementById("modal-employe").style.display = "none"; }
-    function editerEmploye(emp) { ouvrirModalEmploye(emp); }
+    function editerEmploye(emp)   { ouvrirModalEmploye(emp); }
 
     async function sauvegarderEmploye() {
       const body = {
         entreprise_id: ENTREPRISE_ID,
-        prenom: document.getElementById("f-prenom").value,
-        nom: document.getElementById("f-nom").value,
-        email: document.getElementById("f-email").value,
-        telephone: document.getElementById("f-tel").value,
-        poste: document.getElementById("f-poste").value,
-        departement: document.getElementById("f-dept").value,
-        type_contrat: document.getElementById("f-contrat").value,
+        prenom:        document.getElementById("f-prenom").value,
+        nom:           document.getElementById("f-nom").value,
+        email:         document.getElementById("f-email").value,
+        telephone:     document.getElementById("f-tel").value,
+        poste:         document.getElementById("f-poste").value,
+        departement:   document.getElementById("f-dept").value,
+        type_contrat:  document.getElementById("f-contrat").value,
         date_embauche: document.getElementById("f-embauche").value,
-        salaire_brut: parseFloat(document.getElementById("f-salaire").value) || 0,
+        salaire_brut:  parseFloat(document.getElementById("f-salaire").value) || 0,
         conges_acquis: parseFloat(document.getElementById("f-conges").value) || 25,
-        notes: document.getElementById("f-notes-emp").value
+        notes:         document.getElementById("f-notes-emp").value,
       };
-      const method = empIdEdition ? "PUT" : "POST";
-      const endpoint = empIdEdition ? `/business/rh/employes/${empIdEdition}` : "/business/rh/employes";
+      const method   = empIdEdition ? "PUT" : "POST";
+      const endpoint = empIdEdition
+        ? `/business/rh/employes/${empIdEdition}`
+        : "/business/rh/employes";
       const json = await apiAuth(method, endpoint, body);
-      if (json?.statut === "ok") { fermerModalEmploye(); chargerEmployes(); }
+      if (json?.statut === "ok") { fermerModalEmploye(); chargerEmployes(); chargerMasseSalariale(); }
       else alert(json?.message || "Erreur");
     }
 
-    // ── CONGÉS ──
+    // ════════════════════════════════════════
+    // 💸 GÉNÉRER PAIE DU MOIS
+    // ════════════════════════════════════════
+    function ouvrirModalPaie() {
+      // Remplir le sélecteur de mois
+      const sel = document.getElementById("paie-mois");
+      sel.innerHTML = "";
+      const now = new Date();
+      for (let i = 0; i < 6; i++) {
+        const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const val = d.toISOString().slice(0, 7);
+        const lbl = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+        const opt = document.createElement("option");
+        opt.value = val; opt.textContent = lbl;
+        if (i === 0) opt.selected = true;
+        sel.appendChild(opt);
+      }
+
+      // Résumé des employés actifs
+      const actifs = employes_cache.filter(e => e.statut === "actif");
+      const totalBrut = actifs.reduce((s, e) => s + (e.salaire_brut || 0), 0);
+      const totalCout = actifs.reduce((s, e) => s + (e.cout_total_employeur || 0), 0);
+
+      const resume = document.getElementById("paie-resume");
+      if (!actifs.length) {
+        resume.innerHTML = '<div class="alerte-banner alerte-warning">⚠️ Aucun employé actif trouvé.</div>';
+        document.getElementById("btn-confirmer-paie").disabled = true;
+      } else {
+        resume.innerHTML = `
+          <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;margin-bottom:4px">
+            <div style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">
+              Salaires à générer
+            </div>
+            ${actifs.map(e => `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.88rem">
+                <span>${e.prenom} ${e.nom} <span style="color:var(--text-muted);font-size:0.78rem">(${e.poste || "—"})</span></span>
+                <span style="font-weight:600">${euros(e.salaire_brut)}</span>
+              </div>
+            `).join("")}
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 0;font-size:0.9rem">
+              <span style="color:var(--text-muted)">${actifs.length} employé${actifs.length > 1 ? "s" : ""} · Brut total</span>
+              <strong style="color:var(--accent2)">${euros(totalBrut)}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;color:var(--text-muted)">
+              <span>Coût employeur total (charges incluses)</span>
+              <span>${euros(totalCout)}</span>
+            </div>
+          </div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px">
+            ⚠️ Charges calculées à titre indicatif (taux 2024). Les doublons du même mois sont ignorés.
+          </div>
+        `;
+        document.getElementById("btn-confirmer-paie").disabled = false;
+      }
+
+      document.getElementById("paie-resultat").style.display = "none";
+      document.getElementById("modal-paie").style.display = "flex";
+    }
+
+    function fermerModalPaie() {
+      document.getElementById("modal-paie").style.display = "none";
+    }
+
+    async function genererPaie() {
+      const mois = document.getElementById("paie-mois").value;
+      const actifs = employes_cache.filter(e => e.statut === "actif");
+      if (!actifs.length) return;
+
+      const btn = document.getElementById("btn-confirmer-paie");
+      btn.disabled = true;
+      btn.textContent = "⏳ Génération...";
+
+      const json = await apiAuth("POST", "/business/finances/generer-paie", {
+        entreprise_id: ENTREPRISE_ID,
+        mois,
+      });
+
+      btn.disabled = false;
+      btn.textContent = "💸 Confirmer et générer";
+
+      const resultat = document.getElementById("paie-resultat");
+      resultat.style.display = "block";
+
+      if (json?.statut === "ok") {
+        const d = json.data;
+        resultat.innerHTML = `
+          <div class="alerte-banner alerte-success" style="margin-bottom:0">
+            ✅ <strong>${d.generes}</strong> salaire${d.generes > 1 ? "s" : ""} généré${d.generes > 1 ? "s" : ""}
+            · <strong>${euros(d.total_brut)}</strong> de masse salariale
+            ${d.doublons > 0 ? `· <span style="color:var(--warning)">${d.doublons} doublon${d.doublons > 1 ? "s" : ""} ignoré${d.doublons > 1 ? "s" : ""}</span>` : ""}
+          </div>
+        `;
+        // Masquer le bouton confirmer, montrer fermer
+        document.getElementById("btn-confirmer-paie").style.display = "none";
+      } else {
+        resultat.innerHTML = `
+          <div class="alerte-banner alerte-danger" style="margin-bottom:0">
+            ❌ Erreur : ${json?.message || "Erreur serveur"}
+          </div>
+        `;
+      }
+    }
+
+    // ════════════════════════════════════════
+    // CONGÉS
+    // ════════════════════════════════════════
     async function chargerConges() {
       const json = await apiAuth("GET", `/business/rh/conges?entreprise_id=${ENTREPRISE_ID}&statut=${filtreStatutConge}`);
       const tbody = document.getElementById("tbody-conges");
-      const data = json?.data || [];
+      const data  = json?.data || [];
       if (!data.length) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun congé</td></tr>';
         return;
@@ -406,9 +573,9 @@
           <td>${c.date_debut}</td>
           <td>${c.date_fin}</td>
           <td>${c.nb_jours}j</td>
-          <td><span class="badge ${c.statut === 'approuve' ? 'badge-success' : c.statut === 'refuse' ? 'badge-danger' : 'badge-yellow'}">${c.statut}</span></td>
+          <td><span class="badge ${c.statut === "approuve" ? "badge-success" : c.statut === "refuse" ? "badge-danger" : "badge-yellow"}">${c.statut}</span></td>
           <td>
-            ${c.statut === 'en_attente' ? `
+            ${c.statut === "en_attente" ? `
               <button class="btn-sm" onclick="validerConge('${c.id}','approuve')">✓ Valider</button>
               <button class="btn-sm btn-danger" onclick="validerConge('${c.id}','refuse')">✗ Refuser</button>
             ` : "—"}
@@ -424,18 +591,22 @@
       chargerConges();
     }
 
-    function ouvrirModalConge() { document.getElementById("modal-conge").style.display = "flex"; }
-    function fermerModalConge() { document.getElementById("modal-conge").style.display = "none"; }
+    function ouvrirModalConge()  { document.getElementById("modal-conge").style.display = "flex"; }
+    function fermerModalConge()  { document.getElementById("modal-conge").style.display = "none"; }
 
     async function sauvegarderConge() {
       const body = {
         entreprise_id: ENTREPRISE_ID,
-        employe_id: document.getElementById("f-conge-emp").value,
-        type: document.getElementById("f-conge-type").value,
-        date_debut: document.getElementById("f-conge-debut").value,
-        date_fin: document.getElementById("f-conge-fin").value,
-        motif: document.getElementById("f-conge-motif").value
+        employe_id:    document.getElementById("f-conge-emp").value,
+        type:          document.getElementById("f-conge-type").value,
+        date_debut:    document.getElementById("f-conge-debut").value,
+        date_fin:      document.getElementById("f-conge-fin").value,
+        motif:         document.getElementById("f-conge-motif").value,
       };
+      if (!body.employe_id || !body.date_debut || !body.date_fin) {
+        alert("Employé, date début et date fin requis");
+        return;
+      }
       const json = await apiAuth("POST", "/business/rh/conges", body);
       if (json?.statut === "ok") { fermerModalConge(); chargerConges(); }
       else alert(json?.message || "Erreur");
@@ -446,98 +617,104 @@
       chargerConges();
     }
 
-    // ── POINTAGE ──
-    function calcHeures() {
-      const arr = document.getElementById("f-ptg-arrivee").value;
-      const dep = document.getElementById("f-ptg-depart").value;
-      if (arr && dep) {
-        const [ah, am] = arr.split(":").map(Number);
-        const [dh, dm] = dep.split(":").map(Number);
-        const diff = ((dh * 60 + dm) - (ah * 60 + am)) / 60;
-        document.getElementById("f-ptg-heures").value = Math.max(0, diff - 1).toFixed(1); // -1h pause déjeuner
-      }
-    }
-
-    async function enregistrerPointage() {
-      const body = {
-        entreprise_id: ENTREPRISE_ID,
-        employe_id: document.getElementById("f-ptg-emp").value,
-        date: document.getElementById("f-ptg-date").value,
-        heure_arrivee: document.getElementById("f-ptg-arrivee").value,
-        heure_depart: document.getElementById("f-ptg-depart").value,
-        heures_travaillees: parseFloat(document.getElementById("f-ptg-heures").value),
-        notes: document.getElementById("f-ptg-notes").value
-      };
-      const json = await apiAuth("POST", "/business/rh/pointages", body);
-      if (json?.statut === "ok") { alert("✅ Pointage enregistré"); chargerPointages(); }
-      else alert(json?.message || "Erreur");
-    }
-
+    // ════════════════════════════════════════
+    // POINTAGES
+    // ════════════════════════════════════════
     async function chargerPointages() {
       const empId = document.getElementById("select-emp-pointage").value;
-      const mois = document.getElementById("select-mois-pointage").value;
-      const params = `entreprise_id=${ENTREPRISE_ID}${empId ? "&employe_id=" + empId : ""}${mois ? "&mois=" + mois : ""}`;
-      const json = await apiAuth("GET", `/business/rh/pointages?${params}`);
+      const mois  = document.getElementById("select-mois-pointage").value;
+      if (!ENTREPRISE_ID) return;
+      let url = `/business/rh/pointages?entreprise_id=${ENTREPRISE_ID}&mois=${mois}`;
+      if (empId) url += `&employe_id=${empId}`;
+      const json  = await apiAuth("GET", url);
       const tbody = document.getElementById("tbody-pointages");
-      const data = json?.data || [];
-      if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun pointage</td></tr>'; return; }
+      const data  = json?.data || [];
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun pointage ce mois</td></tr>';
+        return;
+      }
       tbody.innerHTML = data.map(p => `
         <tr>
-          <td>${p.prenom || "?"} ${p.nom || ""}</td>
+          <td>${p.prenom || ""} ${p.nom || ""}</td>
           <td>${p.date}</td>
           <td>${p.heure_arrivee || "—"}</td>
-          <td>${p.heure_depart || "—"}</td>
+          <td>${p.heure_depart  || "—"}</td>
           <td>${p.heures_travaillees}h</td>
           <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${p.heures_supplementaires}h</span>` : "—"}</td>
         </tr>
       `).join("");
     }
 
-    // ── SIMULATEUR CHARGES ──
+    function ouvrirModalPointage()  { document.getElementById("modal-pointage").style.display = "flex"; }
+    function fermerModalPointage()  { document.getElementById("modal-pointage").style.display = "none"; }
+
+    async function sauvegarderPointage() {
+      const body = {
+        entreprise_id:  ENTREPRISE_ID,
+        employe_id:     document.getElementById("f-ptg-emp").value,
+        date:           document.getElementById("f-ptg-date").value,
+        heure_arrivee:  document.getElementById("f-ptg-arrivee").value,
+        heure_depart:   document.getElementById("f-ptg-depart").value,
+        notes:          document.getElementById("f-ptg-notes").value,
+      };
+      if (!body.employe_id || !body.date) { alert("Employé et date requis"); return; }
+      const json = await apiAuth("POST", "/business/rh/pointages", body);
+      if (json?.statut === "ok") { fermerModalPointage(); chargerPointages(); }
+      else alert(json?.message || "Erreur");
+    }
+
+    // ════════════════════════════════════════
+    // CHARGES SALARIALES
+    // ════════════════════════════════════════
     function simulerCharges() {
       const brut = parseFloat(document.getElementById("sim-brut").value) || 0;
       if (!brut) { document.getElementById("sim-resultat").innerHTML = ""; return; }
-      const cs = brut * 0.22;
-      const net = brut - cs;
-      const cp = brut * 0.42;
+      const cs   = brut * 0.22;
+      const net  = brut - cs;
+      const cp   = brut * 0.42;
       const cout = brut + cp;
       document.getElementById("sim-resultat").innerHTML = `
         <div class="stat-row"><span>Salaire brut</span><strong>${euros(brut)}</strong></div>
         <div class="stat-row"><span>Charges salariales (~22%)</span><strong style="color:var(--danger)">- ${euros(cs)}</strong></div>
         <div class="stat-row"><span>Salaire net estimé</span><strong style="color:var(--success)">${euros(net)}</strong></div>
-        <div class="stat-row" style="border-top:2px solid var(--border);margin-top:8px;padding-top:8px"><span>Charges patronales (~42%)</span><strong style="color:var(--danger)">${euros(cp)}</strong></div>
-        <div class="stat-row"><span><strong>Coût total employeur</strong></span><strong style="color:var(--accent2);font-size:1.1rem">${euros(cout)}</strong></div>
+        <div class="stat-row" style="border-top:2px solid var(--border);margin-top:8px;padding-top:8px">
+          <span>Charges patronales (~42%)</span><strong style="color:var(--danger)">${euros(cp)}</strong>
+        </div>
+        <div class="stat-row">
+          <span><strong>Coût total employeur</strong></span>
+          <strong style="color:var(--accent2);font-size:1.1rem">${euros(cout)}</strong>
+        </div>
         <div style="margin-top:8px;font-size:0.75rem;color:var(--text-muted)">⚠️ Taux indicatifs 2024</div>
       `;
     }
 
     async function chargerMasseSalariale() {
+      if (!ENTREPRISE_ID) return;
       const json = await apiAuth("GET", `/business/rh/masse-salariale?entreprise_id=${ENTREPRISE_ID}`);
-      const d = json?.data;
+      const d    = json?.data;
       const container = document.getElementById("masse-salariale-detail");
       if (!d) { container.innerHTML = '<div class="empty-state">Aucune donnée</div>'; return; }
       container.innerHTML = `
         <div class="stat-row"><span>Effectif actif</span><strong>${d.nb_employes_actifs} employés</strong></div>
         <div class="stat-row"><span>Salaires bruts / mois</span><strong>${euros(d.total_salaires_bruts)}</strong></div>
         <div class="stat-row"><span>Charges patronales</span><strong style="color:var(--danger)">${euros(d.charges_patronales_totales)}</strong></div>
-        <div class="stat-row"><span>Coût total / mois</span><strong style="color:var(--accent2)">${euros(d.cout_total_mensuel)}</strong></div>
-        <div class="stat-row"><span>Coût total / an</span><strong>${euros(d.cout_total_annuel)}</strong></div>
-        <div style="margin-top:12px;font-size:0.75rem;color:var(--text-muted)">⚠️ Taux indicatifs 2024</div>
+        <div class="stat-row"><span>Coût total employeur / mois</span><strong style="color:var(--accent2)">${euros(d.cout_total_mensuel)}</strong></div>
+        <div class="stat-row"><span>Coût total annuel</span><strong>${euros(d.cout_total_annuel)}</strong></div>
+        <div style="margin-top:12px;font-size:0.75rem;color:var(--text-muted)">⚠️ Taux indicatifs 2024 — consultez votre comptable</div>
       `;
     }
 
-    function showTab(name, btn) {
-      document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
-      document.querySelectorAll(".tabs:first-of-type .tab").forEach(t => t.classList.remove("active"));
-      document.getElementById("tab-" + name).classList.add("active");
-      btn.classList.add("active");
-    }
-
+    // ════════════════════════════════════════
+    // FORMATAGE
+    // ════════════════════════════════════════
     function euros(n) {
       if (!n && n !== 0) return "—";
       return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
     }
 
+    // ════════════════════════════════════════
+    // LANCEMENT
+    // ════════════════════════════════════════
     init();
   </script>
 </body>
