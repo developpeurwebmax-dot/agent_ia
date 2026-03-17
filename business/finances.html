@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="../style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
   <style>
-    /* ── Styles spécifiques modal CSV ── */
     .modal-large { max-width: 780px; width: 95vw; }
 
     .csv-header {
@@ -64,6 +63,22 @@
     .csv-mapping-row label {
       font-size: 0.74rem; font-weight: 600;
       color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;
+    }
+
+    .csv-format-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.78rem; padding: 6px 12px;
+      border-radius: 8px; margin-bottom: 12px;
+    }
+    .csv-format-badge.debit-credit {
+      background: color-mix(in srgb, var(--accent2) 12%, transparent);
+      color: var(--accent2);
+      border: 1px solid color-mix(in srgb, var(--accent2) 30%, transparent);
+    }
+    .csv-format-badge.montant-unique {
+      background: color-mix(in srgb, var(--success, #22c55e) 12%, transparent);
+      color: var(--success, #22c55e);
+      border: 1px solid color-mix(in srgb, var(--success, #22c55e) 30%, transparent);
     }
 
     .csv-stats-row {
@@ -242,12 +257,11 @@
 
 
   <!-- ══════════════════════════════════════
-       MODAL IMPORT CSV — VERSION AMÉLIORÉE
+       MODAL IMPORT CSV
   ══════════════════════════════════════ -->
   <div class="modal-overlay" id="modal-csv" style="display:none">
     <div class="modal modal-large">
 
-      <!-- En-tête avec indicateur d'étapes -->
       <div class="csv-header">
         <h3 id="csv-modal-titre">📂 Import relevé bancaire</h3>
         <div class="csv-steps">
@@ -274,9 +288,9 @@
           <div style="font-size:2.5rem;margin-bottom:12px">📂</div>
           <div style="font-size:1rem;font-weight:600;margin-bottom:6px">Glisse ton relevé bancaire ici</div>
           <div style="font-size:0.82rem;color:var(--text-muted)">ou clique pour choisir un fichier CSV</div>
-          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:14px;line-height:1.6">
-            Compatible : BNP · Crédit Agricole · Société Générale · Boursorama<br>
-            Revolut · N26 · LCL · CIC · HSBC · La Banque Postale
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:14px;line-height:1.8">
+            Compatible : BNP · Crédit Agricole · Société Générale · Boursorama · Revolut · N26 · LCL · CIC · HSBC<br>
+            Formats supportés : Débit/Crédit séparés <strong>et</strong> montant unique
           </div>
         </div>
         <div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-top:10px">
@@ -286,13 +300,16 @@
 
       <!-- ÉTAPE 2 : Mapping colonnes -->
       <div class="csv-panel" id="csv-panel-2" style="display:none">
-        <div class="alerte-banner alerte-info" id="csv-file-info" style="margin-bottom:14px"></div>
+        <div class="alerte-banner alerte-info" id="csv-file-info" style="margin-bottom:10px"></div>
+        <div id="csv-format-detected" style="margin-bottom:14px"></div>
+
         <div style="font-size:0.8rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">
-          Correspondance des colonnes détectée automatiquement
+          Correspondance des colonnes
         </div>
         <div class="csv-mapping-grid" id="csv-mapping-grid"></div>
+
         <div class="alerte-banner alerte-warning" id="csv-warn-mapping" style="display:none;margin-top:10px">
-          ⚠️ Certaines colonnes n'ont pas été reconnues automatiquement. Vérifie le mapping ci-dessus avant de continuer.
+          ⚠️ Certaines colonnes n'ont pas été reconnues. Vérifie le mapping ci-dessus.
         </div>
         <div class="modal-actions">
           <button class="btn-secondary" onclick="csvGoPanel(1)">← Retour</button>
@@ -300,7 +317,7 @@
         </div>
       </div>
 
-      <!-- ÉTAPE 3 : Prévisualisation + catégorisation -->
+      <!-- ÉTAPE 3 : Prévisualisation -->
       <div class="csv-panel" id="csv-panel-3" style="display:none">
         <div class="csv-stats-row" id="csv-stats-row"></div>
         <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px">
@@ -333,7 +350,7 @@
           <div id="csv-result-icon" style="font-size:3rem;margin-bottom:14px">⏳</div>
           <div id="csv-result-titre" style="font-size:1.1rem;font-weight:700;margin-bottom:8px">Import en cours...</div>
           <div id="csv-result-detail" style="font-size:0.88rem;color:var(--text-muted);margin-bottom:16px"></div>
-          <div class="csv-progress-bar" id="csv-progress-wrap">
+          <div class="csv-progress-bar">
             <div class="csv-progress-fill" id="csv-progress-fill"></div>
           </div>
           <div id="csv-result-actions" style="display:none;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px">
@@ -351,9 +368,9 @@
   <script>
     const API_BASE = "https://agentia-production-aec3.up.railway.app";
 
-    let ENTREPRISE_ID  = null;
-    let txnIdEdition   = null;
-    let filtreType     = "";
+    let ENTREPRISE_ID   = null;
+    let txnIdEdition    = null;
+    let filtreType      = "";
     let filtreCategorie = "";
     let toutes_transactions = [];
 
@@ -364,12 +381,11 @@
       const user = await initSidebar();
       if (!user) return;
 
-      // Remplir sélecteur mois (12 derniers mois)
       const sel = document.getElementById("select-mois");
       const now = new Date();
       for (let i = 0; i < 12; i++) {
         const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
         const lbl = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
         const opt = document.createElement("option");
         opt.value = val; opt.textContent = lbl;
@@ -377,12 +393,10 @@
         sel.appendChild(opt);
       }
 
-      // Date par défaut formulaire
       const n = new Date();
       document.getElementById("f-date").value =
         `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;
 
-      // Charger l'entreprise
       const json = await appelAPI("GET", "/business/entreprises");
       if (!json?.data?.entreprises?.length) {
         console.warn("Aucune entreprise trouvée");
@@ -400,10 +414,10 @@
     // ════════════════════════════════════════
     async function appelAPI(method, endpoint, body) {
       const token = localStorage.getItem("jwt_token");
-      const opts = {
+      const opts  = {
         method,
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type":  "application/json",
           "Authorization": "Bearer " + token
         }
       };
@@ -499,26 +513,26 @@
       const val  = sel.value;
       const cats = {
         revenu: [
-          { value: "vente_produit",     label: "🛒 Vente produit" },
-          { value: "prestation",        label: "💼 Prestation de service" },
-          { value: "abonnement",        label: "🔄 Abonnement / Licence" },
-          { value: "subvention",        label: "🏛️ Subvention / Aide" },
-          { value: "remboursement",     label: "↩️ Remboursement" },
-          { value: "placement",         label: "📈 Placement / Dividende" },
-          { value: "autre",             label: "❓ Autre" },
+          { value: "vente_produit",    label: "🛒 Vente produit" },
+          { value: "prestation",       label: "💼 Prestation de service" },
+          { value: "abonnement",       label: "🔄 Abonnement / Licence" },
+          { value: "subvention",       label: "🏛️ Subvention / Aide" },
+          { value: "remboursement",    label: "↩️ Remboursement" },
+          { value: "placement",        label: "📈 Placement / Dividende" },
+          { value: "autre",            label: "❓ Autre" },
         ],
         depense: [
-          { value: "salaires",           label: "👥 Salaires" },
-          { value: "loyer",              label: "🏢 Loyer" },
-          { value: "charges_fixes",      label: "⚡ Charges fixes" },
-          { value: "fournitures",        label: "📦 Fournitures" },
-          { value: "marketing",          label: "📣 Marketing" },
-          { value: "deplacement_repas",  label: "🚗 Déplacements / Repas" },
-          { value: "assurances",         label: "🛡️ Assurances" },
-          { value: "honoraires",         label: "⚖️ Honoraires" },
-          { value: "materiel",           label: "🖥️ Matériel / Équipement" },
-          { value: "logiciels",          label: "💻 Logiciels / Abonnements" },
-          { value: "autre",              label: "❓ Autre" },
+          { value: "salaires",          label: "👥 Salaires" },
+          { value: "loyer",             label: "🏢 Loyer" },
+          { value: "charges_fixes",     label: "⚡ Charges fixes" },
+          { value: "fournitures",       label: "📦 Fournitures" },
+          { value: "marketing",         label: "📣 Marketing" },
+          { value: "deplacement_repas", label: "🚗 Déplacements / Repas" },
+          { value: "assurances",        label: "🛡️ Assurances" },
+          { value: "honoraires",        label: "⚖️ Honoraires" },
+          { value: "materiel",          label: "🖥️ Matériel / Équipement" },
+          { value: "logiciels",         label: "💻 Logiciels / Abonnements" },
+          { value: "autre",             label: "❓ Autre" },
         ]
       };
       sel.innerHTML = (cats[type] || cats.depense)
@@ -530,38 +544,35 @@
       txnIdEdition = txn?.id || null;
       document.getElementById("modal-titre").textContent = txn ? "Modifier la transaction" : "Nouvelle transaction";
       if (txn) {
-        document.getElementById("f-type").value    = txn.type || "depense";
+        document.getElementById("f-type").value     = txn.type || "depense";
         majCategories();
-        document.getElementById("f-montant").value    = txn.montant || "";
-        document.getElementById("f-date").value       = txn.date || "";
-        document.getElementById("f-categorie").value  = txn.categorie || "autre";
-        document.getElementById("f-description").value= txn.description || "";
-        document.getElementById("f-mode").value       = txn.mode_paiement || "virement";
-        document.getElementById("f-reference").value  = txn.reference || "";
+        document.getElementById("f-montant").value     = txn.montant || "";
+        document.getElementById("f-date").value        = txn.date || "";
+        document.getElementById("f-categorie").value   = txn.categorie || "autre";
+        document.getElementById("f-description").value = txn.description || "";
+        document.getElementById("f-mode").value        = txn.mode_paiement || "virement";
+        document.getElementById("f-reference").value   = txn.reference || "";
       } else {
-        document.getElementById("f-type").value    = "depense";
+        document.getElementById("f-type").value     = "depense";
         majCategories();
-        document.getElementById("f-montant").value    = "";
-        document.getElementById("f-date").value       = new Date().toISOString().slice(0, 10);
-        document.getElementById("f-categorie").value  = "autre";
-        document.getElementById("f-description").value= "";
-        document.getElementById("f-mode").value       = "virement";
-        document.getElementById("f-reference").value  = "";
+        document.getElementById("f-montant").value     = "";
+        document.getElementById("f-date").value        = new Date().toISOString().slice(0,10);
+        document.getElementById("f-categorie").value   = "autre";
+        document.getElementById("f-description").value = "";
+        document.getElementById("f-mode").value        = "virement";
+        document.getElementById("f-reference").value   = "";
       }
       document.getElementById("modal-txn").style.display = "flex";
     }
 
-    function fermerModal() {
-      document.getElementById("modal-txn").style.display = "none";
-    }
-
+    function fermerModal() { document.getElementById("modal-txn").style.display = "none"; }
     function editerTransaction(txn) { ouvrirModal(txn); }
 
     async function sauvegarderTransaction() {
       const montant = parseFloat(document.getElementById("f-montant").value);
       const date    = document.getElementById("f-date").value;
       if (!montant || !date) { alert("Montant et date requis"); return; }
-      if (!ENTREPRISE_ID)   { alert("Erreur : entreprise non chargée. Rechargez la page."); return; }
+      if (!ENTREPRISE_ID)    { alert("Erreur : entreprise non chargée."); return; }
 
       const body = {
         entreprise_id: ENTREPRISE_ID,
@@ -586,7 +597,7 @@
         const res  = await fetch(API_BASE + endpoint, {
           method,
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":  "application/json",
             "Authorization": "Bearer " + localStorage.getItem("jwt_token")
           },
           body: JSON.stringify(body)
@@ -599,7 +610,6 @@
           alert("Erreur : " + (json?.message || "Réponse inattendue"));
         }
       } catch (e) {
-        console.error("❌", e);
         alert("Erreur réseau : " + e.message);
       } finally {
         btn.disabled = false; btn.textContent = "💾 Enregistrer";
@@ -614,9 +624,11 @@
 
     // ════════════════════════════════════════
     // IMPORT CSV — LOGIQUE COMPLÈTE
+    // Supporte :
+    //   - Format montant unique  (positif = revenu, négatif = dépense)
+    //   - Format Débit/Crédit    (colonnes séparées — banques françaises)
     // ════════════════════════════════════════
 
-    // ── Constantes catégories ──
     const CSV_CATEGORIES = [
       { val: "revenus",           lbl: "💰 Revenus" },
       { val: "salaires",          lbl: "👥 Salaires" },
@@ -633,13 +645,18 @@
     const CSV_MOTS_CLES = {
       salaires:          ["salaire","paie","urssaf","cotisation","virement employe","virement employé","dsn"],
       loyer:             ["loyer","bail","fonciere","foncière","immobilier","charges locatives"],
-      charges_fixes:     ["edf","engie","orange","sfr","bouygues","free","eau","gaz","electricite","électricité","internet","ovh","scaleway","online.net"],
+      charges_fixes:     ["edf","engie","orange","sfr","bouygues","free","eau","gaz","electricite",
+                          "électricité","internet","ovh","scaleway","online.net","tenue de compte","frais bancaire"],
       fournitures:       ["amazon","fnac","darty","fourniture","bureau","papier","office depot","staples","ldlc"],
-      marketing:         ["google","facebook","meta","publicite","publicité","ads","marketing","instagram","linkedin","twitter","tiktok","mailchimp"],
-      deplacement_repas: ["restaurant","repas","hotel","hôtel","train","sncf","avion","air france","easyjet","taxi","uber","bolt","deliveroo","just eat","uber eats","parking"],
+      marketing:         ["google","facebook","meta","publicite","publicité","ads","marketing",
+                          "instagram","linkedin","twitter","tiktok","mailchimp"],
+      deplacement_repas: ["restaurant","repas","hotel","hôtel","train","sncf","avion","air france",
+                          "easyjet","taxi","uber","bolt","deliveroo","just eat","uber eats","parking"],
       assurances:        ["assurance","mutuelle","maif","matmut","axa","macif","covea","allianz","groupama"],
-      honoraires:        ["expert","comptable","avocat","juridique","notaire","consultant","freelance","prestataire","agence"],
-      revenus:           ["facture","honoraires client","paiement client","reglement","règlement","acompte","virement client","prestation","invoice"],
+      honoraires:        ["expert","comptable","avocat","juridique","notaire","consultant","freelance",
+                          "prestataire","agence"],
+      revenus:           ["facture","honoraires client","paiement client","reglement","règlement",
+                          "acompte","virement client","virement recu","prestation","invoice"],
     };
 
     function csvAutoCat(desc) {
@@ -651,9 +668,10 @@
     }
 
     // ── State CSV ──
-    let csvParsedRows = [];
-    let csvMapping    = {};
-    let csvFileName   = "";
+    let csvParsedRows  = [];
+    let csvMapping     = {};
+    let csvFileName    = "";
+    let csvFormatDebitCredit = false; // true = format banque française
 
     // ── Drag & drop ──
     function csvDragOver(e)  { e.preventDefault(); document.getElementById("csv-drop-zone").classList.add("drag-over"); }
@@ -664,7 +682,6 @@
       if (e.dataTransfer.files[0]) csvHandleFile(e.dataTransfer.files[0]);
     }
 
-    // ── Lecture fichier ──
     function csvHandleFile(file) {
       if (!file) return;
       csvFileName = file.name;
@@ -678,7 +695,6 @@
       reader.readAsText(file, "UTF-8");
     }
 
-    // ── Détection séparateur ──
     function csvDetectSep(text) {
       const first = text.split("\n")[0] || "";
       const scores = {
@@ -689,7 +705,16 @@
       return Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
     }
 
-    // ── Parsing CSV ──
+    function csvParseFloat(raw) {
+      if (!raw) return 0;
+      return parseFloat(
+        raw.toString()
+           .replace(/\xa0/g, "")
+           .replace(/\s/g, "")
+           .replace(",", ".")
+      ) || 0;
+    }
+
     function csvParseContent(text) {
       const sep     = csvDetectSep(text);
       const lines   = text.split(/\r?\n/).filter(l => l.trim());
@@ -699,35 +724,80 @@
         h.trim().replace(/^["']|["']$/g, "").toLowerCase()
       );
 
-      // Aliases connus par banque
-      const ALIASES = {
-        date:        ["date","date opération","date operation","date valeur","date comptable","date transaction","date mouvement","booking date","transaction date"],
-        montant:     ["montant","amount","débit/crédit","debit/credit","montant eur","montant €","credit","debit","solde","valeur","net amount"],
-        description: ["libellé","libelle","description","label","motif","reference","intitulé","intitule","operation","wording","transaction details","narrative"],
-        reference:   ["ref","référence","reference","no","numéro","id","transaction id"],
+      // ── Aliases colonnes standard ──
+      const ALIASES_DATE = [
+        "date","date opération","date operation","date valeur",
+        "date comptable","date transaction","date mouvement","booking date"
+      ];
+      const ALIASES_MONTANT = [
+        "montant","amount","montant eur","montant €","valeur","net amount"
+      ];
+      const ALIASES_DEBIT = [
+        "débit","debit","débit ttc","montant débit","montant debit","debit eur"
+      ];
+      const ALIASES_CREDIT = [
+        "crédit","credit","crédit ttc","montant crédit","montant credit","credit eur"
+      ];
+      const ALIASES_DESC = [
+        "libellé","libelle","description","label","motif","intitulé",
+        "intitule","operation","wording","transaction details","narrative"
+      ];
+      const ALIASES_REF = [
+        "référence","reference","ref","no","numéro","id","transaction id"
+      ];
+
+      const findCol = (aliases) => aliases.find(a => headers.includes(a)) || null;
+
+      // Détecter le format : Débit/Crédit séparés OU montant unique
+      const colDebit  = findCol(ALIASES_DEBIT);
+      const colCredit = findCol(ALIASES_CREDIT);
+      csvFormatDebitCredit = !!(colDebit && colCredit);
+
+      csvMapping = {
+        date:        findCol(ALIASES_DATE),
+        montant:     csvFormatDebitCredit ? null : findCol(ALIASES_MONTANT),
+        debit:       colDebit,
+        credit:      colCredit,
+        description: findCol(ALIASES_DESC),
+        reference:   findCol(ALIASES_REF),
       };
 
-      csvMapping = {};
-      for (const [field, aliases] of Object.entries(ALIASES)) {
-        for (const alias of aliases) {
-          if (headers.includes(alias)) { csvMapping[field] = alias; break; }
-        }
-      }
-
+      // ── Parsing des lignes ──
       csvParsedRows = [];
       for (let i = 1; i < Math.min(lines.length, 501); i++) {
         const cols = lines[i].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ""));
         const row  = {};
         headers.forEach((h, idx) => { row[h] = cols[idx] || ""; });
 
-        const rawDate    = row[csvMapping.date]        || "";
-        const rawMontant = row[csvMapping.montant]      || "0";
-        const rawDesc    = row[csvMapping.description]  || `Ligne ${i}`;
-        const rawRef     = row[csvMapping.reference]    || "";
+        const rawDate = row[csvMapping.date] || "";
+        const rawDesc = row[csvMapping.description] || `Ligne ${i}`;
+        const rawRef  = row[csvMapping.reference]   || "";
 
-        let montant = parseFloat(rawMontant.replace(/\s/g, "").replace(",", ".").replace(/\xa0/g, "")) || 0;
-        const type  = montant >= 0 ? "revenu" : "depense";
-        montant     = Math.abs(montant);
+        let montant = 0;
+        let type    = "depense";
+
+        if (csvFormatDebitCredit) {
+          // ── FORMAT BANQUE FRANÇAISE : Débit / Crédit séparés ──
+          const debit  = csvParseFloat(row[csvMapping.debit]);
+          const credit = csvParseFloat(row[csvMapping.credit]);
+
+          if (credit > 0) {
+            montant = credit;
+            type    = "revenu";
+          } else if (debit > 0) {
+            montant = debit;
+            type    = "depense";
+          } else {
+            // Ligne sans montant (ex: solde initial) → on ignore
+            continue;
+          }
+        } else {
+          // ── FORMAT MONTANT UNIQUE ──
+          const raw = csvParseFloat(row[csvMapping.montant]);
+          if (raw === 0) continue; // ignorer les lignes à 0
+          type    = raw >= 0 ? "revenu" : "depense";
+          montant = Math.abs(raw);
+        }
 
         csvParsedRows.push({
           date:        csvParseDate(rawDate),
@@ -739,29 +809,69 @@
         });
       }
 
-      // Afficher info fichier
+      // ── Afficher infos fichier ──
       const sepLabel = sep === "\t" ? "tabulation" : sep;
       document.getElementById("csv-file-info").innerHTML =
-        `📄 <strong>${csvFileName}</strong> — <strong>${csvParsedRows.length}</strong> transactions détectées — séparateur : <code>${sepLabel}</code>`;
+        `📄 <strong>${csvFileName}</strong> — <strong>${csvParsedRows.length}</strong> transactions — séparateur : <code>${sepLabel}</code>`;
 
-      // Construire le mapping UI
+      // ── Badge format détecté ──
+      const formatDiv = document.getElementById("csv-format-detected");
+      if (csvFormatDebitCredit) {
+        formatDiv.innerHTML = `<div class="csv-format-badge debit-credit">
+          ✅ Format banque française détecté — colonnes <strong>Débit</strong> et <strong>Crédit</strong> séparées
+        </div>`;
+      } else {
+        formatDiv.innerHTML = `<div class="csv-format-badge montant-unique">
+          ✅ Format montant unique détecté — positif = revenu, négatif = dépense
+        </div>`;
+      }
+
+      // ── Mapping UI (colonnes modifiables) ──
       const grid = document.getElementById("csv-mapping-grid");
-      const fieldLabels = { date: "Colonne Date", montant: "Colonne Montant", description: "Colonne Description" };
-      grid.innerHTML = Object.entries(fieldLabels).map(([field, lbl]) => `
-        <div class="csv-mapping-row">
-          <label>${lbl} *</label>
-          <select class="select-inline" onchange="csvMapping['${field}']=this.value">
-            ${headers.map(h => `<option value="${h}" ${csvMapping[field] === h ? "selected" : ""}>${h}</option>`).join("")}
-          </select>
-        </div>
-      `).join("");
+      if (csvFormatDebitCredit) {
+        // Format Débit/Crédit : montrer les 4 colonnes
+        const fieldLabels = {
+          date:        "Colonne Date",
+          debit:       "Colonne Débit",
+          credit:      "Colonne Crédit",
+          description: "Colonne Description",
+        };
+        grid.innerHTML = Object.entries(fieldLabels).map(([field, lbl]) => `
+          <div class="csv-mapping-row">
+            <label>${lbl} *</label>
+            <select class="select-inline" onchange="csvMapping['${field}']=this.value">
+              <option value="">— non défini —</option>
+              ${headers.map(h => `<option value="${h}" ${csvMapping[field] === h ? "selected" : ""}>${h}</option>`).join("")}
+            </select>
+          </div>
+        `).join("");
+      } else {
+        // Format montant unique : 3 colonnes
+        const fieldLabels = {
+          date:        "Colonne Date",
+          montant:     "Colonne Montant",
+          description: "Colonne Description",
+        };
+        grid.innerHTML = Object.entries(fieldLabels).map(([field, lbl]) => `
+          <div class="csv-mapping-row">
+            <label>${lbl} *</label>
+            <select class="select-inline" onchange="csvMapping['${field}']=this.value">
+              <option value="">— non défini —</option>
+              ${headers.map(h => `<option value="${h}" ${csvMapping[field] === h ? "selected" : ""}>${h}</option>`).join("")}
+            </select>
+          </div>
+        `).join("");
+      }
 
-      const missing = ["date","montant","description"].filter(f => !csvMapping[f]);
+      const requiredFields = csvFormatDebitCredit
+        ? ["date","debit","credit","description"]
+        : ["date","montant","description"];
+      const missing = requiredFields.filter(f => !csvMapping[f]);
       document.getElementById("csv-warn-mapping").style.display = missing.length ? "block" : "none";
     }
 
     function csvParseDate(s) {
-      if (!s) return new Date().toISOString().slice(0, 10);
+      if (!s) return new Date().toISOString().slice(0,10);
       const fmts = [
         { r: /^(\d{2})\/(\d{2})\/(\d{4})$/, fn: m => `${m[3]}-${m[2]}-${m[1]}` },
         { r: /^(\d{4})-(\d{2})-(\d{2})$/,   fn: m => `${m[1]}-${m[2]}-${m[3]}` },
@@ -773,10 +883,9 @@
         const m = s.match(r);
         if (m) return fn(m);
       }
-      return new Date().toISOString().slice(0, 10);
+      return new Date().toISOString().slice(0,10);
     }
 
-    // ── Navigation étapes ──
     function csvGoPanel(n) {
       for (let i = 1; i <= 4; i++) {
         const panel = document.getElementById(`csv-panel-${i}`);
@@ -794,10 +903,9 @@
       if (n === 3) csvRenderPreview();
     }
 
-    // ── Prévisualisation ──
     function csvRenderPreview() {
-      const revenus  = csvParsedRows.filter(r => r.type === "revenu").reduce((s, r) => s + r.montant, 0);
-      const depenses = csvParsedRows.filter(r => r.type === "depense").reduce((s, r) => s + r.montant, 0);
+      const revenus  = csvParsedRows.filter(r => r.type === "revenu").reduce((s,r) => s + r.montant, 0);
+      const depenses = csvParsedRows.filter(r => r.type === "depense").reduce((s,r) => s + r.montant, 0);
 
       document.getElementById("csv-stats-row").innerHTML = `
         <div class="csv-stat">
@@ -825,10 +933,10 @@
               ${CSV_CATEGORIES.map(c => `<option value="${c.val}" ${r.categorie === c.val ? "selected" : ""}>${c.lbl}</option>`).join("")}
             </select>
           </td>
-          <td style="text-align:right;font-weight:600;white-space:nowrap;color:${r.type === "revenu" ? "var(--success)" : "var(--danger)"}">
-            ${r.type === "revenu" ? "+" : "-"}${r.montant.toFixed(2)} €
+          <td style="text-align:right;font-weight:600;white-space:nowrap;color:${r.type==="revenu" ? "var(--success)" : "var(--danger)"}">
+            ${r.type==="revenu" ? "+" : "-"}${r.montant.toFixed(2)} €
           </td>
-          <td><span class="badge ${r.type === "revenu" ? "badge-success" : "badge-danger"}">${r.type === "revenu" ? "Revenu" : "Dépense"}</span></td>
+          <td><span class="badge ${r.type==="revenu" ? "badge-success" : "badge-danger"}">${r.type==="revenu" ? "Revenu" : "Dépense"}</span></td>
         </tr>
       `).join("");
 
@@ -838,13 +946,11 @@
         : "";
     }
 
-    // ── Import vers l'API ──
     async function csvLancerImport() {
       if (!csvParsedRows.length || !ENTREPRISE_ID) return;
       csvGoPanel(4);
       document.getElementById("csv-result-actions").style.display = "none";
 
-      // Animation progression
       let pct = 0;
       const fill  = document.getElementById("csv-progress-fill");
       const timer = setInterval(() => {
@@ -868,7 +974,7 @@
         const res  = await fetch(API_BASE + "/business/finances/import-bulk", {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":  "application/json",
             "Authorization": "Bearer " + localStorage.getItem("jwt_token"),
           },
           body: JSON.stringify(payload),
@@ -880,9 +986,9 @@
 
         if (json?.statut === "ok") {
           const d = json.data;
-          document.getElementById("csv-result-icon").textContent   = "✅";
-          document.getElementById("csv-result-titre").textContent  = "Import terminé !";
-          document.getElementById("csv-result-detail").innerHTML   =
+          document.getElementById("csv-result-icon").textContent  = "✅";
+          document.getElementById("csv-result-titre").textContent = "Import terminé !";
+          document.getElementById("csv-result-detail").innerHTML  =
             `<strong>${d.importees}</strong> transactions importées · 
              <strong>${d.doublons_ignores}</strong> doublons ignorés
              ${d.erreurs?.length ? `<br><span style="color:var(--warning)">⚠️ ${d.erreurs.length} lignes ignorées</span>` : ""}`;
@@ -893,14 +999,13 @@
         }
       } catch (err) {
         clearInterval(timer);
-        document.getElementById("csv-result-icon").textContent   = "❌";
-        document.getElementById("csv-result-titre").textContent  = "Erreur d'import";
+        document.getElementById("csv-result-icon").textContent  = "❌";
+        document.getElementById("csv-result-titre").textContent = "Erreur d'import";
         document.getElementById("csv-result-detail").textContent = err.message;
         document.getElementById("csv-result-actions").style.display = "flex";
       }
     }
 
-    // ── Helpers modal CSV ──
     function ouvrirImportCSV() {
       csvReset();
       document.getElementById("modal-csv").style.display = "flex";
@@ -910,7 +1015,7 @@
       document.getElementById("modal-csv").style.display = "none";
     }
     function csvReset() {
-      csvParsedRows = []; csvMapping = {}; csvFileName = "";
+      csvParsedRows = []; csvMapping = {}; csvFileName = ""; csvFormatDebitCredit = false;
       document.getElementById("csv-file-input").value = "";
       csvGoPanel(1);
     }
