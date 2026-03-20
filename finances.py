@@ -1,6 +1,8 @@
 """
 finances.py — Gestion financière PME
-Transactions, catégories, trésorerie, projections, import CSV, génération paie
+Transactions, catégories, trésorerie, projections, import CSV
+NOTE: Les salaires ne sont PAS générés automatiquement.
+      Saisir manuellement dans Finances > + Transaction > Dépense > Salaires.
 """
 
 import json
@@ -262,7 +264,7 @@ def importer_csv(entreprise_id: str, contenu_csv: str, mapping: dict = None) -> 
                         montant  = debit
                         type_txn = "depense"
                     else:
-                        continue  # ligne sans montant (solde, etc.)
+                        continue
                 else:
                     col_m    = (mapping.get("montant") or "montant").lower()
                     raw_m    = ligne_norm.get(col_m, "0")
@@ -280,7 +282,6 @@ def importer_csv(entreprise_id: str, contenu_csv: str, mapping: dict = None) -> 
                 desc        = ligne_norm.get(col_desc, "") or f"Import ligne {i + 1}"
                 ref         = ligne_norm.get(col_ref, "")
 
-                # Anti-doublon
                 doublon = conn.execute(
                     "SELECT id FROM transactions "
                     "WHERE entreprise_id=? AND date=? AND montant=? AND description=?",
@@ -316,7 +317,6 @@ def importer_csv(entreprise_id: str, contenu_csv: str, mapping: dict = None) -> 
 def importer_bulk(entreprise_id: str, transactions: list) -> dict:
     """
     Importe des transactions déjà parsées et catégorisées côté front.
-    Utilisé par la nouvelle modale CSV après prévisualisation.
     """
     if not transactions:
         return {"importees": 0, "doublons_ignores": 0, "erreurs": [], "total_lignes": 0}
@@ -384,86 +384,17 @@ def importer_bulk(entreprise_id: str, transactions: list) -> dict:
 
 
 # ─────────────────────────────────────────────
-# GÉNÉRATION AUTOMATIQUE DE LA PAIE
+# GÉNÉRATION PAIE — DÉSACTIVÉE
+# Les salaires restent dans la fiche employé uniquement.
+# Aucun impact automatique sur les transactions financières.
 # ─────────────────────────────────────────────
 
 def generer_paie_mensuelle(entreprise_id: str, mois: str) -> dict:
-    """
-    Génère automatiquement une transaction de salaire par employé actif.
-    mois : format YYYY-MM
-    Anti-doublon : ignore les salaires déjà générés ce mois.
-    """
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            "SELECT id, prenom, nom, salaire_brut FROM employes "
-            "WHERE entreprise_id=? AND statut='actif' AND salaire_brut > 0",
-            (entreprise_id,)
-        ).fetchall()
-        employes = rows_to_list(rows)
-
-        if not employes:
-            return {"generes": 0, "doublons": 0, "total_brut": 0, "detail": []}
-
-        # Date de virement = dernier jour du mois
-        annee, num_mois    = int(mois[:4]), int(mois[5:7])
-        dernier_jour       = calendar.monthrange(annee, num_mois)[1]
-        date_virement      = f"{mois}-{dernier_jour:02d}"
-
-        generes    = 0
-        doublons   = 0
-        total_brut = 0
-        detail     = []
-
-        for emp in employes:
-            salaire_brut = float(emp.get("salaire_brut") or 0)
-            prenom       = emp.get("prenom", "")
-            nom          = emp.get("nom", "")
-            description  = f"Salaire {prenom} {nom} — {mois}"
-
-            # Anti-doublon
-            doublon = conn.execute(
-                "SELECT id FROM transactions "
-                "WHERE entreprise_id=? AND description=? AND substr(date,1,7)=?",
-                (entreprise_id, description, mois)
-            ).fetchone()
-
-            if doublon:
-                doublons += 1
-                continue
-
-            tid = _generer_id("TRX")
-            conn.execute("""
-                INSERT INTO transactions
-                    (id, entreprise_id, type, montant, categorie,
-                     description, date, mode_paiement, reference)
-                VALUES (?, ?, 'depense', ?, 'salaires', ?, ?, 'virement', ?)
-            """, (
-                tid,
-                entreprise_id,
-                salaire_brut,
-                description,
-                date_virement,
-                f"SALAIRE-{emp.get('id', '')}",
-            ))
-
-            generes    += 1
-            total_brut += salaire_brut
-            detail.append({
-                "employe":     f"{prenom} {nom}",
-                "montant":     salaire_brut,
-                "transaction": tid,
-            })
-
-        conn.commit()
-        return {
-            "generes":    generes,
-            "doublons":   doublons,
-            "total_brut": round(total_brut, 2),
-            "detail":     detail,
-        }
-    finally:
-        conn.close()
+    """Désactivée — les salaires n'impactent plus automatiquement les finances."""
+    return {
+        "generes": 0, "doublons": 0, "total_brut": 0, "detail": [],
+        "message": "Génération automatique désactivée. Saisissez vos virements manuellement dans Finances."
+    }
 
 
 # ─────────────────────────────────────────────
@@ -599,20 +530,8 @@ def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
         revenus_moy  /= 3
         depenses_moy /= 3
 
-        # Masse salariale protégée contre table/colonne manquante
-        cout_employeur_mensuel = 0
-        try:
-            row_sal    = conn.execute(
-                "SELECT COALESCE(SUM(salaire_brut), 0) as c FROM employes "
-                "WHERE entreprise_id=? AND statut='actif'",
-                (entreprise_id,)
-            ).fetchone()
-            total_brut             = sc(row_sal)
-            cout_employeur_mensuel = round(total_brut * 1.42, 2)
-        except Exception:
-            cout_employeur_mensuel = 0
-
-        depenses_moy += cout_employeur_mensuel
+        # NOTE: La masse salariale n'est PAS ajoutée ici automatiquement.
+        # Elle n'est projetée que si des transactions de salaires réelles existent.
 
         projection  = []
         solde_cumul = 0
@@ -625,7 +544,7 @@ def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
                 "depenses_prevues":   round(depenses_moy, 2),
                 "solde_mensuel":      round(revenus_moy - depenses_moy, 2),
                 "tresorerie_cumulee": round(solde_cumul, 2),
-                "dont_salaires":      round(cout_employeur_mensuel, 2),
+                "dont_salaires":      0,
             })
         return projection
     finally:
