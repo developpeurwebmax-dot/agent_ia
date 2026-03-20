@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA Business — Connexion</title>
+  <link rel="stylesheet" href="../style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+
+    .auth-wrap {
+      display: flex;
+      width: 900px;
+      max-width: 98vw;
+      min-height: 540px;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    }
+
+    /* ── GAUCHE ── */
+    .auth-left {
+      flex: 1;
+      background: linear-gradient(135deg, #0f1729 0%, #0d0d1a 100%);
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-right: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .auth-left::before {
+      content: '';
+      position: absolute;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(59,130,246,0.18) 0%, transparent 70%);
+      top: -80px; right: -80px;
+      border-radius: 50%;
+    }
+    .auth-left::after {
+      content: '';
+      position: absolute;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
+      bottom: -50px; left: -50px;
+      border-radius: 50%;
+    }
+
+    .auth-logo {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .auth-tagline h2 {
+      font-family: var(--font-display);
+      font-size: 1.7rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 12px;
+    }
+    .auth-tagline p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .auth-features {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .auth-feature {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: var(--text-soft);
+    }
+    .feature-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #60a5fa;
+      flex-shrink: 0;
+    }
+
+    /* ── DROITE ── */
+    .auth-right {
+      width: 420px;
+      background: var(--card);
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-right h3 {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .auth-sub {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      margin-bottom: 28px;
+    }
+
+    .auth-form { display: flex; flex-direction: column; gap: 16px; }
+
+    .auth-form .form-group label {
+      font-size: 0.82rem;
+      color: var(--text-soft);
+      font-weight: 500;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .auth-form input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .auth-form input:focus { border-color: #60a5fa; }
+
+    .btn-auth {
+      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-top: 4px;
+    }
+    .btn-auth:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-auth:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .auth-switch {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .auth-switch a {
+      color: #60a5fa;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .auth-switch a:hover { text-decoration: underline; }
+
+    .error-msg {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #f87171;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 16px 0 8px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .btn-switch-space {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 10px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+      display: block;
+      text-decoration: none;
+    }
+    .btn-switch-space:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-wrap">
+    <!-- GAUCHE -->
+    <div class="auth-left">
+      <div class="auth-logo">🏢 Agent IA Business</div>
+
+      <div class="auth-tagline">
+        <h2>Pilotez votre entreprise avec l'IA</h2>
+        <p>Finances, RH, facturation B2B et analytics intelligents pour les PME.</p>
+      </div>
+
+      <div class="auth-features">
+        <div class="auth-feature"><span class="feature-dot"></span>Dashboard dirigeant avec KPIs temps réel</div>
+        <div class="auth-feature"><span class="feature-dot"></span>Gestion RH complète — employés, congés, pointage</div>
+        <div class="auth-feature"><span class="feature-dot"></span>Facturation B2B multi-commerciaux</div>
+        <div class="auth-feature"><span class="feature-dot"></span>Import CSV bancaire + détection d'anomalies</div>
+        <div class="auth-feature"><span class="feature-dot"></span>Multi-utilisateurs avec rôles et permissions</div>
+      </div>
+    </div>
+
+    <!-- DROITE -->
+    <div class="auth-right">
+      <h3>Connexion 👋</h3>
+      <p class="auth-sub">Accédez à votre espace entreprise</p>
+
+      <div class="error-msg" id="error-msg"></div>
+
+      <div class="auth-form">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="vous@entreprise.fr" autocomplete="email"/>
+        </div>
+        <div class="form-group">
+          <label>Mot de passe</label>
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"/>
+        </div>
+        <button class="btn-auth" id="btn-connexion" onclick="seConnecter()">
+          Se connecter →
+        </button>
+      </div>
+
+      <div class="divider">ou</div>
+
+      <a href="../freelance/connexion.html" class="btn-switch-space">
+        ⚡ Connexion espace Freelance
+      </a>
+
+      <div class="auth-switch" style="margin-top:16px">
+        Pas encore de compte ?
+        <a href="../freelance/inscription.html">Créer un compte</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://agentia-production-aec3.up.railway.app";
+
+    // ── Helpers token ──
+    function getToken()      { return localStorage.getItem("jwt_token") || null; }
+    function setToken(t)     { localStorage.setItem("jwt_token", t); }
+    function setUserCache(u) { localStorage.setItem("user_cache", JSON.stringify(u)); }
+
+    // Si session expirée
+    var sessionExpired = sessionStorage.getItem("session_expired");
+    if (sessionExpired) {
+      sessionStorage.removeItem("session_expired");
+      var errEl = document.getElementById("error-msg");
+      errEl.textContent = "⚠️ Votre session a expiré. Veuillez vous reconnecter.";
+      errEl.style.display = "block";
+      errEl.style.background = "rgba(245,158,11,0.12)";
+      errEl.style.borderColor = "rgba(245,158,11,0.4)";
+      errEl.style.color = "#fbbf24";
+    } else if (getToken()) {
+      // Déjà connecté → vérifier si l'utilisateur a bien une entreprise
+      _redirectSiConnecte();
+    }
+
+    async function _redirectSiConnecte() {
+      try {
+        const res  = await fetch(API_URL + "/business/entreprises", {
+          headers: { "Authorization": "Bearer " + getToken() }
+        });
+        const json = await res.json();
+        if (json?.data?.entreprises?.length) {
+          window.location.href = "dashboard.html";
+        }
+      } catch(e) {}
+    }
+
+    async function seConnecter() {
+      const email    = document.getElementById("login-email").value.trim().toLowerCase();
+      const password = document.getElementById("login-password").value;
+      const erreur   = document.getElementById("error-msg");
+      const btn      = document.getElementById("btn-connexion");
+
+      erreur.style.display = "none";
+
+      if (!email || !password) {
+        erreur.textContent = "Veuillez remplir tous les champs.";
+        erreur.style.display = "block";
+        erreur.style.background = "rgba(239,68,68,0.1)";
+        erreur.style.borderColor = "rgba(239,68,68,0.3)";
+        erreur.style.color = "#f87171";
+        return;
+      }
+
+      btn.textContent = "Connexion...";
+      btn.disabled = true;
+
+      try {
+        const res  = await fetch(API_URL + "/auth/connexion", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+        const json = await res.json();
+
+        if (json.statut === "ok") {
+          setToken(json.data.token);
+          setUserCache(json.data.user);
+
+          // Vérifier si l'utilisateur a une entreprise Business
+          const resBiz = await fetch(API_URL + "/business/entreprises", {
+            headers: { "Authorization": "Bearer " + json.data.token }
+          });
+          const jsonBiz = await resBiz.json();
+
+          if (jsonBiz?.data?.entreprises?.length) {
+            // A une entreprise → dashboard business
+            window.location.href = "dashboard.html";
+          } else {
+            // Pas d'entreprise → proposer d'en créer une ou aller en freelance
+            erreur.style.background = "rgba(245,158,11,0.1)";
+            erreur.style.borderColor = "rgba(245,158,11,0.3)";
+            erreur.style.color = "#fbbf24";
+            erreur.innerHTML = `
+              ⚠️ Votre compte n'est associé à aucune entreprise.
+              <br><br>
+              <a href="parametres.html" style="color:#fbbf24;font-weight:600;text-decoration:underline">
+                Créer une entreprise →
+              </a>
+              &nbsp;&nbsp;ou&nbsp;&nbsp;
+              <a href="../freelance/dashboard.html" style="color:#fbbf24;font-weight:600;text-decoration:underline">
+                Aller sur l'espace Freelance →
+              </a>
+            `;
+            erreur.style.display = "block";
+            btn.textContent = "Se connecter →";
+            btn.disabled = false;
+          }
+
+        } else {
+          erreur.textContent = json.message || "Email ou mot de passe incorrect.";
+          erreur.style.display = "block";
+          erreur.style.background = "rgba(239,68,68,0.1)";
+          erreur.style.borderColor = "rgba(239,68,68,0.3)";
+          erreur.style.color = "#f87171";
+          btn.textContent = "Se connecter →";
+          btn.disabled = false;
+        }
+      } catch(e) {
+        erreur.textContent = "Erreur de connexion au serveur.";
+        erreur.style.display = "block";
+        btn.textContent = "Se connecter →";
+        btn.disabled = false;
+      }
+    }
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") seConnecter();
+    });
+  </script>
+</body>
+</html>

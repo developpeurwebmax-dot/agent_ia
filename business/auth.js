@@ -1,5 +1,6 @@
 /**
- * auth.js — Authentification JWT + sidebar + utilitaires communs
+ * business/auth.js — Authentification JWT + sidebar + utilitaires communs
+ * Redirige vers business/connexion.html (pas freelance)
  */
 
 const API = "https://agentia-production-aec3.up.railway.app";
@@ -21,17 +22,18 @@ function setUserCache(u)   { localStorage.setItem("user_cache", JSON.stringify(u
 function getUserId()       { var u = getUserCache(); return u ? u.id : "guest"; }
 
 // ── DÉCONNEXION ──
+// Redirige vers la page de connexion Business (pas Freelance)
 function seDeconnecter() {
   removeToken();
   sessionStorage.setItem("session_expired", "1");
-  window.location.href = "../freelance/connexion.html";
+  window.location.href = "connexion.html";
 }
 
 // ── GESTION 401 GLOBALE ──
 function gerer401() {
   removeToken();
   sessionStorage.setItem("session_expired", "1");
-  window.location.href = "../freelance/connexion.html";
+  window.location.href = "connexion.html";
 }
 
 // ── APPEL API AUTHENTIFIÉ ──
@@ -58,39 +60,24 @@ async function chargerProfil() {
   return null;
 }
 
-// ── INIT SIDEBAR (appelée par toutes les pages) ──
+// ── INIT SIDEBAR ──
+// Vérifie l'auth, charge le profil, remplit la sidebar
 async function initSidebar() {
-  if (!estConnecte()) { window.location.href = "../freelance/connexion.html"; return null; }
+  if (!estConnecte()) {
+    window.location.href = "connexion.html";
+    return null;
+  }
 
   var user = await chargerProfil();
-  if (!user) { window.location.href = "../freelance/connexion.html"; return null; }
+  if (!user) {
+    window.location.href = "connexion.html";
+    return null;
+  }
 
   var el = function(id) { return document.getElementById(id); };
   if (el("sidebar-avatar")) el("sidebar-avatar").textContent = (user.prenom || "U")[0].toUpperCase();
   if (el("sidebar-nom"))    el("sidebar-nom").textContent    = (user.prenom || "") + " " + (user.nom || "");
-  if (el("sidebar-role"))   el("sidebar-role").textContent   = user.metier || "Indépendant";
-
-  var modules = user.modules || ["dashboard", "devis", "factures", "taches"];
-  var LIENS = { "crm.html":"crm", "contenu.html":"contenu_ia", "analytics.html":"analytics" };
-  document.querySelectorAll(".nav-link").forEach(function(link) {
-    var href = link.getAttribute("href");
-    var mod  = LIENS[href];
-    if (mod && modules.indexOf(mod) === -1) {
-      link.style.opacity = "0.45";
-      link.style.pointerEvents = "none";
-      link.style.cursor = "not-allowed";
-      link.style.display = "flex";
-      link.style.justifyContent = "space-between";
-      link.title = "Disponible à partir du plan Pro";
-      if (!link.querySelector(".lock-icon")) {
-        var s = document.createElement("span");
-        s.className = "lock-icon";
-        s.style.cssText = "font-size:0.7rem;margin-left:auto;flex-shrink:0";
-        s.textContent = "🔒";
-        link.appendChild(s);
-      }
-    }
-  });
+  if (el("sidebar-role"))   el("sidebar-role").textContent   = user.metier || "Dirigeant";
 
   return user;
 }
