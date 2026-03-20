@@ -7,6 +7,111 @@
   <link rel="stylesheet" href="../style.css"/>
   <link rel="stylesheet" href="style_business.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── INVITATION RESULT BOX ── */
+    .invite-result {
+      display: none;
+      margin-top: 16px;
+      border-radius: 12px;
+      padding: 18px 20px;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+
+    .invite-result.nouveau {
+      background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.3);
+    }
+    .invite-result.existant {
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.25);
+    }
+
+    .invite-result-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Bloc mot de passe temporaire */
+    .mdp-temp-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 10px 0;
+    }
+    .mdp-temp-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .mdp-temp-value {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .mdp-temp-code {
+      font-family: 'Courier New', monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #34d399;
+      letter-spacing: 2px;
+      background: var(--bg3);
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid rgba(16,185,129,0.3);
+      flex: 1;
+    }
+    .btn-copy-mdp {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-copy-mdp:hover { border-color: var(--accent); color: var(--text); }
+    .btn-copy-mdp.copied { border-color: var(--success); color: #34d399; }
+
+    .mdp-warn {
+      font-size: 0.78rem;
+      color: var(--warning);
+      margin-top: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    /* ── MEMBRE CARD ── */
+    .membre-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .membre-row:last-child { border-bottom: none; }
+    .membre-avatar {
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.9rem;
+      color: white; flex-shrink: 0;
+    }
+    .membre-info { flex: 1; }
+    .membre-name { font-size: 0.9rem; font-weight: 600; }
+    .membre-email { font-size: 0.78rem; color: var(--text-muted); }
+  </style>
 </head>
 <body>
 
@@ -15,7 +120,7 @@
     <nav>
       <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
       <a href="finances.html" class="nav-link">💰 Finances</a>
-      <a href="employes.html" class="nav-link">👥 Employés</a>
+      <a href="employes.html" class="nav-link">👥 Équipe & RH</a>
       <a href="facturation.html" class="nav-link">🧾 Facturation</a>
       <a href="analytics.html" class="nav-link">📊 Analytics IA</a>
       <a href="parametres.html" class="nav-link active">⚙️ Paramètres</a>
@@ -44,7 +149,7 @@
       <button class="tab" onclick="showTab('creer', this)">➕ Créer une entreprise</button>
     </div>
 
-    <!-- ENTREPRISE -->
+    <!-- ══════ TAB ENTREPRISE ══════ -->
     <div class="tab-content active" id="tab-entreprise">
       <div class="card">
         <h3 style="margin-bottom:20px">Informations de l'entreprise</h3>
@@ -100,17 +205,22 @@
       </div>
     </div>
 
-    <!-- MEMBRES -->
+    <!-- ══════ TAB MEMBRES ══════ -->
     <div class="tab-content" id="tab-membres">
+
+      <!-- FORMULAIRE INVITATION -->
       <div class="card" style="margin-bottom:20px">
-        <h3 style="margin-bottom:16px">Inviter un collaborateur</h3>
-        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px">
-          L'utilisateur doit déjà avoir un compte Agent IA. Entrez son email et assignez-lui un rôle.
+        <h3 style="margin-bottom:6px">Inviter un collaborateur</h3>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px">
+          Entrez l'email de votre collaborateur et assignez-lui un rôle. 
+          <strong style="color:var(--text)">Un compte sera créé automatiquement</strong> s'il n'en a pas encore.
         </p>
+
         <div class="form-grid">
           <div class="form-group">
-            <label>Email *</label>
-            <input type="email" id="inv-email" placeholder="collaborateur@email.fr"/>
+            <label>Email du collaborateur *</label>
+            <input type="email" id="inv-email" placeholder="collaborateur@email.fr"
+                   oninput="resetInviteResult()"/>
           </div>
           <div class="form-group">
             <label>Rôle *</label>
@@ -123,9 +233,19 @@
             </select>
           </div>
         </div>
-        <button class="btn-primary" onclick="inviterMembre()" style="margin-top:8px">✉️ Envoyer l'invitation</button>
+
+        <button class="btn-primary" id="btn-inviter" onclick="inviterMembre()">
+          ✉️ Envoyer l'invitation
+        </button>
+
+        <!-- RÉSULTAT DE L'INVITATION -->
+        <div class="invite-result" id="invite-result">
+          <div class="invite-result-title" id="invite-result-title"></div>
+          <div id="invite-result-body"></div>
+        </div>
       </div>
 
+      <!-- LISTE MEMBRES -->
       <div class="card">
         <h3 style="margin-bottom:16px">Membres actuels</h3>
         <div id="liste-membres">
@@ -133,7 +253,7 @@
         </div>
       </div>
 
-      <!-- Légende des rôles -->
+      <!-- TABLEAU PERMISSIONS -->
       <div class="card" style="margin-top:16px">
         <h3 style="margin-bottom:16px;font-size:0.9rem">Tableau des permissions</h3>
         <div class="table-wrapper">
@@ -161,7 +281,7 @@
       </div>
     </div>
 
-    <!-- CRÉER ENTREPRISE -->
+    <!-- ══════ TAB CRÉER ENTREPRISE ══════ -->
     <div class="tab-content" id="tab-creer">
       <div class="card">
         <h3 style="margin-bottom:8px">Créer une nouvelle entreprise</h3>
@@ -216,105 +336,199 @@
       ENTREPRISE_ID = ent.id;
 
       // Remplir le formulaire entreprise
-      document.getElementById("ent-nom").value = ent.nom || "";
-      document.getElementById("ent-siren").value = ent.siren || "";
-      document.getElementById("ent-forme").value = ent.forme_juridique || "SAS";
-      document.getElementById("ent-secteur").value = ent.secteur || "";
-      document.getElementById("ent-adresse").value = ent.adresse || "";
-      document.getElementById("ent-email").value = ent.email || "";
-      document.getElementById("ent-tel").value = ent.telephone || "";
-      document.getElementById("ent-tva").value = ent.tva_intracommunautaire || "";
+      document.getElementById("ent-nom").value      = ent.nom || "";
+      document.getElementById("ent-siren").value    = ent.siren || "";
+      document.getElementById("ent-forme").value    = ent.forme_juridique || "SAS";
+      document.getElementById("ent-secteur").value  = ent.secteur || "";
+      document.getElementById("ent-adresse").value  = ent.adresse || "";
+      document.getElementById("ent-email").value    = ent.email || "";
+      document.getElementById("ent-tel").value      = ent.telephone || "";
+      document.getElementById("ent-tva").value      = ent.tva_intracommunautaire || "";
       document.getElementById("ent-effectif").value = ent.nb_employes_max || 50;
 
       await chargerMembres();
     }
 
+    // ════════════════════════════════════════
+    // ENTREPRISE
+    // ════════════════════════════════════════
     async function sauvegarderEntreprise() {
       if (!ENTREPRISE_ID) { alert("Aucune entreprise sélectionnée"); return; }
       const body = {
-        nom: document.getElementById("ent-nom").value,
-        siren: document.getElementById("ent-siren").value,
-        forme_juridique: document.getElementById("ent-forme").value,
-        secteur: document.getElementById("ent-secteur").value,
-        adresse: document.getElementById("ent-adresse").value,
-        email: document.getElementById("ent-email").value,
-        telephone: document.getElementById("ent-tel").value,
+        nom:                    document.getElementById("ent-nom").value,
+        siren:                  document.getElementById("ent-siren").value,
+        forme_juridique:        document.getElementById("ent-forme").value,
+        secteur:                document.getElementById("ent-secteur").value,
+        adresse:                document.getElementById("ent-adresse").value,
+        email:                  document.getElementById("ent-email").value,
+        telephone:              document.getElementById("ent-tel").value,
         tva_intracommunautaire: document.getElementById("ent-tva").value,
-        nb_employes_max: parseInt(document.getElementById("ent-effectif").value) || 50
+        nb_employes_max:        parseInt(document.getElementById("ent-effectif").value) || 50
       };
       const json = await apiAuth("PUT", `/business/entreprises/${ENTREPRISE_ID}`, body);
-      if (json?.statut === "ok") alert("✅ Entreprise mise à jour !");
+      if (json?.statut === "ok") toast("✅ Entreprise mise à jour !");
       else alert(json?.message || "Erreur");
     }
 
+    // ════════════════════════════════════════
+    // INVITATION
+    // ════════════════════════════════════════
+    function resetInviteResult() {
+      const div = document.getElementById("invite-result");
+      div.style.display = "none";
+      div.className = "invite-result";
+    }
+
+    async function inviterMembre() {
+      const email = document.getElementById("inv-email").value.trim();
+      const role  = document.getElementById("inv-role").value;
+
+      if (!email) { alert("Email requis"); return; }
+
+      const btn = document.getElementById("btn-inviter");
+      btn.disabled = true;
+      btn.textContent = "⏳ Invitation en cours...";
+
+      resetInviteResult();
+
+      const json = await apiAuth("POST", "/business/membres/inviter", {
+        entreprise_id: ENTREPRISE_ID,
+        email,
+        role
+      });
+
+      btn.disabled = false;
+      btn.textContent = "✉️ Envoyer l'invitation";
+
+      if (json?.statut === "ok") {
+        const d   = json.data;
+        const div = document.getElementById("invite-result");
+        const titleEl = document.getElementById("invite-result-title");
+        const bodyEl  = document.getElementById("invite-result-body");
+
+        if (d.compte_cree) {
+          // ── Nouveau compte créé ──
+          div.className = "invite-result nouveau";
+          titleEl.innerHTML = `✅ Compte créé et accès accordé pour <strong>${d.user.email}</strong>`;
+          bodyEl.innerHTML = `
+            <p style="font-size:0.85rem;color:var(--text-soft);margin-bottom:10px">
+              Aucun compte n'existait pour cet email. Un compte a été créé automatiquement avec le rôle
+              <strong>${d.role_label}</strong>. Transmettez ces identifiants à votre collaborateur :
+            </p>
+            <div class="mdp-temp-block">
+              <div class="mdp-temp-label">Email de connexion</div>
+              <div style="font-size:0.9rem;font-weight:600;color:var(--text);margin-bottom:8px">${d.user.email}</div>
+              <div class="mdp-temp-label">Mot de passe temporaire</div>
+              <div class="mdp-temp-value">
+                <span class="mdp-temp-code" id="mdp-temp-display">${d.mot_de_passe_temp}</span>
+                <button class="btn-copy-mdp" id="btn-copy-mdp" onclick="copierMdp('${d.mot_de_passe_temp}')">
+                  📋 Copier
+                </button>
+              </div>
+            </div>
+            <div class="mdp-warn">
+              ⚠️ <span>Ce mot de passe ne sera <strong>plus affiché</strong> après fermeture. Notez-le et transmettez-le à <strong>${d.user.email}</strong> par un canal sécurisé. Votre collaborateur pourra le changer dans ses paramètres.</span>
+            </div>
+          `;
+        } else {
+          // ── Compte existant ──
+          div.className = "invite-result existant";
+          titleEl.innerHTML = `✅ <strong>${d.user.prenom} ${d.user.nom}</strong> a été ajouté avec le rôle <strong>${d.role_label}</strong>`;
+          bodyEl.innerHTML = `
+            <p style="font-size:0.85rem;color:var(--text-muted)">
+              Cet utilisateur possédait déjà un compte. Il peut maintenant accéder à l'espace entreprise.
+            </p>
+          `;
+        }
+
+        div.style.display = "block";
+        document.getElementById("inv-email").value = "";
+        await chargerMembres();
+
+      } else {
+        // ── Erreur ──
+        const div   = document.getElementById("invite-result");
+        div.className = "invite-result";
+        div.style.cssText = "display:block;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:12px;padding:14px 18px;margin-top:16px";
+        document.getElementById("invite-result-title").innerHTML = `❌ Erreur`;
+        document.getElementById("invite-result-body").innerHTML = `
+          <p style="font-size:0.85rem;color:#f87171">${json?.message || "Une erreur est survenue"}</p>
+        `;
+      }
+    }
+
+    function copierMdp(mdp) {
+      navigator.clipboard.writeText(mdp).then(() => {
+        const btn = document.getElementById("btn-copy-mdp");
+        btn.textContent = "✅ Copié !";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = "📋 Copier";
+          btn.classList.remove("copied");
+        }, 2500);
+      });
+    }
+
+    // ════════════════════════════════════════
+    // MEMBRES
+    // ════════════════════════════════════════
     async function chargerMembres() {
       if (!ENTREPRISE_ID) return;
       const json = await apiAuth("GET", `/business/membres?entreprise_id=${ENTREPRISE_ID}`);
       const container = document.getElementById("liste-membres");
       const membres = json?.data?.membres || [];
-      if (!membres.length) { container.innerHTML = '<div class="empty-state">Aucun membre</div>'; return; }
-      container.innerHTML = `
-        <div class="table-wrapper">
-          <table class="table">
-            <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Actions</th></tr></thead>
-            <tbody>
-              ${membres.map(m => `
-                <tr>
-                  <td><strong>${m.prenom} ${m.nom}</strong></td>
-                  <td style="color:var(--text-muted)">${m.email}</td>
-                  <td>
-                    <select class="select-inline" style="padding:4px 8px;font-size:0.8rem"
-                      onchange="changerRole('${m.user_id}', this.value)">
-                      <option value="admin" ${m.role==='admin'?'selected':''}>🔑 Admin</option>
-                      <option value="rh" ${m.role==='rh'?'selected':''}>👥 RH</option>
-                      <option value="comptable" ${m.role==='comptable'?'selected':''}>💰 Comptable</option>
-                      <option value="commercial" ${m.role==='commercial'?'selected':''}>📊 Commercial</option>
-                      <option value="employe" ${m.role==='employe'?'selected':''}>👤 Employé</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button class="btn-sm btn-danger" onclick="retirerMembre('${m.user_id}', '${m.prenom}')">Retirer</button>
-                  </td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
 
-    async function inviterMembre() {
-      const email = document.getElementById("inv-email").value;
-      const role = document.getElementById("inv-role").value;
-      if (!email) { alert("Email requis"); return; }
-      const json = await apiAuth("POST", "/business/membres/inviter", {
-        entreprise_id: ENTREPRISE_ID, email, role
-      });
-      if (json?.statut === "ok") {
-        alert(`✅ ${json.data.user.prenom} ${json.data.user.nom} ajouté comme ${json.data.role_label}`);
-        document.getElementById("inv-email").value = "";
-        chargerMembres();
-      } else alert(json?.message || "Erreur");
+      if (!membres.length) {
+        container.innerHTML = '<div class="empty-state">Aucun membre pour l\'instant</div>';
+        return;
+      }
+
+      container.innerHTML = membres.map(m => {
+        const initials = ((m.prenom?.[0] || "") + (m.nom?.[0] || "")).toUpperCase() || m.email?.[0]?.toUpperCase() || "?";
+        return `<div class="membre-row">
+          <div class="membre-avatar">${initials}</div>
+          <div class="membre-info">
+            <div class="membre-name">${m.prenom || ""} ${m.nom || ""} ${(!m.prenom && !m.nom) ? m.email : ''}</div>
+            <div class="membre-email">${m.email} · <span class="badge badge-${m.role === 'admin' ? 'danger' : m.role === 'rh' ? 'blue' : m.role === 'comptable' ? 'orange' : 'info'}" style="font-size:0.72rem">${m.role_label}</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select class="select-inline" style="padding:4px 8px;font-size:0.8rem"
+              onchange="changerRole('${m.user_id}', this.value)">
+              <option value="admin"     ${m.role==='admin'     ? 'selected' : ''}>🔑 Admin</option>
+              <option value="rh"        ${m.role==='rh'        ? 'selected' : ''}>👥 RH</option>
+              <option value="comptable" ${m.role==='comptable' ? 'selected' : ''}>💰 Comptable</option>
+              <option value="commercial"${m.role==='commercial'? 'selected' : ''}>📊 Commercial</option>
+              <option value="employe"   ${m.role==='employe'   ? 'selected' : ''}>👤 Employé</option>
+            </select>
+            <button class="btn-sm btn-danger" onclick="retirerMembre('${m.user_id}', '${(m.prenom || m.email || '').replace(/'/g,"\\'")}')">Retirer</button>
+          </div>
+        </div>`;
+      }).join("");
     }
 
     async function changerRole(userId, role) {
       await apiAuth("PUT", `/business/membres/${userId}/role`, {
         entreprise_id: ENTREPRISE_ID, role
       });
+      toast("✅ Rôle mis à jour");
     }
 
-    async function retirerMembre(userId, prenom) {
-      if (!confirm(`Retirer ${prenom} de l'entreprise ?`)) return;
+    async function retirerMembre(userId, nom) {
+      if (!confirm(`Retirer ${nom} de l'entreprise ?`)) return;
       await apiAuth("DELETE", `/business/membres/${userId}?entreprise_id=${ENTREPRISE_ID}`);
       chargerMembres();
+      toast("Membre retiré");
     }
 
+    // ════════════════════════════════════════
+    // CRÉER ENTREPRISE
+    // ════════════════════════════════════════
     async function creerEntreprise() {
       const body = {
-        nom: document.getElementById("new-nom").value,
-        forme_juridique: document.getElementById("new-forme").value,
-        secteur: document.getElementById("new-secteur").value,
-        nb_employes_max: parseInt(document.getElementById("new-effectif").value) || 10
+        nom:            document.getElementById("new-nom").value,
+        forme_juridique:document.getElementById("new-forme").value,
+        secteur:        document.getElementById("new-secteur").value,
+        nb_employes_max:parseInt(document.getElementById("new-effectif").value) || 10
       };
       if (!body.nom) { alert("Nom requis"); return; }
       const json = await apiAuth("POST", "/business/entreprises", body);
@@ -324,11 +538,22 @@
       } else alert(json?.message || "Erreur");
     }
 
+    // ════════════════════════════════════════
+    // UTILS
+    // ════════════════════════════════════════
     function showTab(name, btn) {
       document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
       document.querySelectorAll(".tabs .tab").forEach(t => t.classList.remove("active"));
       document.getElementById("tab-" + name).classList.add("active");
       btn.classList.add("active");
+    }
+
+    function toast(msg, color = "#10b981") {
+      const t = document.createElement("div");
+      t.textContent = msg;
+      t.style.cssText = `position:fixed;bottom:28px;right:28px;background:${color};color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3)`;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity="0"; t.style.transition="opacity 0.4s"; setTimeout(()=>t.remove(),400); }, 2800);
     }
 
     init();

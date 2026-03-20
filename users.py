@@ -4,6 +4,8 @@ Rôles : admin, rh, comptable, commercial, employe (lecture seule)
 """
 
 import json
+import secrets
+import string
 from datetime import datetime, date
 from database import get_db, row_to_dict, rows_to_list
 from auth import verifier_token, get_user_by_id
@@ -12,6 +14,12 @@ from auth import verifier_token, get_user_by_id
 def _generer_id(prefix="ENT"):
     import time
     return f"{prefix}_{int(time.time() * 1000000)}"
+
+
+def _generer_mot_de_passe_temp(longueur=12) -> str:
+    """Génère un mot de passe temporaire lisible."""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(longueur))
 
 
 # ─────────────────────────────────────────────
@@ -144,42 +152,102 @@ def modifier_entreprise(eid: str, user_id: str, data: dict) -> dict:
 # ─────────────────────────────────────────────
 
 def inviter_membre(entreprise_id: str, inviteur_id: str, email_invite: str, role: str) -> dict:
-    """Invite un utilisateur existant dans l'entreprise."""
+    """
+    Invite un utilisateur dans l'entreprise.
+    Si l'utilisateur n'a pas de compte, un compte est créé automatiquement
+    avec un mot de passe temporaire affiché une seule fois.
+    """
     if not _verifier_role(entreprise_id, inviteur_id, "admin"):
         raise PermissionError("Seul l'admin peut inviter des membres")
     if role not in ROLES:
         raise ValueError(f"Rôle invalide. Valeurs: {list(ROLES.keys())}")
+    if not email_invite or "@" not in email_invite:
+        raise ValueError("Email invalide")
 
     conn = get_db()
     try:
-        # Trouver l'utilisateur par email
-        user_row = conn.execute("SELECT id, prenom, nom, email FROM users WHERE email=?",
-                                (email_invite.lower(),)).fetchone()
+        email_lower = email_invite.lower().strip()
+
+        # Chercher si l'utilisateur existe déjà
+        user_row = conn.execute(
+            "SELECT id, prenom, nom, email FROM users WHERE email=?",
+            (email_lower,)
+        ).fetchone()
+
+        compte_cree = False
+        mot_de_passe_temp = None
+
         if not user_row:
-            raise ValueError(f"Aucun compte trouvé pour {email_invite}")
+            # ── Créer le compte automatiquement ──
+            from auth import hasher_password, _generer_id as auth_gen_id
+            import uuid
 
-        user = row_to_dict(user_row)
+            mot_de_passe_temp = _generer_mot_de_passe_temp(12)
+            password_hash = hasher_password(mot_de_passe_temp)
+            new_user_id = f"USR_{uuid.uuid4().hex}"
 
-        # Vérifier si déjà membre
+            # Extraire un prénom depuis l'email (avant le @)
+            prenom_auto = email_lower.split("@")[0].replace(".", " ").replace("_", " ").title()
+
+            conn.execute("""
+                INSERT INTO users
+                    (id, prenom, nom, email, password, metier, plan, modules, date_inscription)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                new_user_id,
+                prenom_auto,
+                "",
+                email_lower,
+                password_hash,
+                ROLE_LABELS.get(role, role),
+                "business",
+                "dashboard,devis,factures,taches,crm,analytics",
+                datetime.now().isoformat()
+            ))
+
+            user = {
+                "id":     new_user_id,
+                "prenom": prenom_auto,
+                "nom":    "",
+                "email":  email_lower
+            }
+            compte_cree = True
+
+        else:
+            user = row_to_dict(user_row)
+
+        # Vérifier si déjà membre actif
         existant = conn.execute(
-            "SELECT id FROM membres_entreprise WHERE entreprise_id=? AND user_id=?",
+            "SELECT id, actif FROM membres_entreprise WHERE entreprise_id=? AND user_id=?",
             (entreprise_id, user["id"])
         ).fetchone()
-        if existant:
-            raise ValueError("Cet utilisateur est déjà membre de l'entreprise")
 
-        mid = _generer_id("MBR")
-        conn.execute("""
-            INSERT INTO membres_entreprise (id, entreprise_id, user_id, role, actif)
-            VALUES (?, ?, ?, ?, ?)
-        """, (mid, entreprise_id, user["id"], role, 1))
+        if existant:
+            existant_dict = row_to_dict(existant)
+            if existant_dict.get("actif") == 1:
+                raise ValueError("Cet utilisateur est déjà membre actif de l'entreprise")
+            else:
+                # Réactiver le membre avec le nouveau rôle
+                conn.execute(
+                    "UPDATE membres_entreprise SET actif=1, role=? WHERE entreprise_id=? AND user_id=?",
+                    (role, entreprise_id, user["id"])
+                )
+        else:
+            mid = _generer_id("MBR")
+            conn.execute("""
+                INSERT INTO membres_entreprise (id, entreprise_id, user_id, role, actif)
+                VALUES (?, ?, ?, ?, ?)
+            """, (mid, entreprise_id, user["id"], role, 1))
+
         conn.commit()
 
         return {
-            "membre_id": mid,
-            "user": user,
-            "role": role,
-            "role_label": ROLE_LABELS[role]
+            "membre_id":         _generer_id("MBR"),
+            "user":              user,
+            "role":              role,
+            "role_label":        ROLE_LABELS[role],
+            "compte_cree":       compte_cree,
+            "mot_de_passe_temp": mot_de_passe_temp,  # None si compte existant
         }
     finally:
         conn.close()
