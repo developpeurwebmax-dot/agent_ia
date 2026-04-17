@@ -3,7 +3,7 @@
  * Redirige vers business/connexion.html (pas freelance)
  */
 
-const API = "https://agentia-production-aec3.up.railway.app";
+const API = "https://agent-ia-zgha.onrender.com";";
 
 // ── TOKEN ──
 function getToken()        { return localStorage.getItem("jwt_token") || null; }
