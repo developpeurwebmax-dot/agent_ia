@@ -761,7 +761,7 @@
 
         // Si business → créer l'entreprise automatiquement
         if (modeChoisi === "business" && payload._ent_nom) {
-          await fetch("https://agentia-production-aec3.up.railway.app/business/entreprises", {
+          await fetch("https://agent-ia-zgha.onrender.com/business/entreprises", {
             method:  "POST",
             headers: { "Content-Type":"application/json", "Authorization":"Bearer " + json.data.token },
             body:    JSON.stringify({
