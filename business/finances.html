@@ -367,7 +367,7 @@
 
   <script src="auth.js"></script>
   <script>
-    const API_BASE = "https://agent-ia-zgha.onrender.com";
+    const API = "https://agent-ia-zgha.onrender.com";
 
     let ENTREPRISE_ID   = null;
     let txnIdEdition    = null;
@@ -424,7 +424,7 @@
       };
       if (body) opts.body = JSON.stringify(body);
       try {
-        const res = await fetch(API_BASE + endpoint, opts);
+        const res = await fetch(API + endpoint, opts);
         if (res.status === 401) {
           localStorage.removeItem("jwt_token");
           localStorage.removeItem("user_cache");
@@ -595,7 +595,7 @@
         : "/business/finances/transactions";
 
       try {
-        const res  = await fetch(API_BASE + endpoint, {
+        const res  = await fetch(API + endpoint, {
           method,
           headers: {
             "Content-Type":  "application/json",
@@ -972,7 +972,7 @@
           })),
         };
 
-        const res  = await fetch(API_BASE + "/business/finances/import-bulk", {
+        const res  = await fetch(API + "/business/finances/import-bulk", {
           method: "POST",
           headers: {
             "Content-Type":  "application/json",
