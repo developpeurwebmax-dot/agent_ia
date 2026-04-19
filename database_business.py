@@ -161,6 +161,54 @@ def _tables_sqlite():
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (entreprise_id) REFERENCES entreprises(id)
         )""",
+
+        # ── DEVIS BUSINESS ──
+        """CREATE TABLE IF NOT EXISTS devis_business (
+            id TEXT PRIMARY KEY,
+            entreprise_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            numero TEXT NOT NULL,
+            client TEXT NOT NULL,
+            adresse_client TEXT,
+            objet TEXT,
+            lignes TEXT DEFAULT '[]',
+            montant_ht REAL DEFAULT 0,
+            montant_ttc REAL DEFAULT 0,
+            tva REAL DEFAULT 20,
+            statut TEXT DEFAULT 'brouillon',
+            date TEXT,
+            validite TEXT,
+            delai TEXT,
+            conditions TEXT,
+            commercial_id TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (entreprise_id) REFERENCES entreprises(id)
+        )""",
+
+        # ── FACTURES BUSINESS ──
+        """CREATE TABLE IF NOT EXISTS factures_business (
+            id TEXT PRIMARY KEY,
+            entreprise_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            numero TEXT NOT NULL,
+            client TEXT NOT NULL,
+            adresse_client TEXT,
+            objet TEXT,
+            lignes TEXT DEFAULT '[]',
+            montant_ht REAL DEFAULT 0,
+            montant_ttc REAL DEFAULT 0,
+            tva REAL DEFAULT 20,
+            statut TEXT DEFAULT 'non_payee',
+            date TEXT,
+            date_echeance TEXT,
+            paiement TEXT DEFAULT 'Virement bancaire',
+            conditions TEXT,
+            devis_id TEXT,
+            mentions TEXT,
+            commercial_id TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (entreprise_id) REFERENCES entreprises(id)
+        )""",
     ]
 
 

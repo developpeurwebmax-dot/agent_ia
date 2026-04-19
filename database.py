@@ -15,60 +15,6 @@ USE_POSTGRES = bool(DATABASE_URL and DATABASE_URL.startswith("postgresql"))
 # ADAPTATEUR UNIVERSEL
 # ─────────────────────────────────────────────
 
-class Connection:
-    """Wrapper unifié pour SQLite et PostgreSQL."""
-
-    def __init__(self, conn, is_pg=False):
-        self._conn = conn
-        self._is_pg = is_pg
-
-    def _adapt_sql(self, sql):
-        """Convertit les ? SQLite en %s PostgreSQL."""
-        if self._is_pg:
-            return sql.replace("?", "%s")
-        return sql
-
-    def execute(self, sql, params=()):
-        sql = self._adapt_sql(sql)
-        cur = self._conn.cursor()
-        cur.execute(sql, params)
-        return cur
-
-    def commit(self):
-        self._conn.commit()
-
-    def close(self):
-        self._conn.close()
-
-    def row_factory(self, cursor, row):
-        """Convertit une ligne en dict."""
-        if self._is_pg:
-            cols = [desc[0] for desc in cursor.description]
-            return dict(zip(cols, row))
-        return dict(row)
-
-
-def get_db():
-    """Retourne une connexion adaptée (PostgreSQL ou SQLite)."""
-    if USE_POSTGRES:
-        import psycopg2
-        import psycopg2.extras
-        conn = psycopg2.connect(DATABASE_URL, sslmode="require")
-        conn.autocommit = False
-        return _PGConnection(conn)
-    else:
-        import sqlite3
-        conn = sqlite3.connect(os.environ.get("DB_PATH", "database.db"))
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-        return _SQLiteConnection(conn)
-
-
-# ─────────────────────────────────────────────
-# WRAPPERS SPÉCIFIQUES
-# ─────────────────────────────────────────────
-
 class _PGConnection:
     def __init__(self, conn):
         self._conn = conn
@@ -136,6 +82,23 @@ class _SQLiteCursor:
         return self._cur.lastrowid
 
 
+def get_db():
+    """Retourne une connexion adaptée (PostgreSQL ou SQLite)."""
+    if USE_POSTGRES:
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+        conn.autocommit = False
+        return _PGConnection(conn)
+    else:
+        import sqlite3
+        conn = sqlite3.connect(os.environ.get("DB_PATH", "database.db"))
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        return _SQLiteConnection(conn)
+
+
 # ─────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────
@@ -163,7 +126,6 @@ def init_db():
     conn = get_db()
 
     if USE_POSTGRES:
-        # PostgreSQL : SERIAL pour auto-increment, TEXT pour tout le reste
         sql_users = """
         CREATE TABLE IF NOT EXISTS users (
             id          TEXT PRIMARY KEY,
@@ -291,6 +253,7 @@ def init_db():
             validite    TEXT,
             delai       TEXT,
             conditions  TEXT,
+            commercial_id TEXT,
             date_creation TEXT DEFAULT (to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS'))
         )"""
 
@@ -313,6 +276,7 @@ def init_db():
             conditions  TEXT,
             devis_id    TEXT,
             mentions    TEXT,
+            commercial_id TEXT,
             date_creation TEXT DEFAULT (to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS'))
         )"""
 
@@ -385,7 +349,7 @@ def init_db():
             lignes TEXT DEFAULT '[]', montant_ht REAL DEFAULT 0,
             montant_ttc REAL DEFAULT 0, tva REAL DEFAULT 20,
             statut TEXT DEFAULT 'brouillon', date TEXT, validite TEXT,
-            delai TEXT, conditions TEXT,
+            delai TEXT, conditions TEXT, commercial_id TEXT,
             date_creation TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id))""")
 
@@ -396,7 +360,7 @@ def init_db():
             montant_ttc REAL DEFAULT 0, tva REAL DEFAULT 20,
             statut TEXT DEFAULT 'non_payee', date TEXT, date_echeance TEXT,
             paiement TEXT DEFAULT 'Virement bancaire', conditions TEXT,
-            devis_id TEXT, mentions TEXT,
+            devis_id TEXT, mentions TEXT, commercial_id TEXT,
             date_creation TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id))""")
 
