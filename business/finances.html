@@ -135,7 +135,7 @@
         <p class="page-sub">Revenus, dépenses, trésorerie</p>
       </div>
       <div style="display:flex;gap:10px">
-        <select id="select-mois" onchange="chargerTransactions()" class="select-inline"></select>
+        <select id="select-mois" onchange="renderTransactions();chargerKPIs();" class="select-inline"></select>
         <button class="btn-secondary" onclick="ouvrirImportCSV()">📂 Import CSV</button>
         <button class="btn-primary" onclick="ouvrirModal()">+ Transaction</button>
       </div>
@@ -204,9 +204,7 @@
   </main>
 
 
-  <!-- ══════════════════════════════════════
-       MODAL TRANSACTION
-  ══════════════════════════════════════ -->
+  <!-- ════ MODAL TRANSACTION ════ -->
   <div class="modal-overlay" id="modal-txn" style="display:none">
     <div class="modal">
       <h3 id="modal-titre">Nouvelle transaction</h3>
@@ -257,9 +255,7 @@
   </div>
 
 
-  <!-- ══════════════════════════════════════
-       MODAL IMPORT CSV
-  ══════════════════════════════════════ -->
+  <!-- ════ MODAL IMPORT CSV ════ -->
   <div class="modal-overlay" id="modal-csv" style="display:none">
     <div class="modal modal-large">
 
@@ -371,7 +367,7 @@
     let txnIdEdition    = null;
     let filtreType      = "";
     let filtreCategorie = "";
-    let toutes_transactions = [];
+    let toutes_transactions = []; // TOUTES les transactions (pas filtrées par mois)
 
     // ════════════════════════════════════════
     // INIT
@@ -402,9 +398,8 @@
         return;
       }
       ENTREPRISE_ID = json.data.entreprises[0].id;
-      console.log("✅ ENTREPRISE_ID :", ENTREPRISE_ID);
 
-      await chargerTransactions();
+      await chargerToutesTransactions();
       await chargerKPIs();
     }
 
@@ -437,15 +432,21 @@
     }
 
     // ════════════════════════════════════════
-    // TRANSACTIONS
+    // TRANSACTIONS — CHARGEMENT COMPLET (sans filtre mois)
     // ════════════════════════════════════════
-    async function chargerTransactions() {
+    async function chargerToutesTransactions() {
       if (!ENTREPRISE_ID) return;
-      const mois = document.getElementById("select-mois").value;
-      const json = await apiAuth("GET", `/business/finances/transactions?entreprise_id=${ENTREPRISE_ID}&mois=${mois}`);
+      // On charge TOUTES les transactions sans filtre mois
+      // Le filtre par mois est appliqué côté client dans renderTransactions()
+      const json = await apiAuth("GET", `/business/finances/transactions?entreprise_id=${ENTREPRISE_ID}`);
       toutes_transactions = json?.data?.transactions || [];
       renderTransactions();
-      chargerKPIs();
+    }
+
+    // Alias pour compatibilité (appelé par onchange du select-mois)
+    async function chargerTransactions() {
+      await chargerToutesTransactions();
+      await chargerKPIs();
     }
 
     async function chargerKPIs() {
@@ -476,13 +477,21 @@
     }
 
     function renderTransactions() {
-      let txns = toutes_transactions;
+      const mois = document.getElementById("select-mois").value;
+
+      // Filtrer par mois côté client
+      let txns = toutes_transactions.filter(t => {
+        if (!t.date) return false;
+        return t.date.slice(0, 7) === mois;
+      });
+
+      // Appliquer filtres type et catégorie
       if (filtreType)      txns = txns.filter(t => t.type === filtreType);
       if (filtreCategorie) txns = txns.filter(t => t.categorie === filtreCategorie);
 
       const tbody = document.getElementById("tbody-transactions");
       if (!txns.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Aucune transaction</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Aucune transaction pour ce mois</td></tr>';
         return;
       }
       tbody.innerHTML = txns.map(t => `
@@ -604,7 +613,8 @@
         const json = await res.json();
         if (json?.statut === "ok") {
           fermerModal();
-          await chargerTransactions();
+          await chargerToutesTransactions();
+          await chargerKPIs();
         } else {
           alert("Erreur : " + (json?.message || "Réponse inattendue"));
         }
@@ -618,14 +628,12 @@
     async function supprimerTransaction(tid) {
       if (!confirm("Supprimer cette transaction ?")) return;
       await appelAPI("DELETE", `/business/finances/transactions/${tid}`, { entreprise_id: ENTREPRISE_ID });
-      chargerTransactions();
+      await chargerToutesTransactions();
+      await chargerKPIs();
     }
 
     // ════════════════════════════════════════
-    // IMPORT CSV — LOGIQUE COMPLÈTE
-    // Supporte :
-    //   - Format montant unique  (positif = revenu, négatif = dépense)
-    //   - Format Débit/Crédit    (colonnes séparées — banques françaises)
+    // IMPORT CSV
     // ════════════════════════════════════════
 
     const CSV_CATEGORIES = [
@@ -666,13 +674,11 @@
       return "autre";
     }
 
-    // ── State CSV ──
     let csvParsedRows  = [];
     let csvMapping     = {};
     let csvFileName    = "";
-    let csvFormatDebitCredit = false; // true = format banque française
+    let csvFormatDebitCredit = false;
 
-    // ── Drag & drop ──
     function csvDragOver(e)  { e.preventDefault(); document.getElementById("csv-drop-zone").classList.add("drag-over"); }
     function csvDragLeave(e) { document.getElementById("csv-drop-zone").classList.remove("drag-over"); }
     function csvDropFile(e)  {
@@ -723,7 +729,6 @@
         h.trim().replace(/^["']|["']$/g, "").toLowerCase()
       );
 
-      // ── Aliases colonnes standard ──
       const ALIASES_DATE = [
         "date","date opération","date operation","date valeur",
         "date comptable","date transaction","date mouvement","booking date"
@@ -747,7 +752,6 @@
 
       const findCol = (aliases) => aliases.find(a => headers.includes(a)) || null;
 
-      // Détecter le format : Débit/Crédit séparés OU montant unique
       const colDebit  = findCol(ALIASES_DEBIT);
       const colCredit = findCol(ALIASES_CREDIT);
       csvFormatDebitCredit = !!(colDebit && colCredit);
@@ -761,7 +765,6 @@
         reference:   findCol(ALIASES_REF),
       };
 
-      // ── Parsing des lignes ──
       csvParsedRows = [];
       for (let i = 1; i < Math.min(lines.length, 501); i++) {
         const cols = lines[i].split(sep).map(c => c.trim().replace(/^["']|["']$/g, ""));
@@ -776,24 +779,14 @@
         let type    = "depense";
 
         if (csvFormatDebitCredit) {
-          // ── FORMAT BANQUE FRANÇAISE : Débit / Crédit séparés ──
           const debit  = csvParseFloat(row[csvMapping.debit]);
           const credit = csvParseFloat(row[csvMapping.credit]);
-
-          if (credit > 0) {
-            montant = credit;
-            type    = "revenu";
-          } else if (debit > 0) {
-            montant = debit;
-            type    = "depense";
-          } else {
-            // Ligne sans montant (ex: solde initial) → on ignore
-            continue;
-          }
+          if (credit > 0) { montant = credit; type = "revenu"; }
+          else if (debit > 0) { montant = debit; type = "depense"; }
+          else continue;
         } else {
-          // ── FORMAT MONTANT UNIQUE ──
           const raw = csvParseFloat(row[csvMapping.montant]);
-          if (raw === 0) continue; // ignorer les lignes à 0
+          if (raw === 0) continue;
           type    = raw >= 0 ? "revenu" : "depense";
           montant = Math.abs(raw);
         }
@@ -808,12 +801,10 @@
         });
       }
 
-      // ── Afficher infos fichier ──
       const sepLabel = sep === "\t" ? "tabulation" : sep;
       document.getElementById("csv-file-info").innerHTML =
         `📄 <strong>${csvFileName}</strong> — <strong>${csvParsedRows.length}</strong> transactions — séparateur : <code>${sepLabel}</code>`;
 
-      // ── Badge format détecté ──
       const formatDiv = document.getElementById("csv-format-detected");
       if (csvFormatDebitCredit) {
         formatDiv.innerHTML = `<div class="csv-format-badge debit-credit">
@@ -825,16 +816,9 @@
         </div>`;
       }
 
-      // ── Mapping UI (colonnes modifiables) ──
       const grid = document.getElementById("csv-mapping-grid");
       if (csvFormatDebitCredit) {
-        // Format Débit/Crédit : montrer les 4 colonnes
-        const fieldLabels = {
-          date:        "Colonne Date",
-          debit:       "Colonne Débit",
-          credit:      "Colonne Crédit",
-          description: "Colonne Description",
-        };
+        const fieldLabels = { date:"Colonne Date", debit:"Colonne Débit", credit:"Colonne Crédit", description:"Colonne Description" };
         grid.innerHTML = Object.entries(fieldLabels).map(([field, lbl]) => `
           <div class="csv-mapping-row">
             <label>${lbl} *</label>
@@ -845,12 +829,7 @@
           </div>
         `).join("");
       } else {
-        // Format montant unique : 3 colonnes
-        const fieldLabels = {
-          date:        "Colonne Date",
-          montant:     "Colonne Montant",
-          description: "Colonne Description",
-        };
+        const fieldLabels = { date:"Colonne Date", montant:"Colonne Montant", description:"Colonne Description" };
         grid.innerHTML = Object.entries(fieldLabels).map(([field, lbl]) => `
           <div class="csv-mapping-row">
             <label>${lbl} *</label>
@@ -992,7 +971,14 @@
              <strong>${d.doublons_ignores}</strong> doublons ignorés
              ${d.erreurs?.length ? `<br><span style="color:var(--warning)">⚠️ ${d.erreurs.length} lignes ignorées</span>` : ""}`;
           document.getElementById("csv-result-actions").style.display = "flex";
-          await chargerTransactions();
+
+          // ── CORRECTION CLÉ : recharger TOUTES les transactions après import ──
+          await chargerToutesTransactions();
+          await chargerKPIs();
+
+          // Adapter le sélecteur de mois si nécessaire pour afficher les nouvelles données
+          _ajusterSelectMoisApresCsv();
+
         } else {
           throw new Error(json?.message || "Erreur serveur");
         }
@@ -1002,6 +988,38 @@
         document.getElementById("csv-result-titre").textContent = "Erreur d'import";
         document.getElementById("csv-result-detail").textContent = err.message;
         document.getElementById("csv-result-actions").style.display = "flex";
+      }
+    }
+
+    // Après import CSV : si les transactions importées sont dans des mois pas encore dans le select, les ajouter
+    function _ajusterSelectMoisApresCsv() {
+      const sel = document.getElementById("select-mois");
+      const moisExistants = new Set(Array.from(sel.options).map(o => o.value));
+
+      // Récupérer tous les mois présents dans les transactions
+      const moisDansData = new Set(toutes_transactions.map(t => t.date?.slice(0, 7)).filter(Boolean));
+
+      let ajouts = 0;
+      for (const mois of moisDansData) {
+        if (!moisExistants.has(mois)) {
+          const [annee, num] = mois.split("-");
+          const d = new Date(parseInt(annee), parseInt(num) - 1, 1);
+          const lbl = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+          const opt = document.createElement("option");
+          opt.value = mois; opt.textContent = lbl;
+          sel.appendChild(opt);
+          ajouts++;
+        }
+      }
+
+      // Si des mois ont été ajoutés, trier les options par date décroissante
+      if (ajouts > 0) {
+        const options = Array.from(sel.options);
+        const current = sel.value;
+        options.sort((a, b) => b.value.localeCompare(a.value));
+        sel.innerHTML = "";
+        options.forEach(o => sel.appendChild(o));
+        sel.value = current;
       }
     }
 
