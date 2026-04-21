@@ -132,7 +132,8 @@ def get_transactions(entreprise_id: str, filtres: dict = None) -> list:
             if filtres.get("date_fin"):
                 sql += " AND date <= ?"
                 params.append(filtres["date_fin"])
-            if filtres.get("mois"):
+            if filtres.get("mois"):  # format YYYY-MM
+                # Compatible SQLite et PostgreSQL (date stockée en texte ISO YYYY-MM-DD)
                 sql += " AND substr(date, 1, 7) = ?"
                 params.append(filtres["mois"])
 
@@ -250,6 +251,7 @@ def importer_csv(entreprise_id: str, contenu_csv: str, mapping: dict = None) -> 
                     if not raw: return 0.0
                     return float(
                         raw.replace("\xa0", "").replace(" ", "").replace(",", ".")
+                        .replace("−", "-").replace("–", "-")
                     ) or 0.0
 
                 if format_debit_credit:
@@ -408,6 +410,7 @@ def get_dashboard_financier(entreprise_id: str, periode: str = None) -> dict:
     """
     today = date.today()
 
+    # ── CORRECTION : date_fin couvre toujours la fin complète de la période ──
     if not periode or periode == "mois_courant":
         date_debut   = today.replace(day=1).isoformat()
         dernier_jour = calendar.monthrange(today.year, today.month)[1]
@@ -588,6 +591,7 @@ def detecter_anomalies(entreprise_id: str) -> list:
             if moyenne == 0:
                 continue
 
+            # Mois courant
             row_actuel = conn.execute(
                 "SELECT COALESCE(SUM(montant),0) as c FROM transactions "
                 "WHERE entreprise_id=? AND type='depense' AND categorie=? AND substr(date, 1, 7)=?",
@@ -601,7 +605,7 @@ def detecter_anomalies(entreprise_id: str) -> list:
                     "montant_actuel": round(actuel, 2),
                     "montant_moyen":  round(moyenne, 2),
                     "ecart_pct":      round((actuel - moyenne) / moyenne * 100, 1),
-                    "niveau":         "critique" if actuel > moyenne * 2 else "attention",
+                    "niveau":         "critique" if actuel > moyenne * 2 else "attention"
                 })
 
         return sorted(alertes, key=lambda x: x["ecart_pct"], reverse=True)
