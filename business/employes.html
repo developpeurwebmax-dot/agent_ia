@@ -231,8 +231,9 @@
     <nav>
       <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
       <a href="finances.html" class="nav-link">💰 Finances</a>
-      <a href="employes.html" class="nav-link active">👥 Équipe & RH</a>
+      <a href="employes.html" class="nav-link">👥 Équipe & RH</a>
       <a href="facturation.html" class="nav-link">🧾 Facturation</a>
+      <a href="projets.html" class="nav-link active">📁 Projets</a>
       <a href="analytics.html" class="nav-link">📊 Analytics IA</a>
       <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
     </nav>
@@ -406,7 +407,7 @@
           <div class="table-wrapper">
             <table class="table" id="table-cout-emp">
               <thead>
-                <tr><th>Employé</th><th>Poste</th><th>Contrat</th><th>Salaire brut</th><th>Charges sal.</th><th>Salaire net</th><th>Charges pat.</th><th>Coût employeur</th></tr>
+                <tr><th>Employé</th><th>Poste</th><th>Contrat</th><th>Salaire brut</th><th>Charges sal.</th><th>Salaire net</th><th>Charges pat.</th><th>Coût employeur</th><th></th></tr>
               </thead>
               <tbody id="tbody-cout">
                 <tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted)">Chargement...</td></tr>
@@ -1047,8 +1048,43 @@
         entreprise_id: ENTREPRISE_ID,
         statut
       });
+
+      // Si approuvé : recalculer conges_pris de l'employé depuis tous ses congés approuvés
+      if (statut === "approuve") {
+        await recalculerCongesPris();
+      }
+
       chargerConges();
       toast(statut === "approuve" ? "✅ Congé approuvé" : "❌ Congé refusé");
+    }
+
+    async function recalculerCongesPris() {
+      // Charger tous les congés approuvés de l'entreprise
+      const json = await apiAuth("GET", `/business/rh/conges?entreprise_id=${ENTREPRISE_ID}&statut=approuve`);
+      const tousConges = json?.data || [];
+
+      // Grouper par employé et sommer les jours (congés payés uniquement)
+      const parEmploye = {};
+      tousConges.forEach(c => {
+        if (c.type === "conges_payes") {
+          parEmploye[c.employe_id] = (parEmploye[c.employe_id] || 0) + (c.nb_jours || 0);
+        }
+      });
+
+      // Mettre à jour chaque employé concerné
+      for (const [empId, joursPris] of Object.entries(parEmploye)) {
+        const emp = employes_cache.find(e => e.id === empId);
+        if (!emp) continue;
+        if (emp.conges_pris !== joursPris) {
+          await apiAuth("PUT", `/business/rh/employes/${empId}`, {
+            entreprise_id: ENTREPRISE_ID,
+            conges_pris: joursPris
+          });
+        }
+      }
+
+      // Recharger les employés pour mettre à jour les cartes
+      await chargerEmployes();
     }
 
     // ════════════════════════════════════════
@@ -1140,16 +1176,18 @@
     async function chargerCoutsEmployes() {
       const tbody = document.getElementById("tbody-cout");
       if (!employes_cache.length) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted)">Aucun employé</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-muted)">Aucun employé</td></tr>`;
         return;
       }
       const actifs = employes_cache.filter(e => e.statut === "actif");
+      const moisActuel = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
       tbody.innerHTML = actifs.map(e => {
         const brut = e.salaire_brut || 0;
         const cs   = brut * 0.22;
         const net  = brut - cs;
         const cp   = brut * 0.42;
         const cout = brut + cp;
+        const eData = JSON.stringify(e).replace(/'/g, "&#39;");
         return `<tr>
           <td><strong>${e.prenom} ${e.nom}</strong></td>
           <td>${e.poste || "—"}</td>
@@ -1159,6 +1197,7 @@
           <td style="color:var(--success)">${euros(net)}</td>
           <td style="color:var(--warning)">${euros(cp)}</td>
           <td style="font-weight:700;color:var(--accent2)">${euros(cout)}</td>
+          <td><button class="btn-sm" onclick='genererFichePaie(${eData})'>🖨️ Fiche</button></td>
         </tr>`;
       }).join("");
     }
@@ -1176,6 +1215,137 @@
       document.getElementById("sim-net").textContent      = euros(brut * 0.78);
       document.getElementById("sim-cp").textContent       = euros(brut * 0.42);
       document.getElementById("sim-cout").textContent     = euros(brut * 1.42);
+    }
+
+
+    // ════════════════════════════════════════
+    // FICHE DE PAIE
+    // ════════════════════════════════════════
+    function genererFichePaie(e) {
+      const brut    = e.salaire_brut || 0;
+      const cs      = brut * 0.22;
+      const net     = brut - cs;
+      const cp      = brut * 0.42;
+      const cout    = brut + cp;
+      const prime   = e.prime_annuelle ? (e.prime_annuelle / 12) : 0;
+      const mois    = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+      const today   = new Date().toLocaleDateString("fr-FR");
+      const eur = n => new Intl.NumberFormat("fr-FR", { style:"currency", currency:"EUR", minimumFractionDigits:2 }).format(n || 0);
+
+      const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<title>Fiche de paie — ${e.prenom} ${e.nom} — ${mois}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; background: #fff; padding: 20px; }
+  .header { display: flex; justify-content: space-between; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 16px; }
+  .company { font-size: 16px; font-weight: 700; color: #333; }
+  .doc-title { font-size: 18px; font-weight: 700; text-align: right; }
+  .doc-periode { font-size: 12px; color: #555; text-align: right; }
+  .section { margin-bottom: 14px; }
+  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #555; background: #f5f5f5; padding: 5px 8px; margin-bottom: 6px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .info-row { display: flex; justify-content: space-between; padding: 3px 8px; border-bottom: 1px solid #eee; }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: #555; }
+  .info-val { font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+  th { background: #f0f0f0; padding: 6px 8px; text-align: left; font-size: 10px; text-transform: uppercase; border: 1px solid #ddd; }
+  td { padding: 5px 8px; border: 1px solid #eee; }
+  td.right { text-align: right; font-weight: 600; }
+  .total-row td { background: #f5f5f5; font-weight: 700; border-top: 2px solid #333; }
+  .net-row td { background: #1a1a2e; color: white; font-size: 13px; font-weight: 700; padding: 8px; }
+  .footer { margin-top: 20px; border-top: 1px solid #ddd; padding-top: 12px; font-size: 9px; color: #888; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="company">🏢 Agent IA Business</div>
+    <div style="font-size:10px;color:#555;margin-top:4px">Votre entreprise — complétez dans Paramètres</div>
+  </div>
+  <div>
+    <div class="doc-title">BULLETIN DE PAIE</div>
+    <div class="doc-periode">Période : ${mois}</div>
+    <div class="doc-periode">Émis le : ${today}</div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div>
+    <div class="section-title">Employé</div>
+    <div class="info-row"><span class="info-label">Nom</span><span class="info-val">${e.prenom} ${e.nom}</span></div>
+    <div class="info-row"><span class="info-label">Poste</span><span class="info-val">${e.poste || "—"}</span></div>
+    <div class="info-row"><span class="info-label">Contrat</span><span class="info-val">${e.type_contrat || "CDI"}</span></div>
+    <div class="info-row"><span class="info-label">Temps de travail</span><span class="info-val">${e.temps_travail === "temps_partiel" ? "Temps partiel" : "Temps plein (35h)"}</span></div>
+    ${e.date_embauche ? '<div class="info-row"><span class="info-label">Embauché le</span><span class="info-val">' + e.date_embauche + '</span></div>' : ""}
+  </div>
+  <div>
+    <div class="section-title">Informations</div>
+    <div class="info-row"><span class="info-label">N° SS (à compléter)</span><span class="info-val">_ _ _ _ _ _ _ _ _ _ _ _ _ _</span></div>
+    <div class="info-row"><span class="info-label">Département</span><span class="info-val">${e.departement || "—"}</span></div>
+    <div class="info-row"><span class="info-label">Email</span><span class="info-val">${e.email || "—"}</span></div>
+  </div>
+</div>
+
+<div class="section-title">Éléments de rémunération</div>
+<table>
+  <thead><tr><th>Désignation</th><th>Base</th><th>Taux</th><th class="right">Montant</th></tr></thead>
+  <tbody>
+    <tr><td>Salaire de base</td><td>151.67h</td><td>—</td><td class="right">${eur(brut)}</td></tr>
+    ${prime > 0 ? '<tr><td>Prime mensuelle (1/12 prime annuelle)</td><td>—</td><td>—</td><td class="right">' + eur(prime) + '</td></tr>' : ""}
+    <tr class="total-row"><td colspan="3"><strong>Salaire brut total</strong></td><td class="right">${eur(brut + prime)}</td></tr>
+  </tbody>
+</table>
+
+<div class="section-title">Cotisations salariales</div>
+<table>
+  <thead><tr><th>Cotisation</th><th>Assiette</th><th>Taux salarié</th><th class="right">Montant salarié</th><th>Taux employeur</th><th class="right">Montant employeur</th></tr></thead>
+  <tbody>
+    <tr><td>Sécurité sociale — maladie</td><td>${eur(brut)}</td><td>0,50%</td><td class="right">${eur(brut * 0.005)}</td><td>7,00%</td><td class="right">${eur(brut * 0.07)}</td></tr>
+    <tr><td>Retraite complémentaire</td><td>${eur(brut)}</td><td>3,93%</td><td class="right">${eur(brut * 0.0393)}</td><td>6,01%</td><td class="right">${eur(brut * 0.0601)}</td></tr>
+    <tr><td>Assurance chômage</td><td>${eur(brut)}</td><td>0%</td><td class="right">${eur(0)}</td><td>4,05%</td><td class="right">${eur(brut * 0.0405)}</td></tr>
+    <tr><td>CSG / CRDS</td><td>${eur(brut * 0.9825)}</td><td>9,70%</td><td class="right">${eur(brut * 0.9825 * 0.097)}</td><td>—</td><td class="right">—</td></tr>
+    <tr><td>Autres cotisations (estimé)</td><td>${eur(brut)}</td><td>8,03%</td><td class="right">${eur(brut * 0.0803)}</td><td>24,94%</td><td class="right">${eur(brut * 0.2494)}</td></tr>
+    <tr class="total-row"><td colspan="3"><strong>Total cotisations</strong></td><td class="right">${eur(cs)}</td><td></td><td class="right">${eur(cp)}</td></tr>
+  </tbody>
+</table>
+
+<table>
+  <tbody>
+    <tr class="net-row"><td colspan="3"><strong>NET À PAYER</strong></td><td class="right">${eur(net + prime)}</td></tr>
+  </tbody>
+</table>
+
+<div class="two-col">
+  <div>
+    <div class="section-title">Congés</div>
+    <div class="info-row"><span class="info-label">Jours acquis / an</span><span class="info-val">${e.conges_acquis || 25} j</span></div>
+    <div class="info-row"><span class="info-label">Jours pris</span><span class="info-val">${e.conges_pris || 0} j</span></div>
+    <div class="info-row"><span class="info-label">Solde restant</span><span class="info-val" style="color:${((e.conges_acquis||25)-(e.conges_pris||0)) > 5 ? 'green' : 'orange'}">${(e.conges_acquis||25)-(e.conges_pris||0)} j</span></div>
+  </div>
+  <div>
+    <div class="section-title">Coût employeur</div>
+    <div class="info-row"><span class="info-label">Salaire brut</span><span class="info-val">${eur(brut)}</span></div>
+    <div class="info-row"><span class="info-label">Charges patronales</span><span class="info-val">${eur(cp)}</span></div>
+    <div class="info-row"><span class="info-label" style="font-weight:700">Coût total</span><span class="info-val" style="color:#6366f1">${eur(cout)}</span></div>
+  </div>
+</div>
+
+<div class="footer">
+  ⚠️ Ce bulletin de paie est généré à titre indicatif sur la base de taux moyens 2024. Les montants exacts dépendent de la situation individuelle de l'employé.
+  Consultez votre expert-comptable pour un bulletin officiel conforme à la réglementation en vigueur.
+</div>
+</body>
+</html>`;
+
+      const w = window.open("", "_blank");
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => w.print(), 500);
     }
 
     // ════════════════════════════════════════

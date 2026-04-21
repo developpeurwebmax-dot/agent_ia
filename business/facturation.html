@@ -47,8 +47,9 @@
     <nav>
       <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
       <a href="finances.html" class="nav-link">💰 Finances</a>
-      <a href="employes.html" class="nav-link active">👥 Équipe & RH</a>
+      <a href="employes.html" class="nav-link">👥 Équipe & RH</a>
       <a href="facturation.html" class="nav-link">🧾 Facturation</a>
+      <a href="projets.html" class="nav-link active">📁 Projets</a>
       <a href="analytics.html" class="nav-link">📊 Analytics IA</a>
       <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
     </nav>
@@ -78,9 +79,7 @@
     </header>
 
     <!-- ALERTES RETARD -->
-    <div class="alerte-retard" id="alerte-retard" style="display:none">
-      ⚠️ <span id="alerte-retard-text"></span>
-    </div>
+    <div id="alerte-retard" style="display:none;margin-bottom:20px"></div>
 
     <!-- KPIs -->
     <div class="stats-row">
@@ -94,6 +93,7 @@
     <div class="tabs">
       <button class="tab tab-principal active" onclick="showMainTab('devis', this)">📄 Devis</button>
       <button class="tab tab-principal" onclick="showMainTab('factures', this)">🧾 Factures</button>
+      <button class="tab tab-principal" onclick="showMainTab('clients', this)">📊 CA par client</button>
     </div>
 
     <!-- ── SECTION DEVIS ── -->
@@ -133,6 +133,19 @@
             <tbody id="tbody-factures"><tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Chargement...</td></tr></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+
+    <!-- ── SECTION CA PAR CLIENT ── -->
+    <div id="section-clients" style="display:none">
+      <div class="card">
+        <div class="card-header" style="display:flex;align-items:center;gap:10px">
+          <span class="card-icon">📊</span>
+          <h2>Chiffre d'affaires par client</h2>
+          <span style="margin-left:auto;font-size:0.78rem;color:var(--text-muted)" id="ca-clients-periode"></span>
+        </div>
+        <div id="ca-clients-content"><div class="empty-state">Chargement...</div></div>
       </div>
     </div>
 
@@ -334,10 +347,75 @@
 
     // ── TABS ──
     function showMainTab(name, btn) {
-      document.getElementById("section-devis").style.display = name === "devis" ? "block" : "none";
+      document.getElementById("section-devis").style.display    = name === "devis"    ? "block" : "none";
       document.getElementById("section-factures").style.display = name === "factures" ? "block" : "none";
+      document.getElementById("section-clients").style.display  = name === "clients"  ? "block" : "none";
       document.querySelectorAll(".tab-principal").forEach(t => t.classList.remove("active"));
       if (btn) btn.classList.add("active");
+      if (name === "clients") renderCAClients();
+    }
+
+    function renderCAClients() {
+      var today = new Date().toISOString().slice(0, 10);
+      var container = document.getElementById("ca-clients-content");
+      if (!factures_cache.length) { container.innerHTML = '<div class="empty-state">Aucune facture enregistrée</div>'; return; }
+
+      var parClient = {};
+      factures_cache.forEach(function(f) {
+        var nom = f.client || "Client inconnu";
+        if (!parClient[nom]) parClient[nom] = { ca_encaisse:0, ca_attente:0, ca_retard:0, nb_factures:0 };
+        var sr = (f.statut === "non_payee" && f.date_echeance && f.date_echeance < today) ? "retard" : f.statut;
+        var m  = f.montant_ttc || 0;
+        if (sr === "payee")       parClient[nom].ca_encaisse += m;
+        else if (sr === "retard") parClient[nom].ca_retard   += m;
+        else                      parClient[nom].ca_attente  += m;
+        parClient[nom].nb_factures++;
+      });
+
+      var liste = Object.keys(parClient).map(function(nom) {
+        return Object.assign({ nom: nom }, parClient[nom]);
+      }).sort(function(a,b) {
+        return (b.ca_encaisse+b.ca_attente+b.ca_retard) - (a.ca_encaisse+a.ca_attente+a.ca_retard);
+      });
+
+      var totalEnc = liste.reduce(function(s,c){ return s+c.ca_encaisse; },0);
+      var totalAtt = liste.reduce(function(s,c){ return s+c.ca_attente;  },0);
+      var totalRet = liste.reduce(function(s,c){ return s+c.ca_retard;   },0);
+      var maxCA    = Math.max.apply(null, liste.map(function(c){ return c.ca_encaisse+c.ca_attente+c.ca_retard; }).concat([1]));
+
+      var el = document.getElementById("ca-clients-periode");
+      if (el) el.textContent = "— " + factures_cache.length + " facture(s)";
+
+      var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;padding:16px 0;border-bottom:1px solid var(--border)">';
+      html += '<div style="text-align:center"><div style="font-size:1.2rem;font-weight:700;color:var(--success)">' + eur(totalEnc) + '</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">CA encaissé</div></div>';
+      html += '<div style="text-align:center"><div style="font-size:1.2rem;font-weight:700;color:var(--warning)">' + eur(totalAtt) + '</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">En attente</div></div>';
+      html += '<div style="text-align:center"><div style="font-size:1.2rem;font-weight:700;color:var(--danger)">' + eur(totalRet) + '</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">En retard</div></div>';
+      html += '</div><div style="display:flex;flex-direction:column;gap:10px">';
+
+      liste.forEach(function(c, i) {
+        var total = c.ca_encaisse + c.ca_attente + c.ca_retard;
+        var pctE  = total > 0 ? Math.round(c.ca_encaisse/total*100) : 0;
+        var pctA  = total > 0 ? Math.round(c.ca_attente /total*100) : 0;
+        var pctR  = total > 0 ? Math.round(c.ca_retard  /total*100) : 0;
+        html += '<div style="background:var(--bg3);border-radius:10px;padding:14px 16px">';
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">';
+        html += '<span style="font-weight:700;color:var(--text-muted)">#' + (i+1) + '</span>';
+        html += '<strong style="flex:1">' + c.nom + '</strong>';
+        html += '<span style="font-size:0.75rem;color:var(--text-muted)">' + c.nb_factures + ' facture' + (c.nb_factures>1?"s":"") + '</span>';
+        html += '<strong style="color:var(--accent2)">' + eur(total) + '</strong>';
+        html += '</div>';
+        html += '<div style="height:8px;border-radius:99px;overflow:hidden;background:var(--bg);display:flex">';
+        if (pctE>0) html += '<div style="width:' + pctE + '%;background:#10b981"></div>';
+        if (pctA>0) html += '<div style="width:' + pctA + '%;background:#f59e0b"></div>';
+        if (pctR>0) html += '<div style="width:' + pctR + '%;background:#ef4444"></div>';
+        html += '</div><div style="display:flex;gap:12px;margin-top:6px;font-size:0.72rem;flex-wrap:wrap">';
+        if (c.ca_encaisse>0) html += '<span style="color:#10b981">✅ ' + eur(c.ca_encaisse) + '</span>';
+        if (c.ca_attente >0) html += '<span style="color:#f59e0b">⏳ ' + eur(c.ca_attente)  + '</span>';
+        if (c.ca_retard  >0) html += '<span style="color:#ef4444">🔴 ' + eur(c.ca_retard)   + '</span>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
     }
 
     function switchTab(prefix, name, btn) {
@@ -688,8 +766,27 @@
     async function marquerPayee(id) {
       await apiAuth("PUT", "/factures/" + id, { statut: "payee" });
       document.getElementById("modal-voir-facture").style.display = "none";
+
+      // Créer automatiquement une transaction de revenu dans Finances
+      if (ENTREPRISE_ID) {
+        const f = factures_cache.find(x => x.id === id);
+        if (f) {
+          const today = new Date().toISOString().slice(0, 10);
+          await apiAuth("POST", "/business/finances/transactions", {
+            entreprise_id: ENTREPRISE_ID,
+            type:          "revenu",
+            montant:       f.montant_ttc || f.montant_ht || 0,
+            categorie:     "revenus",
+            description:   "Paiement facture " + (f.numero || id) + " — " + (f.client || ""),
+            date:          today,
+            mode_paiement: f.paiement || "virement",
+            reference:     f.numero || "",
+          });
+        }
+      }
+
       await chargerFactures();
-      toast("✅ Facture marquée comme payée !");
+      toast("✅ Facture payée — transaction créée dans Finances !");
     }
 
     async function supprimerFactureItem(id) {
@@ -773,10 +870,49 @@
       const today = new Date().toISOString().slice(0, 10);
       const retards = factures_cache.filter(f => f.statut === "non_payee" && f.date_echeance && f.date_echeance < today);
       const el = document.getElementById("alerte-retard");
-      if (retards.length) {
-        document.getElementById("alerte-retard-text").textContent = `${retards.length} facture(s) en retard — Total : ${eur(retards.reduce((s, f) => s + (f.montant_ttc || 0), 0))}`;
-        el.style.display = "flex";
-      } else el.style.display = "none";
+      if (!retards.length) { el.style.display = "none"; return; }
+
+      const total = retards.reduce((s, f) => s + (f.montant_ttc || 0), 0);
+      const joursRetard = f => Math.floor((new Date(today) - new Date(f.date_echeance)) / 86400000);
+
+      el.style.display = "block";
+      el.innerHTML = `
+        <div class="alerte-retard" style="flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:1.1rem">⚠️</span>
+            <strong>${retards.length} facture${retards.length > 1 ? "s" : ""} en retard de paiement</strong>
+            <span style="color:var(--text-muted);font-size:0.85rem">— Total : ${eur(total)}</span>
+            <button class="btn-sm" style="margin-left:auto" onclick="showMainTab('factures', document.querySelectorAll('.tab-principal')[1]);filtrerFactures('retard', document.querySelectorAll('.filter-btn')[3])">Voir toutes →</button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${retards.slice(0, 3).map(f => `
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 12px;background:rgba(239,68,68,0.06);border-radius:8px;font-size:0.85rem">
+                <span class="doc-num fac-num">${f.numero || "—"}</span>
+                <strong>${f.client}</strong>
+                <span style="color:var(--text-muted)">${eur(f.montant_ttc)}</span>
+                <span style="color:#f87171;font-size:0.78rem">⏰ ${joursRetard(f)}j de retard</span>
+                <div style="margin-left:auto;display:flex;gap:6px">
+                  <button class="btn-sm" onclick="voirFacture('${f.id}')">👁 Voir</button>
+                  <button class="btn-sm" onclick="relancerFacture('${f.id}')">📧 Relancer</button>
+                  <button class="btn-sm badge-success" onclick="marquerPayee('${f.id}')">✅ Payée</button>
+                </div>
+              </div>
+            `).join("")}
+            ${retards.length > 3 ? `<div style="font-size:0.78rem;color:var(--text-muted);text-align:center">... et ${retards.length - 3} autre(s)</div>` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    function relancerFacture(id) {
+      const f = factures_cache.find(x => x.id === id);
+      if (!f) return;
+      const today = new Date().toISOString().slice(0, 10);
+      const jours = Math.floor((new Date(today) - new Date(f.date_echeance)) / 86400000);
+      const sujet = encodeURIComponent(`Relance — Facture ${f.numero} en attente de règlement`);
+      const corps = encodeURIComponent(`Bonjour,\n\nSauf erreur de notre part, nous n'avons pas reçu le règlement de la facture ${f.numero} d'un montant de ${eur(f.montant_ttc)} TTC, dont l'échéance était fixée au ${f.date_echeance} (soit ${jours} jour(s) de retard).\n\nNous vous remercions de bien vouloir procéder au règlement dans les meilleurs délais.\n\nCordialement`);
+      window.open(`mailto:?subject=${sujet}&body=${corps}`);
+      toast("📧 Email de relance préparé !");
     }
 
     // ── UTILS ──

@@ -3,10 +3,226 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Agent IA Business — Dashboard</title>
+  <title>Agent IA Business — Équipe & RH</title>
   <link rel="stylesheet" href="../style.css"/>
   <link rel="stylesheet" href="style_business.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── TEAM GRID ── */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    .emp-card-v2 {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      transition: border-color 0.2s, transform 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .emp-card-v2::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--purple));
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .emp-card-v2:hover { border-color: rgba(99,102,241,0.4); transform: translateY(-2px); }
+    .emp-card-v2:hover::before { opacity: 1; }
+
+    .emp-card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .emp-avatar-v2 {
+      width: 50px; height: 50px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.2rem;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .emp-name { font-size: 1rem; font-weight: 700; margin-bottom: 2px; }
+    .emp-poste { font-size: 0.82rem; color: var(--text-muted); }
+
+    .emp-card-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .emp-info-item {
+      background: var(--bg3);
+      border-radius: 8px;
+      padding: 9px 12px;
+    }
+    .emp-info-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 3px;
+    }
+    .emp-info-value {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .emp-salary-block {
+      background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.05));
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      text-align: center;
+    }
+    .salary-item-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+    .salary-item-val { font-size: 0.9rem; font-weight: 700; }
+
+    .emp-card-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ── CONGES SOLDE ── */
+    .conges-bar-wrap {
+      margin-bottom: 14px;
+    }
+    .conges-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .conges-bar-track {
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .conges-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--success), #34d399);
+      transition: width 0.5s ease;
+    }
+
+    /* ── MODAL TABS ── */
+    .modal-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg3);
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      width: fit-content;
+    }
+    .modal-tab {
+      padding: 7px 16px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .modal-tab.active { background: var(--card); color: var(--text); }
+
+    /* ── STATUT BADGE ── */
+    .statut-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 5px;
+    }
+    .dot-actif { background: var(--success); box-shadow: 0 0 6px rgba(16,185,129,0.5); }
+    .dot-conge { background: var(--warning); }
+    .dot-inactif { background: var(--text-muted); }
+
+    /* ── SEARCH BAR ── */
+    .search-bar {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 14px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.15s;
+      width: 240px;
+    }
+    .search-bar:focus { border-color: var(--accent); }
+
+    /* ── CONGÉS TABLE ── */
+    .tag-en_attente { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .tag-approuve   { background: rgba(16,185,129,0.15); color: #34d399; }
+    .tag-refuse     { background: rgba(239,68,68,0.15);  color: #f87171; }
+
+    /* ── EMPTY STATE V2 ── */
+    .empty-team {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-team .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty-team p { font-size: 0.9rem; margin-bottom: 20px; }
+
+    /* ── AVATAR COLORS ── */
+    .av-blue   { background: linear-gradient(135deg,#3b82f6,#6366f1); }
+    .av-purple { background: linear-gradient(135deg,#8b5cf6,#ec4899); }
+    .av-green  { background: linear-gradient(135deg,#10b981,#3b82f6); }
+    .av-orange { background: linear-gradient(135deg,#f97316,#ef4444); }
+    .av-pink   { background: linear-gradient(135deg,#ec4899,#8b5cf6); }
+    .av-teal   { background: linear-gradient(135deg,#14b8a6,#3b82f6); }
+
+    /* ── KPI CARDS ── */
+    .kpi-mini {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+    .kpi-mini-icon { font-size: 1.4rem; }
+    .kpi-mini-val  { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; line-height: 1; }
+    .kpi-mini-lbl  { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── NOTE FIELD ── */
+    .note-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+  </style>
 </head>
 <body>
 
@@ -15,8 +231,9 @@
     <nav>
       <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
       <a href="finances.html" class="nav-link">💰 Finances</a>
-      <a href="employes.html" class="nav-link active">👥 Équipe & RH</a>
+      <a href="employes.html" class="nav-link">👥 Équipe & RH</a>
       <a href="facturation.html" class="nav-link">🧾 Facturation</a>
+      <a href="projets.html" class="nav-link active">📁 Projets</a>
       <a href="analytics.html" class="nav-link">📊 Analytics IA</a>
       <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
     </nav>
@@ -33,291 +250,993 @@
   <main class="main">
     <header class="topbar">
       <div>
-        <h1 class="page-title">Dashboard Dirigeant</h1>
-        <p class="page-sub" id="entreprise-nom">Chargement...</p>
+        <h1 class="page-title">Équipe & RH</h1>
+        <p class="page-sub">Gestion de vos collaborateurs</p>
       </div>
-      <div style="display:flex;gap:10px;align-items:center">
-        <select id="select-periode" onchange="chargerDashboard()" class="select-inline">
-          <option value="mois_courant">Ce mois</option>
-          <option value="trimestre">Ce trimestre</option>
-          <option value="annee">Cette année</option>
-        </select>
-        <button class="btn-primary" onclick="window.location.href='finances.html'">+ Transaction</button>
-      </div>
+      <button class="btn-primary" onclick="ouvrirModalEmploye()">+ Ajouter un employé</button>
     </header>
 
-    <!-- KPIs FINANCIERS -->
-    <div class="stats-row" id="kpis">
-      <div class="stat-card">
-        <div class="stat-icon">💰</div>
-        <div>
-          <div class="stat-value" id="kpi-revenus">—</div>
-          <div class="stat-label">Revenus</div>
-        </div>
-        <div class="stat-trend" id="trend-revenus"></div>
+    <!-- KPIs ÉQUIPE -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
+      <div class="kpi-mini">
+        <div class="kpi-mini-icon">👥</div>
+        <div><div class="kpi-mini-val" id="kpi-total">—</div><div class="kpi-mini-lbl">Employés actifs</div></div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">📤</div>
-        <div>
-          <div class="stat-value" id="kpi-depenses">—</div>
-          <div class="stat-label">Dépenses</div>
+      <div class="kpi-mini">
+        <div class="kpi-mini-icon">💶</div>
+        <div><div class="kpi-mini-val" id="kpi-masse">—</div><div class="kpi-mini-lbl">Masse salariale brute</div></div>
+      </div>
+      <div class="kpi-mini">
+        <div class="kpi-mini-icon">💼</div>
+        <div><div class="kpi-mini-val" id="kpi-cout">—</div><div class="kpi-mini-lbl">Coût employeur/mois</div></div>
+      </div>
+      <div class="kpi-mini">
+        <div class="kpi-mini-icon">🏖️</div>
+        <div><div class="kpi-mini-val" id="kpi-conges">—</div><div class="kpi-mini-lbl">Congés en attente</div></div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs" style="margin-bottom:20px">
+      <button class="tab active" onclick="showTab('equipe', this)">👥 Mon équipe</button>
+      <button class="tab" onclick="showTab('conges', this)">🏖️ Congés</button>
+      <button class="tab" onclick="showTab('pointage', this)">⏱️ Pointage</button>
+      <button class="tab" onclick="showTab('charges', this)">💼 Coûts salariaux</button>
+    </div>
+
+    <!-- ══════ TAB ÉQUIPE ══════ -->
+    <div class="tab-content active" id="tab-equipe">
+      <!-- Filtres + recherche -->
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+        <input type="text" class="search-bar" id="search-emp" placeholder="🔍 Rechercher un employé..." oninput="filtrerEmployes()"/>
+        <div style="display:flex;gap:6px;margin-left:auto;flex-wrap:wrap">
+          <button class="filter-btn active" onclick="setFiltreStatut('', this)">Tous</button>
+          <button class="filter-btn" onclick="setFiltreStatut('actif', this)">
+            <span class="statut-dot dot-actif"></span>Actifs
+          </button>
+          <button class="filter-btn" onclick="setFiltreStatut('conge', this)">
+            <span class="statut-dot dot-conge"></span>En congé
+          </button>
+          <button class="filter-btn" onclick="setFiltreStatut('inactif', this)">Inactifs</button>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">📈</div>
-        <div>
-          <div class="stat-value" id="kpi-marge">—</div>
-          <div class="stat-label">Marge nette</div>
-        </div>
-        <div class="stat-badge" id="badge-taux"></div>
+      <div class="team-grid" id="team-grid">
+        <div class="empty-state">Chargement de l'équipe...</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">👥</div>
-        <div>
-          <div class="stat-value" id="kpi-employes">—</div>
-          <div class="stat-label">Employés actifs</div>
+    </div>
+
+    <!-- ══════ TAB CONGÉS ══════ -->
+    <div class="tab-content" id="tab-conges">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="tabs" style="margin-bottom:0">
+          <button class="tab active" onclick="filtrerConges('en_attente', this)">⏳ En attente</button>
+          <button class="tab" onclick="filtrerConges('approuve', this)">✅ Approuvés</button>
+          <button class="tab" onclick="filtrerConges('refuse', this)">❌ Refusés</button>
+          <button class="tab" onclick="filtrerConges('', this)">Tous</button>
+        </div>
+        <button class="btn-primary" onclick="ouvrirModalConge()">+ Demande de congé</button>
+      </div>
+      <div class="card">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Employé</th>
+                <th>Type</th>
+                <th>Du</th>
+                <th>Au</th>
+                <th>Jours ouvrés</th>
+                <th>Motif</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-conges">
+              <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted)">Chargement...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
 
-    <!-- ALERTES IA -->
-    <div id="alertes-container" style="margin-bottom:20px"></div>
-
-    <!-- GRILLE PRINCIPALE -->
-    <div class="grid">
-
-      <!-- Évolution revenus/dépenses -->
-      <div class="card card-wide">
-        <div class="card-header">
-          <span class="card-icon">📊</span>
-          <h2>Évolution financière — 6 derniers mois</h2>
-        </div>
-        <div id="chart-evolution" class="chart-container">
-          <div class="chart-loading">Chargement...</div>
-        </div>
+    <!-- ══════ TAB POINTAGE ══════ -->
+    <div class="tab-content" id="tab-pointage">
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <select id="select-emp-ptg" class="select-inline" onchange="chargerPointages()">
+          <option value="">Tous les employés</option>
+        </select>
+        <select id="select-mois-ptg" class="select-inline" onchange="chargerPointages()"></select>
+        <button class="btn-primary" style="margin-left:auto" onclick="ouvrirModalPointage()">+ Pointer des heures</button>
       </div>
-
-      <!-- Dépenses par catégorie -->
+      <!-- Résumé heures -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px" id="ptg-summary"></div>
       <div class="card">
-        <div class="card-header">
-          <span class="card-icon">🗂️</span>
-          <h2>Dépenses par catégorie</h2>
-        </div>
-        <div id="categories-depenses">
-          <div class="empty-state">Chargement...</div>
-        </div>
-      </div>
-
-      <!-- Projection trésorerie -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">🔭</span>
-          <h2>Projection trésorerie — 6 mois</h2>
-        </div>
-        <div id="projection-tresorerie">
-          <div class="empty-state">Chargement...</div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr><th>Employé</th><th>Date</th><th>Arrivée</th><th>Départ</th><th>Heures travaillées</th><th>Heures sup.</th><th>Notes</th></tr>
+            </thead>
+            <tbody id="tbody-pointages">
+              <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted)">Sélectionnez un mois</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
-
-      <!-- Congés en attente -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">🏖️</span>
-          <h2>Congés en attente de validation</h2>
-          <a href="employes.html#conges" class="card-link">Voir tout →</a>
-        </div>
-        <div id="conges-attente">
-          <div class="empty-state">Chargement...</div>
-        </div>
-      </div>
-
-      <!-- Masse salariale -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">💼</span>
-          <h2>Masse salariale mensuelle</h2>
-        </div>
-        <div id="masse-salariale">
-          <div class="empty-state">Chargement...</div>
-        </div>
-      </div>
-
     </div>
+
+    <!-- ══════ TAB COÛTS SALARIAUX ══════ -->
+    <div class="tab-content" id="tab-charges">
+      <div class="grid">
+        <!-- Simulateur -->
+        <div class="card">
+          <div class="card-header"><span class="card-icon">🧮</span><h2>Simulateur de charges</h2></div>
+          <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px">Estimez le coût réel d'un employé pour l'entreprise.</p>
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Salaire brut mensuel (€)</label>
+            <input type="number" id="sim-brut" placeholder="3 000" min="0" oninput="simulerCharges()"/>
+          </div>
+          <div id="sim-result" style="display:none">
+            <div style="background:var(--bg3);border-radius:10px;padding:14px 16px">
+              <div class="stat-row"><span>Salaire brut</span><strong id="sim-brut-out">—</strong></div>
+              <div class="stat-row"><span>Charges salariales (~22%)</span><strong id="sim-cs" style="color:var(--danger)">—</strong></div>
+              <div class="stat-row" style="border-bottom:none;padding-bottom:0">
+                <span style="font-weight:600">Salaire net estimé</span>
+                <strong id="sim-net" style="color:var(--success);font-size:1rem">—</strong>
+              </div>
+            </div>
+            <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:14px 16px;margin-top:10px">
+              <div class="stat-row"><span>Charges patronales (~42%)</span><strong id="sim-cp" style="color:var(--warning)">—</strong></div>
+              <div class="stat-row" style="border-bottom:none;padding-bottom:0">
+                <span style="font-weight:700">Coût total employeur</span>
+                <strong id="sim-cout" style="color:var(--accent2);font-size:1.1rem">—</strong>
+              </div>
+            </div>
+            <p style="font-size:0.72rem;color:var(--text-muted);margin-top:8px">⚠️ Estimations indicatives 2024 — consultez votre expert-comptable</p>
+          </div>
+        </div>
+
+        <!-- Masse salariale globale -->
+        <div class="card">
+          <div class="card-header"><span class="card-icon">📊</span><h2>Masse salariale globale</h2></div>
+          <div id="masse-detail"><div class="empty-state">Chargement...</div></div>
+        </div>
+
+        <!-- Détail par employé -->
+        <div class="card card-wide">
+          <div class="card-header"><span class="card-icon">👤</span><h2>Coût par employé</h2></div>
+          <div class="table-wrapper">
+            <table class="table" id="table-cout-emp">
+              <thead>
+                <tr><th>Employé</th><th>Poste</th><th>Contrat</th><th>Salaire brut</th><th>Charges sal.</th><th>Salaire net</th><th>Charges pat.</th><th>Coût employeur</th></tr>
+              </thead>
+              <tbody id="tbody-cout">
+                <tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted)">Chargement...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
+
+
+  <!-- ══════════════════════════════════════
+       MODAL EMPLOYÉ (création / modification)
+  ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-employe" style="display:none" onclick="if(event.target===this)fermerModalEmploye()">
+    <div class="modal" style="width:680px;max-width:96vw;max-height:92vh;overflow-y:auto">
+      <h3 id="modal-emp-titre">Nouvel employé</h3>
+
+      <div class="modal-tabs">
+        <button class="modal-tab active" onclick="switchEmpTab('infos', this)">👤 Informations</button>
+        <button class="modal-tab" onclick="switchEmpTab('contrat', this)">📋 Contrat & Salaire</button>
+        <button class="modal-tab" onclick="switchEmpTab('conges', this)">🏖️ Congés</button>
+      </div>
+
+      <!-- Tab Infos -->
+      <div id="etab-infos">
+        <div class="form-grid">
+          <div class="form-group"><label>Prénom *</label><input type="text" id="f-prenom" placeholder="Jean"/></div>
+          <div class="form-group"><label>Nom *</label><input type="text" id="f-nom" placeholder="Dupont"/></div>
+          <div class="form-group"><label>Email professionnel</label><input type="email" id="f-email" placeholder="jean@entreprise.fr"/></div>
+          <div class="form-group"><label>Téléphone</label><input type="text" id="f-tel" placeholder="06 12 34 56 78"/></div>
+          <div class="form-group"><label>Poste / Titre</label><input type="text" id="f-poste" placeholder="Développeur Senior, RH Manager..."/></div>
+          <div class="form-group"><label>Département</label><input type="text" id="f-dept" placeholder="Tech, Marketing, RH..."/></div>
+          <div class="form-group"><label>Statut</label>
+            <select id="f-statut">
+              <option value="actif">✅ Actif</option>
+              <option value="conge">🏖️ En congé</option>
+              <option value="inactif">⛔ Inactif</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Date d'embauche</label><input type="date" id="f-embauche"/></div>
+          <div class="form-group form-full"><label>Notes internes</label><textarea id="f-notes" placeholder="Informations complémentaires, compétences, notes RH..." style="min-height:70px"></textarea></div>
+        </div>
+      </div>
+
+      <!-- Tab Contrat & Salaire -->
+      <div id="etab-contrat" style="display:none">
+        <div class="form-grid">
+          <div class="form-group"><label>Type de contrat</label>
+            <select id="f-contrat">
+              <option value="CDI">CDI</option>
+              <option value="CDD">CDD</option>
+              <option value="alternance">Alternance</option>
+              <option value="stage">Stage</option>
+              <option value="freelance">Freelance / Prestataire</option>
+              <option value="interim">Intérim</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Temps de travail</label>
+            <select id="f-temps">
+              <option value="temps_plein">Temps plein (35h)</option>
+              <option value="temps_partiel">Temps partiel</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Salaire brut mensuel (€) *</label>
+            <input type="number" id="f-salaire" placeholder="3 000" min="0" step="0.01" oninput="majApercu()"/>
+          </div>
+          <div class="form-group"><label>Prime annuelle (€)</label>
+            <input type="number" id="f-prime" placeholder="0" min="0" step="0.01"/>
+          </div>
+        </div>
+        <!-- Aperçu coût -->
+        <div id="apercu-cout" style="display:none;background:var(--bg3);border-radius:10px;padding:14px 16px;margin-top:4px">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Aperçu du coût</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
+            <div><div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:3px">Salaire net</div><div style="font-weight:700;color:var(--success)" id="ap-net">—</div></div>
+            <div><div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:3px">Charges pat.</div><div style="font-weight:700;color:var(--warning)" id="ap-cp">—</div></div>
+            <div><div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:3px">Coût total</div><div style="font-weight:700;color:var(--accent2)" id="ap-cout">—</div></div>
+          </div>
+          <p style="font-size:0.7rem;color:var(--text-muted);margin-top:8px;text-align:center">Estimations indicatives — ces données restent dans la fiche employé et n'impactent pas vos finances</p>
+        </div>
+      </div>
+
+      <!-- Tab Congés -->
+      <div id="etab-conges" style="display:none">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Jours de congés acquis / an</label>
+            <input type="number" id="f-conges-acquis" value="25" min="0" max="50"/>
+          </div>
+          <div class="form-group">
+            <label>Jours déjà pris</label>
+            <input type="number" id="f-conges-pris" value="0" min="0"/>
+          </div>
+          <div class="form-group">
+            <label>RTT acquis</label>
+            <input type="number" id="f-rtt" value="0" min="0"/>
+          </div>
+        </div>
+        <div id="solde-apercu" style="background:var(--bg3);border-radius:10px;padding:14px 16px;margin-top:4px">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Solde de congés</div>
+          <div id="solde-bar"></div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="btn-secondary" onclick="fermerModalEmploye()">Annuler</button>
+        <button class="btn-primary" onclick="sauvegarderEmploye()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════
+       MODAL CONGÉ
+  ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-conge" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:500px">
+      <h3>🏖️ Demande de congé</h3>
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Employé *</label>
+          <select id="f-conge-emp"></select>
+        </div>
+        <div class="form-group">
+          <label>Type de congé</label>
+          <select id="f-conge-type">
+            <option value="conges_payes">Congés payés</option>
+            <option value="rtt">RTT</option>
+            <option value="maladie">Arrêt maladie</option>
+            <option value="sans_solde">Sans solde</option>
+            <option value="evenement_familial">Événement familial</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date de début *</label>
+          <input type="date" id="f-conge-debut"/>
+        </div>
+        <div class="form-group">
+          <label>Date de fin *</label>
+          <input type="date" id="f-conge-fin"/>
+        </div>
+        <div class="form-group form-full">
+          <label>Motif (optionnel)</label>
+          <input type="text" id="f-conge-motif" placeholder="Ex: vacances d'été, rendez-vous médical..."/>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-conge').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="sauvegarderConge()">💾 Soumettre la demande</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════
+       MODAL POINTAGE
+  ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-ptg" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:460px">
+      <h3>⏱️ Saisie de pointage</h3>
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Employé *</label>
+          <select id="f-ptg-emp"></select>
+        </div>
+        <div class="form-group">
+          <label>Date *</label>
+          <input type="date" id="f-ptg-date"/>
+        </div>
+        <div class="form-group">
+          <label>Heure d'arrivée</label>
+          <input type="time" id="f-ptg-arrivee" value="09:00"/>
+        </div>
+        <div class="form-group">
+          <label>Heure de départ</label>
+          <input type="time" id="f-ptg-depart" value="18:00"/>
+        </div>
+        <div class="form-group form-full">
+          <label>Notes</label>
+          <input type="text" id="f-ptg-notes" placeholder="Télétravail, déplacement, formation..."/>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-ptg').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="sauvegarderPointage()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════
+       MODAL CONFIRMATION SUPPRESSION
+  ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-confirm" style="display:none">
+    <div class="modal" style="width:420px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:14px">⚠️</div>
+      <h3 style="margin-bottom:8px">Supprimer cet employé ?</h3>
+      <p id="confirm-msg" style="color:var(--text-muted);font-size:0.88rem;margin-bottom:20px"></p>
+      <div class="modal-actions" style="justify-content:center">
+        <button class="btn-secondary" onclick="document.getElementById('modal-confirm').style.display='none'">Annuler</button>
+        <button class="btn-primary" id="btn-confirm-delete" style="background:var(--danger)">🗑️ Supprimer</button>
+      </div>
+    </div>
+  </div>
+
 
   <script src="auth.js"></script>
   <script>
-    let ENTREPRISE_ID = null;
+    let ENTREPRISE_ID    = null;
+    let employes_cache   = [];
+    let empIdEdition     = null;
+    let filtreStatut     = "";
+    let filtreConge      = "en_attente";
 
+    const AV_COLORS = ["av-blue","av-purple","av-green","av-orange","av-pink","av-teal"];
+
+    // ════════════════════════════════════════
+    // INIT
+    // ════════════════════════════════════════
     async function init() {
       const user = await initSidebar();
       if (!user) return;
 
-      // Récupérer l'entreprise active
-      const json = await apiAuth("GET", "/business/entreprises");
-      if (!json || !json.data || !json.data.entreprises?.length) {
-        document.getElementById("entreprise-nom").textContent = "Aucune entreprise — ";
-        document.getElementById("entreprise-nom").innerHTML +=
-          '<a href="parametres.html" style="color:var(--accent2)">Créer votre entreprise →</a>';
-        return;
+      // Init select mois pointage
+      const sel = document.getElementById("select-mois-ptg");
+      const now = new Date();
+      for (let i = 0; i < 6; i++) {
+        const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const val = d.toISOString().slice(0, 7);
+        const lbl = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+        const opt = document.createElement("option");
+        opt.value = val; opt.textContent = lbl;
+        if (i === 0) opt.selected = true;
+        sel.appendChild(opt);
       }
 
-      const entreprise = json.data.entreprises[0];
-      ENTREPRISE_ID = entreprise.id;
-      document.getElementById("entreprise-nom").textContent = entreprise.nom;
-      document.getElementById("sidebar-role").textContent = entreprise.role_label || "Dirigeant";
+      document.getElementById("f-ptg-date").value = new Date().toISOString().slice(0, 10);
+      document.getElementById("f-embauche").value = new Date().toISOString().slice(0, 10);
 
-      await chargerDashboard();
+      const json = await apiAuth("GET", "/business/entreprises");
+      if (!json?.data?.entreprises?.length) return;
+      ENTREPRISE_ID = json.data.entreprises[0].id;
+
+      await chargerEmployes();
       await chargerConges();
       await chargerMasseSalariale();
     }
 
-    async function chargerDashboard() {
-      if (!ENTREPRISE_ID) return;
-      const periode = document.getElementById("select-periode").value;
-
-      const json = await apiAuth("GET", `/business/finances/dashboard?entreprise_id=${ENTREPRISE_ID}&periode=${periode}`);
-      if (!json || !json.data) return;
-      const d = json.data;
-
-      document.getElementById("kpi-revenus").textContent = formaterEuros(d.revenus);
-      document.getElementById("kpi-depenses").textContent = formaterEuros(d.depenses);
-      document.getElementById("kpi-marge").textContent = formaterEuros(d.marge_nette);
-      document.getElementById("badge-taux").textContent = `${d.taux_marge}%`;
-      document.getElementById("badge-taux").className = "stat-badge " + (d.taux_marge >= 20 ? "badge-success" : d.taux_marge >= 10 ? "badge-yellow" : "badge-danger");
-
-      // Catégories dépenses
-      renderCategories(d.depenses_par_categorie);
-
-      // Projection
-      renderProjection(d.projection_tresorerie);
-
-      // Graphique évolution
-      renderChart(d.evolution_mensuelle);
-
-      // Alertes
-      chargerAlertes();
+    // ════════════════════════════════════════
+    // TABS
+    // ════════════════════════════════════════
+    function showTab(tab, btn) {
+      document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tabs .tab").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + tab).classList.add("active");
+      btn.classList.add("active");
+      if (tab === "pointage") chargerPointages();
+      if (tab === "charges")  chargerCoutsEmployes();
     }
 
-    async function chargerConges() {
-      if (!ENTREPRISE_ID) return;
-      const json = await apiAuth("GET", `/business/rh/conges?entreprise_id=${ENTREPRISE_ID}&statut=en_attente`);
-      const container = document.getElementById("conges-attente");
-      if (!json || !json.data?.length) {
-        container.innerHTML = '<div class="empty-state">✅ Aucun congé en attente</div>';
+    // ════════════════════════════════════════
+    // EMPLOYÉS — CHARGEMENT & RENDU
+    // ════════════════════════════════════════
+    async function chargerEmployes() {
+      const json = await apiAuth("GET", `/business/rh/employes?entreprise_id=${ENTREPRISE_ID}`);
+      employes_cache = json?.data?.employes || [];
+      renderTeamGrid();
+      remplirSelectsEmployes();
+      majKPIs();
+    }
+
+    function setFiltreStatut(s, btn) {
+      filtreStatut = s;
+      document.querySelectorAll("#tab-equipe .filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderTeamGrid();
+    }
+
+    function filtrerEmployes() {
+      renderTeamGrid();
+    }
+
+    function renderTeamGrid() {
+      const terme   = (document.getElementById("search-emp").value || "").toLowerCase();
+      let   liste   = employes_cache;
+
+      if (filtreStatut) liste = liste.filter(e => e.statut === filtreStatut);
+      if (terme) liste = liste.filter(e =>
+        (e.prenom + " " + e.nom).toLowerCase().includes(terme) ||
+        (e.poste || "").toLowerCase().includes(terme) ||
+        (e.departement || "").toLowerCase().includes(terme)
+      );
+
+      const grid = document.getElementById("team-grid");
+
+      if (!liste.length) {
+        grid.innerHTML = `<div class="empty-team">
+          <div class="empty-icon">👥</div>
+          <p>${terme || filtreStatut ? "Aucun résultat pour cette recherche." : "Votre équipe est vide pour le moment."}</p>
+          <button class="btn-primary" onclick="ouvrirModalEmploye()">+ Ajouter le premier employé</button>
+        </div>`;
         return;
       }
-      container.innerHTML = json.data.map(c => `
-        <div class="conge-item">
-          <div>
-            <span class="conge-nom">${c.prenom} ${c.nom}</span>
-            <span class="conge-dates">${c.date_debut} → ${c.date_fin} (${c.nb_jours}j)</span>
+
+      grid.innerHTML = liste.map((e, idx) => {
+        const avClass  = AV_COLORS[idx % AV_COLORS.length];
+        const initials = ((e.prenom?.[0] || "") + (e.nom?.[0] || "")).toUpperCase();
+        const net      = (e.salaire_brut || 0) * 0.78;
+        const cout     = e.cout_total_employeur || ((e.salaire_brut || 0) * 1.42);
+        const congesRest = ((e.conges_acquis || 25) - (e.conges_pris || 0));
+        const pct      = Math.max(0, Math.min(100, (congesRest / (e.conges_acquis || 25)) * 100));
+
+        const dotClass = e.statut === "actif" ? "dot-actif" : e.statut === "conge" ? "dot-conge" : "dot-inactif";
+        const statutLabel = e.statut === "actif" ? "Actif" : e.statut === "conge" ? "En congé" : "Inactif";
+
+        const anciennete = e.date_embauche
+          ? Math.floor((new Date() - new Date(e.date_embauche)) / (365.25 * 86400000)) + " an(s)"
+          : "—";
+
+        return `<div class="emp-card-v2">
+          <div class="emp-card-header">
+            <div class="emp-avatar-v2 ${avClass}">${initials || "?"}</div>
+            <div style="flex:1">
+              <div class="emp-name">${e.prenom} ${e.nom}</div>
+              <div class="emp-poste">${e.poste || "Poste non défini"} ${e.departement ? '· ' + e.departement : ''}</div>
+              <div style="margin-top:5px">
+                <span class="statut-dot ${dotClass}"></span>
+                <span style="font-size:0.75rem;color:var(--text-muted)">${statutLabel}</span>
+                <span style="font-size:0.75rem;color:var(--text-muted);margin-left:8px">· ${e.type_contrat || "CDI"}</span>
+              </div>
+            </div>
           </div>
-          <div style="display:flex;gap:6px">
-            <button class="btn-sm badge-success" onclick="validerConge('${c.id}','approuve')">✓ Valider</button>
-            <button class="btn-sm btn-danger" onclick="validerConge('${c.id}','refuse')">✗ Refuser</button>
+
+          <div class="emp-card-body">
+            <div class="emp-info-item">
+              <div class="emp-info-label">Email</div>
+              <div class="emp-info-value" style="font-size:0.78rem;font-weight:400">${e.email || "—"}</div>
+            </div>
+            <div class="emp-info-item">
+              <div class="emp-info-label">Ancienneté</div>
+              <div class="emp-info-value">${anciennete}</div>
+            </div>
+            <div class="emp-info-item">
+              <div class="emp-info-label">Téléphone</div>
+              <div class="emp-info-value" style="font-size:0.78rem;font-weight:400">${e.telephone || "—"}</div>
+            </div>
+            <div class="emp-info-item">
+              <div class="emp-info-label">Embauche</div>
+              <div class="emp-info-value" style="font-size:0.78rem">${e.date_embauche || "—"}</div>
+            </div>
           </div>
+
+          <div class="emp-salary-block">
+            <div>
+              <div class="salary-item-label">Brut / mois</div>
+              <div class="salary-item-val" style="color:var(--accent2)">${euros(e.salaire_brut || 0)}</div>
+            </div>
+            <div>
+              <div class="salary-item-label">Net estimé</div>
+              <div class="salary-item-val" style="color:var(--success)">${euros(net)}</div>
+            </div>
+            <div>
+              <div class="salary-item-label">Coût employeur</div>
+              <div class="salary-item-val" style="color:var(--warning)">${euros(cout)}</div>
+            </div>
+          </div>
+
+          <div class="conges-bar-wrap">
+            <div class="conges-bar-label">
+              <span>Congés restants</span>
+              <span style="color:${congesRest > 5 ? 'var(--success)' : 'var(--warning)'};font-weight:600">${congesRest.toFixed(1)} j / ${e.conges_acquis || 25} j</span>
+            </div>
+            <div class="conges-bar-track">
+              <div class="conges-bar-fill" style="width:${pct}%"></div>
+            </div>
+          </div>
+
+          ${e.notes ? `<div class="note-chip">📝 ${e.notes.substring(0,60)}${e.notes.length > 60 ? '...' : ''}</div>` : ''}
+
+          <div class="emp-card-actions" style="margin-top:12px">
+            <button class="btn-secondary" style="flex:1;margin-top:0;font-size:0.82rem" onclick='editerEmploye(${JSON.stringify(e).replace(/'/g,"&#39;")})'>✏️ Modifier</button>
+            <button class="btn-sm btn-danger" onclick="confirmerSuppr('${e.id}','${e.prenom} ${e.nom}')">🗑</button>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    function majKPIs() {
+      const actifs     = employes_cache.filter(e => e.statut === "actif");
+      const totalBrut  = actifs.reduce((s, e) => s + (e.salaire_brut || 0), 0);
+      const totalCout  = actifs.reduce((s, e) => s + (e.cout_total_employeur || (e.salaire_brut || 0) * 1.42), 0);
+      document.getElementById("kpi-total").textContent = actifs.length;
+      document.getElementById("kpi-masse").textContent = euros(totalBrut);
+      document.getElementById("kpi-cout").textContent  = euros(totalCout);
+    }
+
+    function remplirSelectsEmployes() {
+      ["f-conge-emp", "f-ptg-emp", "select-emp-ptg"].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const val = sel.value;
+        sel.innerHTML = id === "select-emp-ptg" ? '<option value="">Tous les employés</option>' : '<option value="">Sélectionner un employé...</option>';
+        employes_cache.filter(e => e.statut === "actif").forEach(e => {
+          const opt = document.createElement("option");
+          opt.value = e.id;
+          opt.textContent = `${e.prenom} ${e.nom}`;
+          sel.appendChild(opt);
+        });
+        if (val) sel.value = val;
+      });
+    }
+
+    // ════════════════════════════════════════
+    // MODAL EMPLOYÉ
+    // ════════════════════════════════════════
+    function ouvrirModalEmploye(emp = null) {
+      empIdEdition = emp?.id || null;
+      document.getElementById("modal-emp-titre").textContent = emp ? `Modifier — ${emp.prenom} ${emp.nom}` : "Nouvel employé";
+
+      // Reset tabs
+      switchEmpTab("infos", document.querySelector("#modal-employe .modal-tab"));
+
+      // Remplir champs
+      const g = id => document.getElementById(id);
+      g("f-prenom").value         = emp?.prenom       || "";
+      g("f-nom").value            = emp?.nom          || "";
+      g("f-email").value          = emp?.email        || "";
+      g("f-tel").value            = emp?.telephone    || "";
+      g("f-poste").value          = emp?.poste        || "";
+      g("f-dept").value           = emp?.departement  || "";
+      g("f-statut").value         = emp?.statut       || "actif";
+      g("f-embauche").value       = emp?.date_embauche || new Date().toISOString().slice(0, 10);
+      g("f-notes").value          = emp?.notes        || "";
+      g("f-contrat").value        = emp?.type_contrat || "CDI";
+      g("f-salaire").value        = emp?.salaire_brut || "";
+      g("f-prime").value          = emp?.prime_annuelle || "";
+      g("f-conges-acquis").value  = emp?.conges_acquis || 25;
+      g("f-conges-pris").value    = emp?.conges_pris   || 0;
+      g("f-rtt").value            = emp?.rtt           || 0;
+
+      majApercu();
+      majSoldeApercu();
+      document.getElementById("modal-employe").style.display = "flex";
+    }
+
+    function fermerModalEmploye() {
+      document.getElementById("modal-employe").style.display = "none";
+    }
+
+    function editerEmploye(emp) { ouvrirModalEmploye(emp); }
+
+    function switchEmpTab(tab, btn) {
+      ["infos", "contrat", "conges"].forEach(t => {
+        const el = document.getElementById("etab-" + t);
+        if (el) el.style.display = t === tab ? "block" : "none";
+      });
+      document.querySelectorAll("#modal-employe .modal-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+    }
+
+    function majApercu() {
+      const brut = parseFloat(document.getElementById("f-salaire").value) || 0;
+      const div  = document.getElementById("apercu-cout");
+      if (!brut) { div.style.display = "none"; return; }
+      div.style.display = "block";
+      document.getElementById("ap-net").textContent  = euros(brut * 0.78);
+      document.getElementById("ap-cp").textContent   = euros(brut * 0.42);
+      document.getElementById("ap-cout").textContent = euros(brut * 1.42);
+    }
+
+    function majSoldeApercu() {
+      const acquis = parseFloat(document.getElementById("f-conges-acquis").value) || 25;
+      const pris   = parseFloat(document.getElementById("f-conges-pris").value)   || 0;
+      const reste  = acquis - pris;
+      const pct    = Math.max(0, Math.min(100, (reste / acquis) * 100));
+      document.getElementById("solde-bar").innerHTML = `
+        <div class="conges-bar-label">
+          <span>${pris} j pris</span>
+          <span style="color:${reste > 5 ? 'var(--success)' : 'var(--warning)'};font-weight:600">${reste.toFixed(1)} j restants</span>
         </div>
+        <div class="conges-bar-track"><div class="conges-bar-fill" style="width:${pct}%"></div></div>
+      `;
+    }
+
+    // Recalcul aperçu si les champs congés changent
+    ["f-conges-acquis","f-conges-pris"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", majSoldeApercu);
+    });
+
+    async function sauvegarderEmploye() {
+      const prenom = document.getElementById("f-prenom").value.trim();
+      const nom    = document.getElementById("f-nom").value.trim();
+      if (!prenom || !nom) { alert("Prénom et nom sont requis"); return; }
+
+      const body = {
+        entreprise_id:  ENTREPRISE_ID,
+        prenom,
+        nom,
+        email:          document.getElementById("f-email").value.trim(),
+        telephone:      document.getElementById("f-tel").value.trim(),
+        poste:          document.getElementById("f-poste").value.trim(),
+        departement:    document.getElementById("f-dept").value.trim(),
+        statut:         document.getElementById("f-statut").value,
+        date_embauche:  document.getElementById("f-embauche").value,
+        notes:          document.getElementById("f-notes").value.trim(),
+        type_contrat:   document.getElementById("f-contrat").value,
+        salaire_brut:   parseFloat(document.getElementById("f-salaire").value) || 0,
+        prime_annuelle: parseFloat(document.getElementById("f-prime").value)   || 0,
+        conges_acquis:  parseFloat(document.getElementById("f-conges-acquis").value) || 25,
+        conges_pris:    parseFloat(document.getElementById("f-conges-pris").value)   || 0,
+        rtt:            parseFloat(document.getElementById("f-rtt").value)           || 0,
+      };
+
+      const method   = empIdEdition ? "PUT" : "POST";
+      const endpoint = empIdEdition
+        ? `/business/rh/employes/${empIdEdition}`
+        : "/business/rh/employes";
+
+      const json = await apiAuth(method, endpoint, body);
+      if (json?.statut === "ok") {
+        fermerModalEmploye();
+        await chargerEmployes();
+        await chargerMasseSalariale();
+        toast(empIdEdition ? "✅ Employé mis à jour !" : "✅ Employé ajouté !");
+      } else {
+        alert(json?.message || "Erreur lors de la sauvegarde");
+      }
+    }
+
+    // ════════════════════════════════════════
+    // SUPPRESSION AVEC CONFIRMATION
+    // ════════════════════════════════════════
+    function confirmerSuppr(id, nom) {
+      document.getElementById("confirm-msg").textContent =
+        `Vous allez supprimer "${nom}". Cette action est irréversible et supprimera aussi ses congés et pointages.`;
+      document.getElementById("btn-confirm-delete").onclick = () => supprimerEmploye(id);
+      document.getElementById("modal-confirm").style.display = "flex";
+    }
+
+    async function supprimerEmploye(id) {
+      document.getElementById("modal-confirm").style.display = "none";
+      const json = await apiAuth("DELETE", `/business/rh/employes/${id}?entreprise_id=${ENTREPRISE_ID}`);
+      if (json?.statut === "ok") {
+        await chargerEmployes();
+        toast("🗑️ Employé supprimé");
+      } else {
+        alert(json?.message || "Erreur lors de la suppression");
+      }
+    }
+
+    // ════════════════════════════════════════
+    // CONGÉS
+    // ════════════════════════════════════════
+    async function chargerConges() {
+      const url  = `/business/rh/conges?entreprise_id=${ENTREPRISE_ID}${filtreConge ? '&statut=' + filtreConge : ''}`;
+      const json = await apiAuth("GET", url);
+      const data = json?.data || [];
+
+      // Mettre à jour KPI
+      const attente = (await apiAuth("GET", `/business/rh/conges?entreprise_id=${ENTREPRISE_ID}&statut=en_attente`))?.data?.length || 0;
+      document.getElementById("kpi-conges").textContent = attente;
+
+      const tbody = document.getElementById("tbody-conges");
+      if (!data.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun congé ${filtreConge ? 'avec ce statut' : ''}</td></tr>`;
+        return;
+      }
+
+      const typeLabel = {
+        conges_payes: "Congés payés", rtt: "RTT", maladie: "Arrêt maladie",
+        sans_solde: "Sans solde", evenement_familial: "Événement familial", autre: "Autre"
+      };
+
+      tbody.innerHTML = data.map(c => `
+        <tr>
+          <td><strong>${c.prenom || "?"} ${c.nom || ""}</strong></td>
+          <td><span class="badge badge-info" style="font-size:0.75rem">${typeLabel[c.type] || c.type}</span></td>
+          <td>${fmtDate(c.date_debut)}</td>
+          <td>${fmtDate(c.date_fin)}</td>
+          <td><strong>${c.nb_jours} j</strong></td>
+          <td style="color:var(--text-muted);font-size:0.82rem">${c.motif || "—"}</td>
+          <td>
+            <span class="badge tag-${c.statut}">
+              ${c.statut === "en_attente" ? "⏳ En attente" : c.statut === "approuve" ? "✅ Approuvé" : "❌ Refusé"}
+            </span>
+          </td>
+          <td>
+            ${c.statut === "en_attente" ? `
+              <button class="btn-sm" onclick="validerConge('${c.id}','approuve')" style="background:rgba(16,185,129,0.15);color:#34d399;border-color:rgba(16,185,129,0.3)">✓ Valider</button>
+              <button class="btn-sm btn-danger" onclick="validerConge('${c.id}','refuse')">✗ Refuser</button>
+            ` : "—"}
+          </td>
+        </tr>
       `).join("");
     }
 
-    async function validerConge(cid, statut) {
-      await apiAuth("PUT", `/business/rh/conges/${cid}/valider`, { entreprise_id: ENTREPRISE_ID, statut });
+    function filtrerConges(statut, btn) {
+      filtreConge = statut;
+      document.querySelectorAll("#tab-conges .tabs .tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
       chargerConges();
     }
 
+    function ouvrirModalConge() {
+      document.getElementById("modal-conge").style.display = "flex";
+    }
+
+    async function sauvegarderConge() {
+      const body = {
+        entreprise_id: ENTREPRISE_ID,
+        employe_id:    document.getElementById("f-conge-emp").value,
+        type:          document.getElementById("f-conge-type").value,
+        date_debut:    document.getElementById("f-conge-debut").value,
+        date_fin:      document.getElementById("f-conge-fin").value,
+        motif:         document.getElementById("f-conge-motif").value,
+      };
+      if (!body.employe_id || !body.date_debut || !body.date_fin) {
+        alert("Employé, date début et date fin sont requis");
+        return;
+      }
+      const json = await apiAuth("POST", "/business/rh/conges", body);
+      if (json?.statut === "ok") {
+        document.getElementById("modal-conge").style.display = "none";
+        chargerConges();
+        toast("✅ Demande de congé soumise !");
+      } else {
+        alert(json?.message || "Erreur");
+      }
+    }
+
+    async function validerConge(cid, statut) {
+      await apiAuth("PUT", `/business/rh/conges/${cid}/valider`, {
+        entreprise_id: ENTREPRISE_ID,
+        statut
+      });
+
+      // Si approuvé : recalculer conges_pris de l'employé depuis tous ses congés approuvés
+      if (statut === "approuve") {
+        await recalculerCongesPris();
+      }
+
+      chargerConges();
+      toast(statut === "approuve" ? "✅ Congé approuvé" : "❌ Congé refusé");
+    }
+
+    async function recalculerCongesPris() {
+      // Charger tous les congés approuvés de l'entreprise
+      const json = await apiAuth("GET", `/business/rh/conges?entreprise_id=${ENTREPRISE_ID}&statut=approuve`);
+      const tousConges = json?.data || [];
+
+      // Grouper par employé et sommer les jours (congés payés uniquement)
+      const parEmploye = {};
+      tousConges.forEach(c => {
+        if (c.type === "conges_payes") {
+          parEmploye[c.employe_id] = (parEmploye[c.employe_id] || 0) + (c.nb_jours || 0);
+        }
+      });
+
+      // Mettre à jour chaque employé concerné
+      for (const [empId, joursPris] of Object.entries(parEmploye)) {
+        const emp = employes_cache.find(e => e.id === empId);
+        if (!emp) continue;
+        if (emp.conges_pris !== joursPris) {
+          await apiAuth("PUT", `/business/rh/employes/${empId}`, {
+            entreprise_id: ENTREPRISE_ID,
+            conges_pris: joursPris
+          });
+        }
+      }
+
+      // Recharger les employés pour mettre à jour les cartes
+      await chargerEmployes();
+    }
+
+    // ════════════════════════════════════════
+    // POINTAGE
+    // ════════════════════════════════════════
+    async function chargerPointages() {
+      const empId = document.getElementById("select-emp-ptg").value;
+      const mois  = document.getElementById("select-mois-ptg").value;
+      if (!ENTREPRISE_ID || !mois) return;
+
+      let url = `/business/rh/pointages?entreprise_id=${ENTREPRISE_ID}&mois=${mois}`;
+      if (empId) url += `&employe_id=${empId}`;
+
+      const json = await apiAuth("GET", url);
+      const data = json?.data || [];
+
+      // Résumé
+      const totalH   = data.reduce((s, p) => s + (p.heures_travaillees || 0), 0);
+      const totalSup = data.reduce((s, p) => s + (p.heures_supplementaires || 0), 0);
+      document.getElementById("ptg-summary").innerHTML = `
+        <div class="kpi-mini"><div class="kpi-mini-icon">📅</div><div><div class="kpi-mini-val">${data.length}</div><div class="kpi-mini-lbl">Jours pointés</div></div></div>
+        <div class="kpi-mini"><div class="kpi-mini-icon">⏱️</div><div><div class="kpi-mini-val">${totalH}h</div><div class="kpi-mini-lbl">Heures travaillées</div></div></div>
+        <div class="kpi-mini"><div class="kpi-mini-icon">⚡</div><div><div class="kpi-mini-val" style="color:var(--warning)">${totalSup}h</div><div class="kpi-mini-lbl">Heures sup.</div></div></div>
+      `;
+
+      const tbody = document.getElementById("tbody-pointages");
+      if (!data.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun pointage ce mois</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = data.map(p => `
+        <tr>
+          <td><strong>${p.prenom || ""} ${p.nom || ""}</strong></td>
+          <td>${p.date}</td>
+          <td>${p.heure_arrivee || "—"}</td>
+          <td>${p.heure_depart || "—"}</td>
+          <td>${p.heures_travaillees}h</td>
+          <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${p.heures_supplementaires}h</span>` : "—"}</td>
+          <td style="color:var(--text-muted);font-size:0.82rem">${p.notes || "—"}</td>
+        </tr>
+      `).join("");
+    }
+
+    function ouvrirModalPointage() {
+      document.getElementById("modal-ptg").style.display = "flex";
+    }
+
+    async function sauvegarderPointage() {
+      const body = {
+        entreprise_id: ENTREPRISE_ID,
+        employe_id:    document.getElementById("f-ptg-emp").value,
+        date:          document.getElementById("f-ptg-date").value,
+        heure_arrivee: document.getElementById("f-ptg-arrivee").value,
+        heure_depart:  document.getElementById("f-ptg-depart").value,
+        notes:         document.getElementById("f-ptg-notes").value,
+      };
+      if (!body.employe_id || !body.date) { alert("Employé et date requis"); return; }
+
+      const json = await apiAuth("POST", "/business/rh/pointages", body);
+      if (json?.statut === "ok") {
+        document.getElementById("modal-ptg").style.display = "none";
+        chargerPointages();
+        toast("✅ Pointage enregistré !");
+      } else {
+        alert(json?.message || "Erreur");
+      }
+    }
+
+    // ════════════════════════════════════════
+    // COÛTS SALARIAUX
+    // ════════════════════════════════════════
     async function chargerMasseSalariale() {
-      if (!ENTREPRISE_ID) return;
       const json = await apiAuth("GET", `/business/rh/masse-salariale?entreprise_id=${ENTREPRISE_ID}`);
-      const d = json?.data;
-      const container = document.getElementById("masse-salariale");
-      if (!d) { container.innerHTML = '<div class="empty-state">Aucune donnée</div>'; return; }
+      const d    = json?.data;
+      if (!d) return;
 
-      document.getElementById("kpi-employes").textContent = d.nb_employes_actifs;
-      container.innerHTML = `
-        <div class="stat-row"><span>Salaires bruts / mois</span><strong>${formaterEuros(d.total_salaires_bruts)}</strong></div>
-        <div class="stat-row"><span>Charges patronales</span><strong>${formaterEuros(d.charges_patronales_totales)}</strong></div>
-        <div class="stat-row"><span>Coût total employeur / mois</span><strong style="color:var(--accent2)">${formaterEuros(d.cout_total_mensuel)}</strong></div>
-        <div class="stat-row"><span>Coût total annuel</span><strong>${formaterEuros(d.cout_total_annuel)}</strong></div>
-        <div style="margin-top:12px;font-size:0.75rem;color:var(--text-muted)">⚠️ Taux indicatifs 2024 — consultez votre comptable</div>
-      `;
-    }
-
-    async function chargerAlertes() {
-      if (!ENTREPRISE_ID) return;
-      const json = await apiAuth("GET", `/business/finances/anomalies?entreprise_id=${ENTREPRISE_ID}`);
-      const container = document.getElementById("alertes-container");
-      if (!json?.data?.length) { container.innerHTML = ""; return; }
-      container.innerHTML = json.data.map(a => `
-        <div class="alerte-banner alerte-${a.niveau}">
-          <span>⚠️ <strong>${a.categorie}</strong> : dépense ${a.ecart_pct}% supérieure à la moyenne (${formaterEuros(a.montant_actuel)} vs moy. ${formaterEuros(a.montant_moyen)})</span>
-          <a href="finances.html" style="margin-left:auto;color:inherit;font-size:0.8rem">Voir →</a>
-        </div>
-      `).join("");
-    }
-
-    function renderCategories(cats) {
-      if (!cats?.length) { document.getElementById("categories-depenses").innerHTML = '<div class="empty-state">Aucune dépense</div>'; return; }
-      const max = cats[0].montant;
-      document.getElementById("categories-depenses").innerHTML = cats.slice(0, 8).map(c => `
-        <div class="bar-row">
-          <span class="bar-label">${c.categorie}</span>
-          <div class="bar-track"><div class="bar-fill" style="width:${max > 0 ? Math.round(c.montant/max*100) : 0}%;background:var(--accent)"></div></div>
-          <span class="bar-value-text">${formaterEuros(c.montant)}</span>
-        </div>
-      `).join("");
-    }
-
-    function renderProjection(proj) {
-      if (!proj?.length) { document.getElementById("projection-tresorerie").innerHTML = '<div class="empty-state">Données insuffisantes</div>'; return; }
-      document.getElementById("projection-tresorerie").innerHTML = `
-        <table class="table">
-          <thead><tr><th>Mois</th><th>Revenus</th><th>Dépenses</th><th>Solde</th></tr></thead>
-          <tbody>
-            ${proj.map(p => `
-              <tr>
-                <td>${p.mois}</td>
-                <td style="color:var(--success)">${formaterEuros(p.revenus_prevus)}</td>
-                <td style="color:var(--danger)">${formaterEuros(p.depenses_prevues)}</td>
-                <td style="color:${p.solde_mensuel >= 0 ? 'var(--success)' : 'var(--danger)'}">
-                  ${p.solde_mensuel >= 0 ? '+' : ''}${formaterEuros(p.solde_mensuel)}
-                </td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      `;
-    }
-
-    function renderChart(evolution) {
-      if (!evolution?.length) return;
-      const recent = evolution.slice(-6);
-      const max = Math.max(...recent.map(e => Math.max(e.revenus, e.depenses)), 1);
-      const h = 120;
-      document.getElementById("chart-evolution").innerHTML = `
-        <div class="chart-bars">
-          ${recent.map(e => `
-            <div class="chart-col">
-              <div class="chart-pair">
-                <div class="chart-bar bar-rev" style="height:${Math.round(e.revenus/max*h)}px" title="Revenus: ${formaterEuros(e.revenus)}"></div>
-                <div class="chart-bar bar-dep" style="height:${Math.round(e.depenses/max*h)}px" title="Dépenses: ${formaterEuros(e.depenses)}"></div>
-              </div>
-              <span class="chart-label">${e.mois.slice(5)}</span>
-            </div>
-          `).join("")}
-        </div>
-        <div class="chart-legend">
-          <span class="legend-dot" style="background:var(--success)"></span> Revenus
-          <span class="legend-dot" style="background:var(--danger);margin-left:12px"></span> Dépenses
+      document.getElementById("masse-detail").innerHTML = `
+        <div class="stat-row"><span>Effectif actif</span><strong>${d.nb_employes_actifs} employés</strong></div>
+        <div class="stat-row"><span>Salaires bruts / mois</span><strong style="color:var(--accent2)">${euros(d.total_salaires_bruts)}</strong></div>
+        <div class="stat-row"><span>Charges patronales (~42%)</span><strong style="color:var(--danger)">${euros(d.charges_patronales_totales)}</strong></div>
+        <div class="stat-row"><span>Coût total employeur / mois</span><strong style="color:var(--accent2);font-size:1rem">${euros(d.cout_total_mensuel)}</strong></div>
+        <div class="stat-row"><span>Coût total annuel</span><strong>${euros(d.cout_total_annuel)}</strong></div>
+        <div style="margin-top:10px;padding:10px 12px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:8px;font-size:0.75rem;color:var(--text-muted)">
+          ⚠️ Ces données sont indicatives. Elles ne s'ajoutent pas automatiquement à vos finances — saisissez manuellement vos virements de salaires dans la page Finances.
         </div>
       `;
     }
 
-    function formaterEuros(n) {
-      if (n === undefined || n === null) return "—";
+    async function chargerCoutsEmployes() {
+      const tbody = document.getElementById("tbody-cout");
+      if (!employes_cache.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted)">Aucun employé</td></tr>`;
+        return;
+      }
+      const actifs = employes_cache.filter(e => e.statut === "actif");
+      tbody.innerHTML = actifs.map(e => {
+        const brut = e.salaire_brut || 0;
+        const cs   = brut * 0.22;
+        const net  = brut - cs;
+        const cp   = brut * 0.42;
+        const cout = brut + cp;
+        return `<tr>
+          <td><strong>${e.prenom} ${e.nom}</strong></td>
+          <td>${e.poste || "—"}</td>
+          <td><span class="badge badge-grey">${e.type_contrat || "CDI"}</span></td>
+          <td style="font-weight:600">${euros(brut)}</td>
+          <td style="color:var(--danger)">- ${euros(cs)}</td>
+          <td style="color:var(--success)">${euros(net)}</td>
+          <td style="color:var(--warning)">${euros(cp)}</td>
+          <td style="font-weight:700;color:var(--accent2)">${euros(cout)}</td>
+        </tr>`;
+      }).join("");
+    }
+
+    // ════════════════════════════════════════
+    // SIMULATEUR DE CHARGES
+    // ════════════════════════════════════════
+    function simulerCharges() {
+      const brut = parseFloat(document.getElementById("sim-brut").value) || 0;
+      const div  = document.getElementById("sim-result");
+      if (!brut) { div.style.display = "none"; return; }
+      div.style.display = "block";
+      document.getElementById("sim-brut-out").textContent = euros(brut);
+      document.getElementById("sim-cs").textContent       = "- " + euros(brut * 0.22);
+      document.getElementById("sim-net").textContent      = euros(brut * 0.78);
+      document.getElementById("sim-cp").textContent       = euros(brut * 0.42);
+      document.getElementById("sim-cout").textContent     = euros(brut * 1.42);
+    }
+
+    // ════════════════════════════════════════
+    // UTILS
+    // ════════════════════════════════════════
+    function euros(n) {
+      if (!n && n !== 0) return "—";
       return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
     }
 
+    function fmtDate(d) {
+      return d ? new Date(d + "T12:00:00").toLocaleDateString("fr-FR") : "—";
+    }
+
+    function toast(msg, color = "#10b981") {
+      const t = document.createElement("div");
+      t.textContent = msg;
+      t.style.cssText = `position:fixed;bottom:28px;right:28px;background:${color};color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3);animation:fadeInUp 0.3s ease`;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity = "0"; t.style.transition = "opacity 0.4s"; setTimeout(() => t.remove(), 400); }, 2500);
+    }
+
+    // ════════════════════════════════════════
+    // LANCEMENT
+    // ════════════════════════════════════════
     init();
   </script>
 </body>

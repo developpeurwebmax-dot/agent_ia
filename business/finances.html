@@ -102,6 +102,16 @@
       background: var(--accent2);
       border-radius: 3px; transition: width 0.2s;
     }
+    /* ── BUDGET PRÉVISIONNEL ── */
+    .budget-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+    .budget-row:last-child { border-bottom:none; }
+    .budget-cat { font-size:0.85rem; font-weight:600; min-width:160px; }
+    .budget-bar-wrap { flex:1; min-width:120px; }
+    .budget-bar-track { height:8px; background:var(--bg3); border-radius:99px; overflow:hidden; margin-bottom:3px; }
+    .budget-bar-fill { height:100%; border-radius:99px; transition:width 0.4s ease; }
+    .budget-amounts { font-size:0.72rem; display:flex; justify-content:space-between; color:var(--text-muted); }
+    .budget-input { background:var(--bg3); border:1px solid var(--border); border-radius:7px; padding:5px 10px; color:var(--text); font-size:0.82rem; width:90px; text-align:right; }
+    .budget-input:focus { outline:none; border-color:var(--accent); }
   </style>
 </head>
 <body>
@@ -111,8 +121,9 @@
     <nav>
       <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
       <a href="finances.html" class="nav-link">💰 Finances</a>
-      <a href="employes.html" class="nav-link active">👥 Équipe & RH</a>
+      <a href="employes.html" class="nav-link">👥 Équipe & RH</a>
       <a href="facturation.html" class="nav-link">🧾 Facturation</a>
+      <a href="projets.html" class="nav-link active">📁 Projets</a>
       <a href="analytics.html" class="nav-link">📊 Analytics IA</a>
       <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
     </nav>
@@ -134,7 +145,9 @@
       </div>
       <div style="display:flex;gap:10px">
         <select id="select-mois" onchange="renderTransactions();chargerKPIs();" class="select-inline"></select>
+        <button class="btn-secondary" onclick="toggleBudget()">🎯 Budgets</button>
         <button class="btn-secondary" onclick="ouvrirImportCSV()">📂 Import CSV</button>
+        <button class="btn-secondary" onclick="exporterCSV()">⬇️ Export CSV</button>
         <button class="btn-primary" onclick="ouvrirModal()">+ Transaction</button>
       </div>
     </header>
@@ -164,7 +177,7 @@
       <button class="filter-btn active" onclick="filtrerType('', this)">Tout</button>
       <button class="filter-btn" onclick="filtrerType('revenu', this)">💰 Revenus</button>
       <button class="filter-btn" onclick="filtrerType('depense', this)">📤 Dépenses</button>
-      <select id="select-categorie" onchange="filtrerCategorie(this.value)" class="select-inline" style="margin-left:auto">
+      <select id="select-categorie" onchange="filtrerCategorie(this.value)" class="select-inline">
         <option value="">Toutes les catégories</option>
         <option value="salaires">Salaires</option>
         <option value="loyer">Loyer</option>
@@ -176,6 +189,28 @@
         <option value="honoraires">Honoraires</option>
         <option value="autre">Autre</option>
       </select>
+      <input
+        type="text"
+        id="input-recherche"
+        placeholder="🔍 Rechercher..."
+        oninput="renderTransactions()"
+        class="select-inline"
+        style="margin-left:auto;min-width:180px"
+      />
+    </div>
+
+    <!-- SECTION BUDGET PRÉVISIONNEL -->
+    <div id="section-budget" style="display:none;margin-bottom:20px">
+      <div class="card">
+        <div class="card-header" style="display:flex;align-items:center;gap:10px">
+          <span class="card-icon">🎯</span>
+          <h2>Budget mensuel par catégorie</h2>
+          <span style="font-size:0.78rem;color:var(--text-muted);margin-left:4px" id="budget-mois-label"></span>
+          <button class="btn-sm" style="margin-left:auto" onclick="sauvegarderBudgets()">💾 Enregistrer</button>
+        </div>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:16px">Fixez un plafond mensuel par catégorie. La barre devient rouge si vous dépassez le budget.</p>
+        <div id="budget-content"><div class="empty-state">Chargement...</div></div>
+      </div>
     </div>
 
     <!-- TABLE TRANSACTIONS -->
@@ -474,6 +509,46 @@
       renderTransactions();
     }
 
+    function exporterCSV() {
+      // Récupérer les mêmes transactions que celles affichées (mêmes filtres)
+      const mois = document.getElementById("select-mois").value;
+      let txns = toutes_transactions.filter(t => t.date?.slice(0, 7) === mois);
+      if (filtreType)      txns = txns.filter(t => t.type === filtreType);
+      if (filtreCategorie) txns = txns.filter(t => t.categorie === filtreCategorie);
+      const recherche = (document.getElementById("input-recherche")?.value || "").trim().toLowerCase();
+      if (recherche) {
+        txns = txns.filter(t =>
+          (t.description || "").toLowerCase().includes(recherche) ||
+          String(t.montant || "").includes(recherche) ||
+          (t.reference || "").toLowerCase().includes(recherche) ||
+          (t.categorie || "").toLowerCase().includes(recherche)
+        );
+      }
+
+      if (!txns.length) { alert("Aucune transaction à exporter."); return; }
+
+      // Construire le CSV
+      const entete = ["Date", "Description", "Catégorie", "Type", "Mode de paiement", "Montant", "Référence"];
+      const lignes = txns.map(t => [
+        t.date || "",
+        '"' + (t.description || "").replace(/"/g, '""') + '"',
+        t.categorie || "autre",
+        t.type === "revenu" ? "Revenu" : "Dépense",
+        t.mode_paiement || "",
+        t.type === "revenu" ? t.montant : -t.montant,
+        '"' + (t.reference || "").replace(/"/g, '""') + '"',
+      ].join(";"));
+
+      const csv  = [entete.join(";"), ...lignes].join("\n");
+      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = "transactions_" + mois + ".csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
     function renderTransactions() {
       const mois = document.getElementById("select-mois").value;
 
@@ -487,9 +562,24 @@
       if (filtreType)      txns = txns.filter(t => t.type === filtreType);
       if (filtreCategorie) txns = txns.filter(t => t.categorie === filtreCategorie);
 
+      // Filtre recherche texte (description, montant, référence)
+      const recherche = (document.getElementById("input-recherche")?.value || "").trim().toLowerCase();
+      if (recherche) {
+        txns = txns.filter(t =>
+          (t.description || "").toLowerCase().includes(recherche) ||
+          String(t.montant || "").includes(recherche) ||
+          (t.reference || "").toLowerCase().includes(recherche) ||
+          (t.categorie || "").toLowerCase().includes(recherche)
+        );
+      }
+
       const tbody = document.getElementById("tbody-transactions");
       if (!txns.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Aucune transaction pour ce mois</td></tr>';
+        const recherche = (document.getElementById("input-recherche")?.value || "").trim();
+        const msg = recherche
+          ? `Aucun résultat pour "<strong>${recherche}</strong>"`
+          : "Aucune transaction pour ce mois";
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">${msg}</td></tr>`;
         return;
       }
       tbody.innerHTML = txns.map(t => `
@@ -1033,6 +1123,102 @@
       csvParsedRows = []; csvMapping = {}; csvFileName = ""; csvFormatDebitCredit = false;
       document.getElementById("csv-file-input").value = "";
       csvGoPanel(1);
+    }
+
+    // ════════════════════════════════════════
+    // BUDGET PRÉVISIONNEL
+    // ════════════════════════════════════════
+    const CATS_BUDGET = [
+      { val: "salaires",          lbl: "👥 Salaires" },
+      { val: "loyer",             lbl: "🏠 Loyer" },
+      { val: "charges_fixes",     lbl: "⚡ Charges fixes" },
+      { val: "fournitures",       lbl: "📦 Fournitures" },
+      { val: "marketing",         lbl: "📣 Marketing" },
+      { val: "deplacement_repas", lbl: "🚗 Déplacements/Repas" },
+      { val: "assurances",        lbl: "🛡️ Assurances" },
+      { val: "honoraires",        lbl: "💼 Honoraires" },
+      { val: "autre",             lbl: "📁 Autre" },
+    ];
+
+    function getBudgets() {
+      try { return JSON.parse(localStorage.getItem("budgets_finances") || "{}"); } catch(e) { return {}; }
+    }
+
+    function toggleBudget() {
+      const sec = document.getElementById("section-budget");
+      const visible = sec.style.display !== "none";
+      sec.style.display = visible ? "none" : "block";
+      if (!visible) renderBudget();
+    }
+
+    function renderBudget() {
+      const mois    = document.getElementById("select-mois").value;
+      const budgets = getBudgets();
+      document.getElementById("budget-mois-label").textContent = "— " + mois;
+
+      const reels = {};
+      toutes_transactions
+        .filter(t => t.type === "depense" && t.date && t.date.slice(0, 7) === mois)
+        .forEach(t => { const c = t.categorie || "autre"; reels[c] = (reels[c] || 0) + (t.montant || 0); });
+
+      let html = "";
+      CATS_BUDGET.forEach(function(cat) {
+        const reel    = reels[cat.val] || 0;
+        const budget  = budgets[cat.val] || 0;
+        const pct     = budget > 0 ? Math.min(Math.round(reel / budget * 100), 100) : 0;
+        const depasse = budget > 0 && reel > budget;
+        const couleur = depasse ? "#ef4444" : pct > 75 ? "#f59e0b" : "#10b981";
+
+        html += '<div class="budget-row">';
+        html += '<span class="budget-cat">' + cat.lbl + '</span>';
+        html += '<div class="budget-bar-wrap">';
+        if (budget > 0) {
+          html += '<div class="budget-bar-track"><div class="budget-bar-fill" style="width:' + pct + '%;background:' + couleur + '"></div></div>';
+          html += '<div class="budget-amounts">';
+          html += '<span style="color:' + (depasse ? "#ef4444" : "var(--text-muted)") + '">' + (depasse ? "⚠️ " : "") + euros(reel) + ' dépensés</span>';
+          html += '<span>' + pct + '% du budget</span>';
+          html += '</div>';
+        } else {
+          html += '<span style="font-size:0.75rem;color:var(--text-muted)">Aucun budget défini</span>';
+        }
+        html += '</div>';
+        html += '<div style="display:flex;align-items:center;gap:6px">';
+        html += '<span style="font-size:0.75rem;color:var(--text-muted)">Budget :</span>';
+        html += '<input type="number" class="budget-input" min="0" step="50" placeholder="0" value="' + (budget || "") + '" id="budget-input-' + cat.val + '"/>';
+        html += '<span style="font-size:0.75rem;color:var(--text-muted)">€</span>';
+        html += '</div></div>';
+      });
+
+      const totalBudget = CATS_BUDGET.reduce(function(s,c){ return s + (budgets[c.val] || 0); }, 0);
+      const totalReel   = CATS_BUDGET.reduce(function(s,c){ return s + (reels[c.val]   || 0); }, 0);
+      const pctTotal    = totalBudget > 0 ? Math.round(totalReel / totalBudget * 100) : 0;
+      const couleurTotal = totalReel > totalBudget && totalBudget > 0 ? "var(--danger)" : "var(--success)";
+
+      html += '<div style="margin-top:16px;padding:14px 16px;background:var(--bg3);border-radius:10px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">';
+      html += '<span style="font-weight:600;font-size:0.88rem">Total budgeté :</span>';
+      html += '<strong style="color:var(--accent2)">' + euros(totalBudget) + '</strong>';
+      html += '<span style="color:var(--text-muted)">vs</span>';
+      html += '<strong style="color:' + couleurTotal + '">' + euros(totalReel) + ' réels</strong>';
+      if (totalBudget > 0) html += '<span style="font-size:0.78rem;color:var(--text-muted)">' + pctTotal + '% consommé</span>';
+      html += '</div>';
+
+      document.getElementById("budget-content").innerHTML = html;
+    }
+
+    function sauvegarderBudgets() {
+      const budgets = {};
+      CATS_BUDGET.forEach(function(cat) {
+        const el  = document.getElementById("budget-input-" + cat.val);
+        const val = el ? (parseFloat(el.value) || 0) : 0;
+        if (val > 0) budgets[cat.val] = val;
+      });
+      localStorage.setItem("budgets_finances", JSON.stringify(budgets));
+      renderBudget();
+      const t = document.createElement("div");
+      t.textContent = "✅ Budgets enregistrés !";
+      t.style.cssText = "position:fixed;bottom:28px;right:28px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999";
+      document.body.appendChild(t);
+      setTimeout(function(){ t.style.opacity="0"; t.style.transition="opacity 0.4s"; setTimeout(function(){t.remove();},400); }, 2000);
     }
 
     // ════════════════════════════════════════

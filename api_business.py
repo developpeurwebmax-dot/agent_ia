@@ -541,3 +541,148 @@ def analyser_business():
         return reponse_ok(analyse, "Analyse générée")
     except Exception as e:
         return reponse_erreur(str(e), 500)
+
+# ─────────────────────────────────────────────
+# PROJETS
+# ─────────────────────────────────────────────
+
+@business.route("/projets", methods=["GET", "POST", "OPTIONS"])
+@token_requis
+def projets_route():
+    if request.method == "POST":
+        try:
+            data = get_json()
+            eid  = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            if not data.get("nom"):
+                return reponse_erreur("Nom du projet requis")
+
+            conn = get_db()
+            try:
+                import time, json as _json
+                pid = f"PRJ_{int(time.time() * 1000000)}"
+                conn.execute("""
+                    INSERT INTO projets
+                        (id, entreprise_id, nom, client, description, budget, cout_reel,
+                         statut, date_debut, date_fin_prevue, date_fin_reelle,
+                         responsable_id, membres)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    pid, eid,
+                    data.get("nom", ""),
+                    data.get("client", ""),
+                    data.get("description", ""),
+                    float(data.get("budget", 0)),
+                    float(data.get("cout_reel", 0)),
+                    data.get("statut", "en_cours"),
+                    data.get("date_debut", ""),
+                    data.get("date_fin_prevue", ""),
+                    data.get("date_fin_reelle", ""),
+                    data.get("responsable_id"),
+                    _json.dumps(data.get("membres", [])),
+                ))
+                conn.commit()
+                from database import row_to_dict
+                row = conn.execute("SELECT * FROM projets WHERE id=?", (pid,)).fetchone()
+                p = row_to_dict(row)
+                p["membres"] = _json.loads(p.get("membres") or "[]")
+                return reponse_ok(p, "Projet créé", 201)
+            finally:
+                conn.close()
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+    else:  # GET
+        try:
+            import json as _json
+            eid = request.args.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            statut = request.args.get("statut")
+            conn = get_db()
+            try:
+                sql    = "SELECT * FROM projets WHERE entreprise_id=?"
+                params = [eid]
+                if statut:
+                    sql += " AND statut=?"
+                    params.append(statut)
+                sql += " ORDER BY created_at DESC"
+                from database import rows_to_list
+                rows = rows_to_list(conn.execute(sql, params).fetchall())
+                for p in rows:
+                    p["membres"] = _json.loads(p.get("membres") or "[]")
+                return reponse_ok({"projets": rows, "total": len(rows)})
+            finally:
+                conn.close()
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+
+
+@business.route("/projets/<pid>", methods=["GET", "PUT", "DELETE", "OPTIONS"])
+@token_requis
+def projet_detail(pid):
+    import json as _json
+    from database import row_to_dict
+
+    if request.method == "GET":
+        try:
+            eid = request.args.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            conn = get_db()
+            try:
+                row = conn.execute("SELECT * FROM projets WHERE id=? AND entreprise_id=?", (pid, eid)).fetchone()
+                if not row:
+                    return reponse_erreur("Projet non trouvé", 404)
+                p = row_to_dict(row)
+                p["membres"] = _json.loads(p.get("membres") or "[]")
+                return reponse_ok(p)
+            finally:
+                conn.close()
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+
+    elif request.method == "PUT":
+        try:
+            data = get_json()
+            eid  = data.get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            conn = get_db()
+            try:
+                champs = ["nom", "client", "description", "budget", "cout_reel",
+                          "statut", "date_debut", "date_fin_prevue", "date_fin_reelle",
+                          "responsable_id", "membres"]
+                sets, vals = [], []
+                for k in champs:
+                    if k in data:
+                        val = _json.dumps(data[k]) if k == "membres" and isinstance(data[k], list) else data[k]
+                        sets.append(f"{k}=?")
+                        vals.append(val)
+                if sets:
+                    vals += [pid, eid]
+                    conn.execute(f"UPDATE projets SET {','.join(sets)} WHERE id=? AND entreprise_id=?", vals)
+                    conn.commit()
+                row = conn.execute("SELECT * FROM projets WHERE id=?", (pid,)).fetchone()
+                p = row_to_dict(row)
+                p["membres"] = _json.loads(p.get("membres") or "[]")
+                return reponse_ok(p, "Projet mis à jour")
+            finally:
+                conn.close()
+        except Exception as e:
+            return reponse_erreur(str(e), 500)
+
+    elif request.method == "DELETE":
+        try:
+            eid = request.args.get("entreprise_id") or (get_json() or {}).get("entreprise_id")
+            if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            conn = get_db()
+            try:
+                conn.execute("DELETE FROM projets WHERE id=? AND entreprise_id=?", (pid, eid))
+                conn.commit()
+                return reponse_ok({}, "Projet supprimé")
+            finally:
+                conn.close()
+        except Exception as e:
+            return reponse_erreur(str(e), 500)

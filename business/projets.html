@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA Business — Projets</title>
+  <link rel="stylesheet" href="../style.css"/>
+  <link rel="stylesheet" href="style_business.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── KANBAN ── */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 900px) { .kanban-board { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .kanban-board { grid-template-columns: 1fr; } }
+
+    .kanban-col {
+      background: var(--bg3);
+      border-radius: 12px;
+      padding: 14px;
+      min-height: 200px;
+    }
+    .kanban-col-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .kanban-count {
+      background: var(--border);
+      border-radius: 99px;
+      padding: 1px 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      margin-left: auto;
+    }
+    .projet-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.12s;
+    }
+    .projet-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .projet-card-nom { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+    .projet-card-client { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px; }
+    .projet-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+    .budget-mini-bar { flex: 1; height: 4px; background: var(--bg3); border-radius: 99px; overflow: hidden; }
+    .budget-mini-fill { height: 100%; border-radius: 99px; }
+
+    /* ── LISTE VIEW ── */
+    .view-toggle { display: flex; gap: 4px; background: var(--bg3); padding: 3px; border-radius: 8px; }
+    .view-btn { padding: 5px 10px; border: none; background: transparent; color: var(--text-muted); border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; }
+    .view-btn.active { background: var(--card); color: var(--text); }
+
+    /* ── STATUT BADGE ── */
+    .statut-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 0.72rem; font-weight: 600; }
+    .st-en_cours    { background: rgba(99,102,241,0.15); color: var(--accent2); }
+    .st-termine     { background: rgba(16,185,129,0.15); color: #10b981; }
+    .st-en_pause    { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .st-annule      { background: rgba(239,68,68,0.15);  color: #ef4444; }
+
+    /* ── MODAL PROJET ── */
+    .modal-tabs { display: flex; gap: 4px; background: var(--bg3); padding: 3px; border-radius: 8px; margin-bottom: 20px; width: fit-content; }
+    .modal-tab { padding: 6px 14px; border: none; background: transparent; color: var(--text-muted); font-family: var(--font-body); font-size: 0.83rem; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
+    .modal-tab.active { background: var(--card); color: var(--text); }
+
+    /* ── MEMBRES CHIPS ── */
+    .membres-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .membre-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg3); border: 1px solid var(--border); border-radius: 99px; padding: 4px 10px; font-size: 0.78rem; }
+    .membre-chip button { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.9rem; padding: 0; line-height: 1; }
+    .membre-chip button:hover { color: var(--danger); }
+
+    /* ── BUDGET BAR ── */
+    .budget-track { height: 10px; background: var(--bg3); border-radius: 99px; overflow: hidden; margin: 6px 0; }
+    .budget-fill  { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+    /* ── TÂCHES ── */
+    .tache-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .tache-item:last-child { border-bottom: none; }
+    .tache-check { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .tache-check.done { background: #10b981; border-color: #10b981; color: white; }
+    .tache-texte { flex: 1; font-size: 0.85rem; }
+    .tache-texte.done { text-decoration: line-through; color: var(--text-muted); }
+
+    /* ── KPIs PROJETS ── */
+    .projets-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    @media (max-width: 700px) { .projets-kpis { grid-template-columns: repeat(2,1fr); } }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">🏢 IA Business</div>
+    <nav>
+      <a href="dashboard.html" class="nav-link">🏠 Dashboard</a>
+      <a href="finances.html" class="nav-link">💰 Finances</a>
+      <a href="employes.html" class="nav-link">👥 Équipe & RH</a>
+      <a href="facturation.html" class="nav-link">🧾 Facturation</a>
+      <a href="projets.html" class="nav-link active">📁 Projets</a>
+      <a href="analytics.html" class="nav-link">📊 Analytics IA</a>
+      <a href="parametres.html" class="nav-link">⚙️ Paramètres</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Dirigeant</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Projets</h1>
+        <p class="page-sub">Suivi de vos projets clients</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="view-toggle">
+          <button class="view-btn active" id="btn-kanban" onclick="setView('kanban')">⬛ Kanban</button>
+          <button class="view-btn" id="btn-liste" onclick="setView('liste')">☰ Liste</button>
+        </div>
+        <select id="filtre-statut" onchange="chargerProjets()" class="select-inline">
+          <option value="">Tous les statuts</option>
+          <option value="en_cours">En cours</option>
+          <option value="en_pause">En pause</option>
+          <option value="termine">Terminés</option>
+          <option value="annule">Annulés</option>
+        </select>
+        <button class="btn-primary" onclick="ouvrirModal()">+ Nouveau projet</button>
+      </div>
+    </header>
+
+    <!-- KPIs -->
+    <div class="projets-kpis">
+      <div class="stat-card"><span class="stat-icon">📁</span><div><div class="stat-value" id="kpi-total">—</div><div class="stat-label">Projets actifs</div></div></div>
+      <div class="stat-card"><span class="stat-icon">💰</span><div><div class="stat-value" id="kpi-budget">—</div><div class="stat-label">Budget total</div></div></div>
+      <div class="stat-card"><span class="stat-icon">📊</span><div><div class="stat-value" id="kpi-cout">—</div><div class="stat-label">Coût réel total</div></div></div>
+      <div class="stat-card"><span class="stat-icon">✅</span><div><div class="stat-value" id="kpi-termines">—</div><div class="stat-label">Terminés</div></div></div>
+    </div>
+
+    <!-- VUE KANBAN -->
+    <div id="view-kanban">
+      <div class="kanban-board">
+        <div class="kanban-col">
+          <div class="kanban-col-header"><span>🔵</span> En cours <span class="kanban-count" id="cnt-en_cours">0</span></div>
+          <div id="col-en_cours"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header"><span>🟡</span> En pause <span class="kanban-count" id="cnt-en_pause">0</span></div>
+          <div id="col-en_pause"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header"><span>🟢</span> Terminés <span class="kanban-count" id="cnt-termine">0</span></div>
+          <div id="col-termine"></div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header"><span>🔴</span> Annulés <span class="kanban-count" id="cnt-annule">0</span></div>
+          <div id="col-annule"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VUE LISTE -->
+    <div id="view-liste" style="display:none">
+      <div class="card">
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Projet</th>
+                <th>Client</th>
+                <th>Statut</th>
+                <th>Responsable</th>
+                <th>Budget</th>
+                <th>Coût réel</th>
+                <th>Avancement budget</th>
+                <th>Fin prévue</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody-projets">
+              <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">Chargement...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+
+  <!-- ════ MODAL PROJET ════ -->
+  <div class="modal-overlay" id="modal-projet" style="display:none" onclick="if(event.target===this)fermerModal()">
+    <div class="modal" style="width:720px;max-width:96vw;max-height:92vh;overflow-y:auto">
+      <h3 id="modal-titre">Nouveau projet</h3>
+
+      <div class="modal-tabs">
+        <button class="modal-tab active" onclick="switchTab('infos', this)">📋 Infos</button>
+        <button class="modal-tab" onclick="switchTab('membres', this)">👥 Membres</button>
+        <button class="modal-tab" onclick="switchTab('budget', this)">💰 Budget</button>
+        <button class="modal-tab" onclick="switchTab('taches', this)">✅ Tâches</button>
+      </div>
+
+      <!-- TAB INFOS -->
+      <div id="tab-infos">
+        <div class="form-grid">
+          <div class="form-group form-full"><label>Nom du projet *</label><input type="text" id="f-nom" placeholder="Ex: Refonte site web client X"/></div>
+          <div class="form-group"><label>Client</label><input type="text" id="f-client" placeholder="Nom du client"/></div>
+          <div class="form-group"><label>Statut</label>
+            <select id="f-statut">
+              <option value="en_cours">🔵 En cours</option>
+              <option value="en_pause">🟡 En pause</option>
+              <option value="termine">🟢 Terminé</option>
+              <option value="annule">🔴 Annulé</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Date de début</label><input type="date" id="f-debut"/></div>
+          <div class="form-group"><label>Date de fin prévue</label><input type="date" id="f-fin-prevue"/></div>
+          <div class="form-group form-full"><label>Description</label><textarea id="f-description" placeholder="Détails, objectifs, livrables..." style="min-height:80px"></textarea></div>
+          <div class="form-group form-full"><label>Notes internes</label><textarea id="f-notes" placeholder="Notes privées, remarques équipe..." style="min-height:60px"></textarea></div>
+        </div>
+      </div>
+
+      <!-- TAB MEMBRES -->
+      <div id="tab-membres" style="display:none">
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Responsable du projet</label>
+          <select id="f-responsable" class="select-inline" style="width:100%">
+            <option value="">— Sélectionner un responsable —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Ajouter des membres</label>
+          <select id="f-add-membre" class="select-inline" style="width:100%" onchange="ajouterMembre(this.value)">
+            <option value="">— Sélectionner un employé —</option>
+          </select>
+        </div>
+        <div class="membres-list" id="membres-list"></div>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-top:12px">Les membres ont accès au projet et peuvent être assignés aux tâches.</p>
+      </div>
+
+      <!-- TAB BUDGET -->
+      <div id="tab-budget" style="display:none">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Budget prévu (€)</label>
+            <input type="number" id="f-budget" placeholder="0" min="0" step="100" oninput="majApercuBudget()"/>
+          </div>
+          <div class="form-group">
+            <label>Coût réel actuel (€)</label>
+            <input type="number" id="f-cout-reel" placeholder="0" min="0" step="100" oninput="majApercuBudget()"/>
+          </div>
+        </div>
+        <div id="apercu-budget" style="display:none;margin-top:16px;background:var(--bg3);border-radius:10px;padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:6px">
+            <span>Coût réel</span>
+            <span id="ap-cout-reel">—</span>
+          </div>
+          <div class="budget-track"><div class="budget-fill" id="ap-barre" style="width:0%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted)">
+            <span id="ap-pct">0%</span>
+            <span>Budget : <strong id="ap-budget">—</strong></span>
+          </div>
+          <div id="ap-alerte" style="display:none;margin-top:10px;font-size:0.82rem;color:#ef4444;font-weight:600">⚠️ Budget dépassé !</div>
+        </div>
+      </div>
+
+      <!-- TAB TÂCHES -->
+      <div id="tab-taches" style="display:none">
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <input type="text" id="f-new-tache" class="search-bar" style="flex:1;width:auto" placeholder="Nouvelle tâche..." onkeydown="if(event.key==='Enter')ajouterTache()"/>
+          <button class="btn-secondary" onclick="ajouterTache()">+ Ajouter</button>
+        </div>
+        <div id="taches-list"><div style="color:var(--text-muted);font-size:0.85rem">Aucune tâche</div></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="fermerModal()">Annuler</button>
+        <button class="btn-primary" onclick="sauvegarderProjet()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="auth.js"></script>
+  <script>
+    let ENTREPRISE_ID = null;
+    let employes_cache = [];
+    let projets_cache  = [];
+    let membres_projet = []; // IDs des membres du projet en cours d'édition
+    let taches_projet  = []; // [{texte, done}]
+    let projetIdEdition = null;
+    let vueActuelle = "kanban";
+
+    // ════════════════════════════════════════
+    // INIT
+    // ════════════════════════════════════════
+    async function init() {
+      const user = await initSidebar();
+      if (!user) return;
+
+      const json = await apiAuth("GET", "/business/entreprises");
+      if (!json?.data?.entreprises?.length) return;
+      ENTREPRISE_ID = json.data.entreprises[0].id;
+      document.getElementById("sidebar-role").textContent = json.data.entreprises[0].role_label || "Dirigeant";
+
+      await chargerEmployes();
+      await chargerProjets();
+    }
+
+    async function chargerEmployes() {
+      const json = await apiAuth("GET", `/business/rh/employes?entreprise_id=${ENTREPRISE_ID}`);
+      employes_cache = json?.data?.employes || [];
+      remplirSelectsEmployes();
+    }
+
+    function remplirSelectsEmployes() {
+      ["f-responsable", "f-add-membre"].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const first = sel.options[0].outerHTML;
+        sel.innerHTML = first;
+        employes_cache.forEach(e => {
+          const opt = document.createElement("option");
+          opt.value = e.id;
+          opt.textContent = e.prenom + " " + e.nom + (e.poste ? " — " + e.poste : "");
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    async function chargerProjets() {
+      const statut = document.getElementById("filtre-statut").value;
+      let url = `/business/projets?entreprise_id=${ENTREPRISE_ID}`;
+      if (statut) url += "&statut=" + statut;
+      const json = await apiAuth("GET", url);
+      projets_cache = json?.data?.projets || [];
+      renderProjets();
+      majKPIs();
+    }
+
+    // ════════════════════════════════════════
+    // VUE
+    // ════════════════════════════════════════
+    function setView(vue) {
+      vueActuelle = vue;
+      document.getElementById("view-kanban").style.display = vue === "kanban" ? "block" : "none";
+      document.getElementById("view-liste").style.display  = vue === "liste"  ? "block" : "none";
+      document.getElementById("btn-kanban").classList.toggle("active", vue === "kanban");
+      document.getElementById("btn-liste").classList.toggle("active",  vue === "liste");
+      renderProjets();
+    }
+
+    function renderProjets() {
+      if (vueActuelle === "kanban") renderKanban();
+      else renderListe();
+    }
+
+    // ════════════════════════════════════════
+    // KANBAN
+    // ════════════════════════════════════════
+    function renderKanban() {
+      const statuts = ["en_cours", "en_pause", "termine", "annule"];
+      statuts.forEach(st => {
+        const list = projets_cache.filter(p => p.statut === st);
+        document.getElementById("cnt-" + st).textContent = list.length;
+        document.getElementById("col-" + st).innerHTML = list.length
+          ? list.map(p => carteProjet(p)).join("")
+          : '<div style="font-size:0.78rem;color:var(--text-muted);text-align:center;padding:20px 0">Aucun projet</div>';
+      });
+    }
+
+    function carteProjet(p) {
+      const budget  = p.budget || 0;
+      const cout    = p.cout_reel || 0;
+      const pct     = budget > 0 ? Math.min(Math.round(cout / budget * 100), 100) : 0;
+      const couleur = cout > budget && budget > 0 ? "#ef4444" : pct > 75 ? "#f59e0b" : "#10b981";
+      const resp    = employes_cache.find(e => e.id === p.responsable_id);
+      const membres = (p.membres || []).length;
+
+      return '<div class="projet-card" onclick="ouvrirModal(' + JSON.stringify(p).replace(/"/g,"&quot;") + ')">'
+        + '<div class="projet-card-nom">' + p.nom + '</div>'
+        + '<div class="projet-card-client">' + (p.client || "Sans client") + '</div>'
+        + (budget > 0 ? '<div class="budget-mini-bar" style="margin-bottom:8px"><div class="budget-mini-fill" style="width:' + pct + '%;background:' + couleur + '"></div></div>' : '')
+        + '<div class="projet-card-footer">'
+        + '<span style="font-size:0.72rem;color:var(--text-muted)">' + (p.date_fin_prevue ? '📅 ' + p.date_fin_prevue : '') + '</span>'
+        + (resp ? '<span style="font-size:0.72rem;color:var(--text-muted)">👤 ' + resp.prenom + '</span>' : '')
+        + (membres > 0 ? '<span style="font-size:0.72rem;color:var(--text-muted)">👥 ' + membres + '</span>' : '')
+        + (budget > 0 ? '<span style="font-size:0.72rem;font-weight:600;color:' + couleur + '">' + pct + '%</span>' : '')
+        + '</div>'
+        + '</div>';
+    }
+
+    // ════════════════════════════════════════
+    // LISTE
+    // ════════════════════════════════════════
+    function renderListe() {
+      const tbody = document.getElementById("tbody-projets");
+      if (!projets_cache.length) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">Aucun projet</td></tr>';
+        return;
+      }
+      const ST = { en_cours:"st-en_cours", en_pause:"st-en_pause", termine:"st-termine", annule:"st-annule" };
+      const SL = { en_cours:"🔵 En cours", en_pause:"🟡 En pause", termine:"🟢 Terminé", annule:"🔴 Annulé" };
+
+      tbody.innerHTML = projets_cache.map(p => {
+        const budget  = p.budget || 0;
+        const cout    = p.cout_reel || 0;
+        const pct     = budget > 0 ? Math.min(Math.round(cout / budget * 100), 100) : 0;
+        const couleur = cout > budget && budget > 0 ? "#ef4444" : pct > 75 ? "#f59e0b" : "#10b981";
+        const resp    = employes_cache.find(e => e.id === p.responsable_id);
+        const eData   = JSON.stringify(p).replace(/'/g, "&#39;");
+
+        return '<tr>'
+          + '<td><strong>' + p.nom + '</strong>' + (p.description ? '<div style="font-size:0.75rem;color:var(--text-muted)">' + p.description.substring(0,50) + (p.description.length > 50 ? '...' : '') + '</div>' : '') + '</td>'
+          + '<td>' + (p.client || "—") + '</td>'
+          + '<td><span class="statut-badge ' + (ST[p.statut] || "") + '">' + (SL[p.statut] || p.statut) + '</span></td>'
+          + '<td>' + (resp ? resp.prenom + " " + resp.nom : '<span style="color:var(--text-muted)">—</span>') + '</td>'
+          + '<td style="font-weight:600">' + (budget > 0 ? euros(budget) : "—") + '</td>'
+          + '<td style="color:' + (cout > budget && budget > 0 ? '#ef4444' : 'var(--text)') + '">' + (cout > 0 ? euros(cout) : "—") + '</td>'
+          + '<td style="min-width:100px">'
+          + (budget > 0
+              ? '<div class="budget-track" style="height:6px"><div class="budget-fill" style="width:' + pct + '%;background:' + couleur + '"></div></div><div style="font-size:0.7rem;color:var(--text-muted);text-align:right">' + pct + '%</div>'
+              : '<span style="color:var(--text-muted);font-size:0.75rem">—</span>')
+          + '</td>'
+          + '<td>' + (p.date_fin_prevue || "—") + '</td>'
+          + '<td>'
+          + '<button class="btn-sm" onclick=\'ouvrirModal(' + eData + ')\'>✏️</button> '
+          + '<button class="btn-sm btn-danger" onclick="supprimerProjet(\'' + p.id + '\')">🗑</button>'
+          + '</td>'
+          + '</tr>';
+      }).join("");
+    }
+
+    // ════════════════════════════════════════
+    // KPIs
+    // ════════════════════════════════════════
+    function majKPIs() {
+      const actifs   = projets_cache.filter(p => p.statut === "en_cours").length;
+      const termines = projets_cache.filter(p => p.statut === "termine").length;
+      const budget   = projets_cache.reduce((s, p) => s + (p.budget || 0), 0);
+      const cout     = projets_cache.reduce((s, p) => s + (p.cout_reel || 0), 0);
+      document.getElementById("kpi-total").textContent   = actifs;
+      document.getElementById("kpi-termines").textContent = termines;
+      document.getElementById("kpi-budget").textContent  = euros(budget);
+      document.getElementById("kpi-cout").textContent    = euros(cout);
+    }
+
+    // ════════════════════════════════════════
+    // MODAL
+    // ════════════════════════════════════════
+    function ouvrirModal(projet) {
+      projetIdEdition = projet?.id || null;
+      membres_projet  = projet ? (projet.membres || []) : [];
+      taches_projet   = projet ? (JSON.parse(projet.notes_taches || "[]")) : [];
+
+      document.getElementById("modal-titre").textContent = projet ? "Modifier — " + projet.nom : "Nouveau projet";
+      document.getElementById("f-nom").value         = projet?.nom          || "";
+      document.getElementById("f-client").value      = projet?.client       || "";
+      document.getElementById("f-statut").value      = projet?.statut       || "en_cours";
+      document.getElementById("f-debut").value       = projet?.date_debut   || "";
+      document.getElementById("f-fin-prevue").value  = projet?.date_fin_prevue || "";
+      document.getElementById("f-description").value = projet?.description  || "";
+      document.getElementById("f-notes").value       = projet?.notes        || "";
+      document.getElementById("f-responsable").value = projet?.responsable_id || "";
+      document.getElementById("f-budget").value      = projet?.budget       || "";
+      document.getElementById("f-cout-reel").value   = projet?.cout_reel    || "";
+
+      // Charger les notes_taches si existent
+      try { taches_projet = JSON.parse(projet?.notes_taches || "[]"); } catch { taches_projet = []; }
+
+      renderMembres();
+      renderTaches();
+      majApercuBudget();
+      switchTab("infos", document.querySelector("#modal-projet .modal-tab"));
+      document.getElementById("modal-projet").style.display = "flex";
+    }
+
+    function fermerModal() {
+      document.getElementById("modal-projet").style.display = "none";
+    }
+
+    function switchTab(tab, btn) {
+      ["infos", "membres", "budget", "taches"].forEach(t => {
+        const el = document.getElementById("tab-" + t);
+        if (el) el.style.display = t === tab ? "block" : "none";
+      });
+      document.querySelectorAll("#modal-projet .modal-tab").forEach(b => b.classList.remove("active"));
+      if (btn) btn.classList.add("active");
+    }
+
+    // ════════════════════════════════════════
+    // MEMBRES
+    // ════════════════════════════════════════
+    function ajouterMembre(empId) {
+      if (!empId || membres_projet.includes(empId)) return;
+      membres_projet.push(empId);
+      document.getElementById("f-add-membre").value = "";
+      renderMembres();
+    }
+
+    function retirerMembre(empId) {
+      membres_projet = membres_projet.filter(id => id !== empId);
+      renderMembres();
+    }
+
+    function renderMembres() {
+      const list = document.getElementById("membres-list");
+      if (!membres_projet.length) {
+        list.innerHTML = '<span style="font-size:0.78rem;color:var(--text-muted)">Aucun membre assigné</span>';
+        return;
+      }
+      list.innerHTML = membres_projet.map(id => {
+        const e = employes_cache.find(x => x.id === id);
+        if (!e) return "";
+        return '<span class="membre-chip">'
+          + '<span>' + e.prenom + ' ' + e.nom + '</span>'
+          + '<button onclick="retirerMembre(\'' + id + '\')">×</button>'
+          + '</span>';
+      }).join("");
+    }
+
+    // ════════════════════════════════════════
+    // TÂCHES
+    // ════════════════════════════════════════
+    function ajouterTache() {
+      const input = document.getElementById("f-new-tache");
+      const texte = input.value.trim();
+      if (!texte) return;
+      taches_projet.push({ texte, done: false });
+      input.value = "";
+      renderTaches();
+    }
+
+    function toggleTache(i) {
+      taches_projet[i].done = !taches_projet[i].done;
+      renderTaches();
+    }
+
+    function supprimerTache(i) {
+      taches_projet.splice(i, 1);
+      renderTaches();
+    }
+
+    function renderTaches() {
+      const cont = document.getElementById("taches-list");
+      if (!taches_projet.length) {
+        cont.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:10px 0">Aucune tâche — ajoutez-en ci-dessus</div>';
+        return;
+      }
+      const total = taches_projet.length;
+      const done  = taches_projet.filter(t => t.done).length;
+      const pct   = Math.round(done / total * 100);
+
+      cont.innerHTML = '<div style="margin-bottom:12px">'
+        + '<div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);margin-bottom:4px"><span>' + done + '/' + total + ' tâches complétées</span><span>' + pct + '%</span></div>'
+        + '<div class="budget-track" style="height:6px"><div class="budget-fill" style="width:' + pct + '%;background:#10b981"></div></div>'
+        + '</div>'
+        + taches_projet.map((t, i) =>
+          '<div class="tache-item">'
+          + '<div class="tache-check ' + (t.done ? "done" : "") + '" onclick="toggleTache(' + i + ')">' + (t.done ? "✓" : "") + '</div>'
+          + '<span class="tache-texte ' + (t.done ? "done" : "") + '">' + t.texte + '</span>'
+          + '<button class="btn-sm btn-danger" style="padding:2px 6px;font-size:0.75rem" onclick="supprimerTache(' + i + ')">×</button>'
+          + '</div>'
+        ).join("");
+    }
+
+    // ════════════════════════════════════════
+    // BUDGET APERÇU
+    // ════════════════════════════════════════
+    function majApercuBudget() {
+      const budget = parseFloat(document.getElementById("f-budget")?.value) || 0;
+      const cout   = parseFloat(document.getElementById("f-cout-reel")?.value) || 0;
+      const div    = document.getElementById("apercu-budget");
+      if (!budget && !cout) { div.style.display = "none"; return; }
+      div.style.display = "block";
+      const pct     = budget > 0 ? Math.min(Math.round(cout / budget * 100), 100) : 0;
+      const couleur = cout > budget && budget > 0 ? "#ef4444" : pct > 75 ? "#f59e0b" : "#10b981";
+      document.getElementById("ap-cout-reel").textContent = euros(cout);
+      document.getElementById("ap-budget").textContent    = euros(budget);
+      document.getElementById("ap-pct").textContent       = pct + "%";
+      document.getElementById("ap-barre").style.width     = pct + "%";
+      document.getElementById("ap-barre").style.background = couleur;
+      document.getElementById("ap-alerte").style.display  = (cout > budget && budget > 0) ? "block" : "none";
+    }
+
+    // ════════════════════════════════════════
+    // CRUD
+    // ════════════════════════════════════════
+    async function sauvegarderProjet() {
+      const nom = document.getElementById("f-nom").value.trim();
+      if (!nom) { alert("Le nom du projet est requis"); return; }
+
+      const body = {
+        entreprise_id:  ENTREPRISE_ID,
+        nom,
+        client:         document.getElementById("f-client").value,
+        statut:         document.getElementById("f-statut").value,
+        date_debut:     document.getElementById("f-debut").value,
+        date_fin_prevue:document.getElementById("f-fin-prevue").value,
+        description:    document.getElementById("f-description").value,
+        notes:          document.getElementById("f-notes").value,
+        responsable_id: document.getElementById("f-responsable").value || null,
+        budget:         parseFloat(document.getElementById("f-budget").value) || 0,
+        cout_reel:      parseFloat(document.getElementById("f-cout-reel").value) || 0,
+        membres:        membres_projet,
+        notes_taches:   JSON.stringify(taches_projet),
+      };
+
+      const url    = projetIdEdition ? "/business/projets/" + projetIdEdition : "/business/projets";
+      const method = projetIdEdition ? "PUT" : "POST";
+      const json   = await apiAuth(method, url, body);
+
+      if (json?.statut === "ok") {
+        fermerModal();
+        await chargerProjets();
+        toast(projetIdEdition ? "✅ Projet mis à jour !" : "✅ Projet créé !");
+      } else {
+        alert(json?.message || "Erreur lors de la sauvegarde");
+      }
+    }
+
+    async function supprimerProjet(id) {
+      if (!confirm("Supprimer ce projet ? Cette action est irréversible.")) return;
+      const json = await apiAuth("DELETE", "/business/projets/" + id + "?entreprise_id=" + ENTREPRISE_ID);
+      if (json?.statut === "ok") {
+        await chargerProjets();
+        toast("🗑️ Projet supprimé");
+      }
+    }
+
+    // ════════════════════════════════════════
+    // UTILS
+    // ════════════════════════════════════════
+    function euros(n) {
+      if (!n && n !== 0) return "—";
+      return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+    }
+
+    function toast(msg, color = "#10b981") {
+      const t = document.createElement("div");
+      t.textContent = msg;
+      t.style.cssText = "position:fixed;bottom:28px;right:28px;background:" + color + ";color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999";
+      document.body.appendChild(t);
+      setTimeout(function() { t.style.opacity = "0"; t.style.transition = "opacity 0.4s"; setTimeout(function(){ t.remove(); }, 400); }, 2500);
+    }
+
+    init();
+  </script>
+</body>
+</html>
