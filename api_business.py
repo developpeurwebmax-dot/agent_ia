@@ -59,6 +59,7 @@ from rh import (
     pointer_heures, get_pointages,
     creer_evaluation, get_evaluations
 )
+from database import get_db, row_to_dict, rows_to_list
 
 business = Blueprint("business", __name__, url_prefix="/business")
 
@@ -560,7 +561,8 @@ def projets_route():
 
             conn = get_db()
             try:
-                import time, json as _json
+                import time
+                import json as _json
                 pid = f"PRJ_{int(time.time() * 1000000)}"
                 conn.execute("""
                     INSERT INTO projets
@@ -583,7 +585,6 @@ def projets_route():
                     _json.dumps(data.get("membres", [])),
                 ))
                 conn.commit()
-                from database import row_to_dict
                 row = conn.execute("SELECT * FROM projets WHERE id=?", (pid,)).fetchone()
                 p = row_to_dict(row)
                 p["membres"] = _json.loads(p.get("membres") or "[]")
@@ -607,7 +608,6 @@ def projets_route():
                     sql += " AND statut=?"
                     params.append(statut)
                 sql += " ORDER BY created_at DESC"
-                from database import rows_to_list
                 rows = rows_to_list(conn.execute(sql, params).fetchall())
                 for p in rows:
                     p["membres"] = _json.loads(p.get("membres") or "[]")
@@ -622,7 +622,6 @@ def projets_route():
 @token_requis
 def projet_detail(pid):
     import json as _json
-    from database import row_to_dict
 
     if request.method == "GET":
         try:
