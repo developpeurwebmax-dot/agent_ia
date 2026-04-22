@@ -993,10 +993,6 @@
         </div>
       `;
 
-      {lignesSalaires.length > 0 ? `
-      // Afficher avertissement salaires exclus
-      ` : ""}
-
       // Afficher avertissement si des lignes salaires sont détectées
       const warnEl = document.getElementById("csv-warn-salaires");
       if (lignesSalaires.length > 0) {
