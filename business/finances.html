@@ -971,10 +971,10 @@
     }
 
     function csvRenderPreview() {
-      // Les lignes de salaires sont exclues de l'import (gérées via les fiches employés)
-      const lignesSalaires = csvParsedRows.filter(r => r.categorie === "salaires");
+      const lignesSalaires  = csvParsedRows.filter(r => r.categorie === "salaires");
       const rowsImportables = csvParsedRows.filter(r => r.categorie !== "salaires");
 
+      // Stats : uniquement les lignes importables
       const revenus  = rowsImportables.filter(r => r.type === "revenu").reduce((s,r) => s + r.montant, 0);
       const depenses = rowsImportables.filter(r => r.type === "depense").reduce((s,r) => s + r.montant, 0);
 
@@ -989,40 +989,51 @@
         </div>
         <div class="csv-stat">
           <div class="csv-stat-val">${rowsImportables.length}</div>
-          <div class="csv-stat-lbl">Transactions</div>
+          <div class="csv-stat-lbl">À importer</div>
         </div>
       `;
 
-      // Afficher avertissement si des lignes salaires sont détectées
+      // Avertissement si des salaires détectés
       const warnEl = document.getElementById("csv-warn-salaires");
       if (lignesSalaires.length > 0) {
         warnEl.style.display = "block";
-        warnEl.innerHTML = "👥 <strong>" + lignesSalaires.length + " ligne(s) de salaires exclues</strong> — Les salaires sont gérés automatiquement via les fiches employés. Ces lignes ne seront pas importées.";
+        warnEl.innerHTML = "👥 <strong>" + lignesSalaires.length + " ligne(s) de salaires exclues</strong> — Les salaires sont gérés via les fiches employés. Ces lignes sont affichées en grisé et ne seront pas importées.";
       } else {
         warnEl.style.display = "none";
       }
 
-      const preview = rowsImportables.slice(0, 50);
-      document.getElementById("csv-preview-body").innerHTML = preview.map((r, i) => `
-        <tr>
-          <td style="white-space:nowrap">${r.date}</td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.description}">${r.description}</td>
+      // Afficher TOUTES les lignes — salaires grisés et barrés
+      const preview = csvParsedRows.slice(0, 50);
+      document.getElementById("csv-preview-body").innerHTML = preview.map((r, i) => {
+        const isSalaire = r.categorie === "salaires";
+        const rowStyle  = isSalaire ? "opacity:0.45;background:rgba(99,102,241,0.04);" : "";
+        const txtStyle  = isSalaire ? "text-decoration:line-through;" : "";
+        return `<tr style="${rowStyle}">
+          <td style="white-space:nowrap;${txtStyle}">${r.date}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${txtStyle}" title="${r.description}">
+            ${isSalaire ? "🚫 " : ""}${r.description}
+          </td>
           <td>
-            <select class="select-inline" style="font-size:0.78rem;padding:2px 6px"
-                    onchange="csvParsedRows[${i}].categorie=this.value">
+            <select class="select-inline" style="font-size:0.78rem;padding:2px 6px${isSalaire ? ";opacity:0.5;pointer-events:none" : ""}"
+                    onchange="csvParsedRows[${i}].categorie=this.value;csvRenderPreview()">
               ${CSV_CATEGORIES.map(c => `<option value="${c.val}" ${r.categorie === c.val ? "selected" : ""}>${c.lbl}</option>`).join("")}
             </select>
           </td>
-          <td style="text-align:right;font-weight:600;white-space:nowrap;color:${r.type==="revenu" ? "var(--success)" : "var(--danger)"}">
+          <td style="text-align:right;font-weight:600;white-space:nowrap;${txtStyle}color:${isSalaire ? "var(--text-muted)" : r.type==="revenu" ? "var(--success)" : "var(--danger)"}">
             ${r.type==="revenu" ? "+" : "-"}${r.montant.toFixed(2)} €
           </td>
-          <td><span class="badge ${r.type==="revenu" ? "badge-success" : "badge-danger"}">${r.type==="revenu" ? "Revenu" : "Dépense"}</span></td>
-        </tr>
-      `).join("");
+          <td>
+            ${isSalaire
+              ? '<span class="badge badge-grey" style="font-size:0.7rem">Exclu</span>'
+              : `<span class="badge ${r.type==="revenu" ? "badge-success" : "badge-danger"}">${r.type==="revenu" ? "Revenu" : "Dépense"}</span>`
+            }
+          </td>
+        </tr>`;
+      }).join("");
 
       const more = document.getElementById("csv-more-rows");
       more.textContent = csvParsedRows.length > 50
-        ? `... et ${csvParsedRows.length - 50} autres transactions (toutes seront importées)`
+        ? `... et ${csvParsedRows.length - 50} autres lignes (toutes les lignes non-salaires seront importées)`
         : "";
     }
 
