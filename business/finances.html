@@ -350,6 +350,7 @@
       <!-- ÉTAPE 3 : Prévisualisation -->
       <div class="csv-panel" id="csv-panel-3" style="display:none">
         <div class="csv-stats-row" id="csv-stats-row"></div>
+        <div id="csv-warn-salaires" style="display:none;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:0.82rem;color:var(--accent2)"></div>
         <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px">
           Vérifie et corrige les catégories avant d'importer. Les 50 premières lignes sont affichées.
         </div>
@@ -970,8 +971,12 @@
     }
 
     function csvRenderPreview() {
-      const revenus  = csvParsedRows.filter(r => r.type === "revenu").reduce((s,r) => s + r.montant, 0);
-      const depenses = csvParsedRows.filter(r => r.type === "depense").reduce((s,r) => s + r.montant, 0);
+      // Les lignes de salaires sont exclues de l'import (gérées via les fiches employés)
+      const lignesSalaires = csvParsedRows.filter(r => r.categorie === "salaires");
+      const rowsImportables = csvParsedRows.filter(r => r.categorie !== "salaires");
+
+      const revenus  = rowsImportables.filter(r => r.type === "revenu").reduce((s,r) => s + r.montant, 0);
+      const depenses = rowsImportables.filter(r => r.type === "depense").reduce((s,r) => s + r.montant, 0);
 
       document.getElementById("csv-stats-row").innerHTML = `
         <div class="csv-stat">
@@ -983,12 +988,25 @@
           <div class="csv-stat-lbl">Dépenses</div>
         </div>
         <div class="csv-stat">
-          <div class="csv-stat-val">${csvParsedRows.length}</div>
+          <div class="csv-stat-val">${rowsImportables.length}</div>
           <div class="csv-stat-lbl">Transactions</div>
         </div>
       `;
 
-      const preview = csvParsedRows.slice(0, 50);
+      {lignesSalaires.length > 0 ? `
+      // Afficher avertissement salaires exclus
+      ` : ""}
+
+      // Afficher avertissement si des lignes salaires sont détectées
+      const warnEl = document.getElementById("csv-warn-salaires");
+      if (lignesSalaires.length > 0) {
+        warnEl.style.display = "block";
+        warnEl.innerHTML = "👥 <strong>" + lignesSalaires.length + " ligne(s) de salaires exclues</strong> — Les salaires sont gérés automatiquement via les fiches employés. Ces lignes ne seront pas importées.";
+      } else {
+        warnEl.style.display = "none";
+      }
+
+      const preview = rowsImportables.slice(0, 50);
       document.getElementById("csv-preview-body").innerHTML = preview.map((r, i) => `
         <tr>
           <td style="white-space:nowrap">${r.date}</td>
@@ -1025,9 +1043,12 @@
       }, 120);
 
       try {
+        // Exclure les lignes de salaires — gérées via les fiches employés
+        const rowsAImporter = csvParsedRows.filter(r => r.categorie !== "salaires");
+
         const payload = {
           entreprise_id: ENTREPRISE_ID,
-          transactions: csvParsedRows.map(r => ({
+          transactions: rowsAImporter.map(r => ({
             date:        r.date,
             description: r.description,
             montant:     r.montant,

@@ -386,17 +386,82 @@ def importer_bulk(entreprise_id: str, transactions: list) -> dict:
 
 
 # ─────────────────────────────────────────────
-# GÉNÉRATION PAIE — DÉSACTIVÉE
-# Les salaires restent dans la fiche employé uniquement.
-# Aucun impact automatique sur les transactions financières.
+# GÉNÉRATION PAIE
+# Crée une transaction de dépense par employé actif pour le mois donné.
+# Détecte les doublons : si une transaction salaire existe déjà pour cet
+# employé et ce mois, elle est ignorée (évite les doubles avec import CSV).
 # ─────────────────────────────────────────────
 
 def generer_paie_mensuelle(entreprise_id: str, mois: str) -> dict:
-    """Désactivée — les salaires n'impactent plus automatiquement les finances."""
-    return {
-        "generes": 0, "doublons": 0, "total_brut": 0, "detail": [],
-        "message": "Génération automatique désactivée. Saisissez vos virements manuellement dans Finances."
-    }
+    """
+    Génère les transactions de salaire pour tous les employés actifs du mois donné.
+    mois : format YYYY-MM
+    - Crée une transaction de dépense / catégorie 'salaires' par employé
+    - Ignore les doublons (même employé, même mois déjà présent)
+    - Retourne le détail : generes, doublons, total_brut
+    """
+    conn = get_db()
+    try:
+        # Récupérer les employés actifs avec un salaire
+        employes = rows_to_list(conn.execute(
+            "SELECT id, prenom, nom, salaire_brut FROM employes "
+            "WHERE entreprise_id=? AND statut='actif' AND salaire_brut > 0",
+            (entreprise_id,)
+        ).fetchall())
+
+        if not employes:
+            return {"generes": 0, "doublons": 0, "total_brut": 0, "detail": [],
+                    "message": "Aucun employé actif avec un salaire défini."}
+
+        generes   = 0
+        doublons  = 0
+        total_brut = 0
+        detail    = []
+        date_paie = f"{mois}-28"  # Jour de paie conventionnel
+
+        for emp in employes:
+            prenom = emp.get("prenom", "")
+            nom    = emp.get("nom", "")
+            brut   = float(emp.get("salaire_brut") or 0)
+            emp_id = emp.get("id")
+            desc   = f"Salaire {prenom} {nom}"
+
+            # Vérifier si une transaction salaire existe déjà pour cet employé ce mois
+            existant = conn.execute(
+                "SELECT id FROM transactions "
+                "WHERE entreprise_id=? AND type='depense' AND categorie='salaires' "
+                "AND employe_id=? AND substr(date,1,7)=?",
+                (entreprise_id, emp_id, mois)
+            ).fetchone()
+
+            if existant:
+                doublons += 1
+                detail.append({"employe": f"{prenom} {nom}", "montant": brut, "statut": "doublon"})
+                continue
+
+            # Créer la transaction
+            tid = _generer_id("TRX")
+            conn.execute("""
+                INSERT INTO transactions
+                    (id, entreprise_id, type, montant, categorie, description,
+                     date, mode_paiement, employe_id)
+                VALUES (?, ?, 'depense', ?, 'salaires', ?, ?, 'virement', ?)
+            """, (tid, entreprise_id, brut, desc, date_paie, emp_id))
+
+            generes    += 1
+            total_brut += brut
+            detail.append({"employe": f"{prenom} {nom}", "montant": brut, "statut": "cree"})
+
+        conn.commit()
+        return {
+            "generes":    generes,
+            "doublons":   doublons,
+            "total_brut": round(total_brut, 2),
+            "detail":     detail,
+            "message":    f"{generes} salaire(s) généré(s) pour {mois}, {doublons} doublon(s) ignoré(s)."
+        }
+    finally:
+        conn.close()
 
 
 # ─────────────────────────────────────────────

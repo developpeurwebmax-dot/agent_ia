@@ -397,7 +397,11 @@
 
         <!-- Masse salariale globale -->
         <div class="card">
-          <div class="card-header"><span class="card-icon">📊</span><h2>Masse salariale globale</h2></div>
+          <div class="card-header">
+            <span class="card-icon">📊</span>
+            <h2>Masse salariale globale</h2>
+            <button class="btn-sm" style="margin-left:auto" onclick="ouvrirModalGenerPaie()">💸 Générer les salaires</button>
+          </div>
           <div id="masse-detail"><div class="empty-state">Chargement...</div></div>
         </div>
 
@@ -618,7 +622,28 @@
   </div>
 
 
-  <script src="auth.js"></script>
+  <!-- ════ MODAL GÉNÉRATION PAIE ════ -->
+  <div class="modal-overlay" id="modal-gen-paie" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:500px">
+      <h3>💸 Générer les salaires du mois</h3>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px">
+        Crée une transaction de dépense pour chaque employé actif ayant un salaire défini.<br>
+        Les doublons sont ignorés automatiquement — tu peux relancer sans risque.<br>
+        <strong style="color:var(--accent2)">Les lignes de salaires dans les imports CSV seront automatiquement exclues.</strong>
+      </p>
+      <div class="form-group">
+        <label>Mois de paie</label>
+        <input type="month" id="f-gen-mois" class="select-inline" style="width:100%"/>
+      </div>
+      <div id="gen-paie-result" style="display:none;margin-top:14px;background:var(--bg3);border-radius:10px;padding:14px 16px;font-size:0.85rem"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-gen-paie').style.display='none'">Fermer</button>
+        <button class="btn-primary" onclick="lancerGenerPaie()">💸 Générer</button>
+      </div>
+    </div>
+  </div>
+
+    <script src="auth.js"></script>
   <script>
     let ENTREPRISE_ID    = null;
     let employes_cache   = [];
@@ -1346,6 +1371,56 @@
       w.document.write(html);
       w.document.close();
       setTimeout(() => w.print(), 500);
+    }
+
+    // ════════════════════════════════════════
+    // GÉNÉRATION PAIE
+    // ════════════════════════════════════════
+    function ouvrirModalGenerPaie() {
+      const now = new Date();
+      document.getElementById("f-gen-mois").value = now.toISOString().slice(0, 7);
+      document.getElementById("gen-paie-result").style.display = "none";
+      document.getElementById("modal-gen-paie").style.display = "flex";
+    }
+
+    async function lancerGenerPaie() {
+      const mois = document.getElementById("f-gen-mois").value;
+      if (!mois) { alert("Sélectionnez un mois"); return; }
+
+      const btn = document.querySelector("#modal-gen-paie .btn-primary");
+      btn.disabled = true; btn.textContent = "⏳ Génération...";
+
+      const json = await apiAuth("POST", "/business/finances/generer-paie", {
+        entreprise_id: ENTREPRISE_ID,
+        mois
+      });
+
+      btn.disabled = false; btn.textContent = "💸 Générer";
+
+      const res = document.getElementById("gen-paie-result");
+      res.style.display = "block";
+
+      if (json?.statut === "ok") {
+        const d = json.data;
+        var html = '<div style="font-weight:600;color:var(--success);margin-bottom:10px">✅ ' + d.message + '</div>';
+        if (d.detail?.length) {
+          html += d.detail.map(function(e) {
+            return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:0.82rem">'
+              + '<span>' + (e.statut === "cree" ? "✅" : "⏭️") + ' ' + e.employe + '</span>'
+              + '<span style="color:' + (e.statut === "cree" ? "var(--accent2)" : "var(--text-muted)") + '">'
+              + (e.statut === "cree" ? euros(e.montant) : "doublon ignoré") + '</span>'
+              + '</div>';
+          }).join("");
+        }
+        if (d.total_brut > 0) {
+          html += '<div style="display:flex;justify-content:space-between;font-weight:700;margin-top:8px;padding-top:8px;border-top:2px solid var(--border)">'
+            + '<span>Total généré</span><span style="color:var(--danger)">' + euros(d.total_brut) + '</span></div>';
+        }
+        res.innerHTML = html;
+        toast("✅ " + d.generes + " salaire(s) généré(s) dans Finances !");
+      } else {
+        res.innerHTML = '<div style="color:var(--danger)">❌ ' + (json?.message || "Erreur") + '</div>';
+      }
     }
 
     // ════════════════════════════════════════
