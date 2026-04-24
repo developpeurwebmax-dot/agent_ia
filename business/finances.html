@@ -757,10 +757,10 @@
 
     function csvAutoCat(desc) {
       // Seuls les salaires sont auto-détectés pour les exclure à l'import.
-      // Toutes les autres lignes commencent sans catégorie — le gérant choisit manuellement.
+      // Toutes les autres lignes commencent sans catégorie.
       const d = (desc || "").toLowerCase();
       if (CSV_MOTS_CLES.salaires.some(m => d.includes(m))) return "salaires";
-      return ""; // vide — catégorisation manuelle
+      return "";
     }
 
     let csvParsedRows  = [];
@@ -1002,21 +1002,20 @@
         warnEl.style.display = "none";
       }
 
-      // Afficher TOUTES les lignes — salaires grisés/barrés, autres avec select vide
+      // Toutes les lignes affichées — salaires grisés/barrés mais select MODIFIABLE
       const preview = csvParsedRows.slice(0, 50);
       document.getElementById("csv-preview-body").innerHTML = preview.map((r, i) => {
-        const isSalaire  = r.categorie === "salaires";
-        const rowStyle   = isSalaire ? "opacity:0.45;background:rgba(99,102,241,0.04);" : "";
-        const txtStyle   = isSalaire ? "text-decoration:line-through;" : "";
-        const selectBord = (!r.categorie && !isSalaire) ? "border:1px solid var(--warning);background:rgba(245,158,11,0.06);" : "";
-        const selectDis  = isSalaire ? "opacity:0.5;pointer-events:none;" : "";
+        const isSalaire = r.categorie === "salaires";
+        const rowStyle  = isSalaire ? "opacity:0.45;background:rgba(99,102,241,0.04);" : "";
+        const txtStyle  = isSalaire ? "text-decoration:line-through;" : "";
+        const selBorder = (!r.categorie && !isSalaire) ? "border:1px solid var(--warning);background:rgba(245,158,11,0.06);" : "";
         return `<tr style="${rowStyle}">
           <td style="white-space:nowrap;${txtStyle}">${r.date}</td>
           <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${txtStyle}" title="${r.description}">
             ${isSalaire ? "🚫 " : ""}${r.description}
           </td>
           <td>
-            <select class="select-inline" style="font-size:0.78rem;padding:2px 6px;${selectBord}${selectDis}"
+            <select class="select-inline" style="font-size:0.78rem;padding:2px 6px;${selBorder}"
                     onchange="csvParsedRows[${i}].categorie=this.value;csvRenderPreview()">
               <option value="" ${!r.categorie ? "selected" : ""}>— Catégorie —</option>
               ${CSV_CATEGORIES.map(c => `<option value="${c.val}" ${r.categorie === c.val ? "selected" : ""}>${c.lbl}</option>`).join("")}
