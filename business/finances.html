@@ -756,11 +756,11 @@
     };
 
     function csvAutoCat(desc) {
+      // Seuls les salaires sont auto-détectés pour les exclure à l'import.
+      // Toutes les autres lignes commencent sans catégorie — le gérant choisit manuellement.
       const d = (desc || "").toLowerCase();
-      for (const [cat, mots] of Object.entries(CSV_MOTS_CLES)) {
-        if (mots.some(m => d.includes(m))) return cat;
-      }
-      return "autre";
+      if (CSV_MOTS_CLES.salaires.some(m => d.includes(m))) return "salaires";
+      return ""; // vide — catégorisation manuelle
     }
 
     let csvParsedRows  = [];
@@ -971,10 +971,10 @@
     }
 
     function csvRenderPreview() {
-      const lignesSalaires  = csvParsedRows.filter(r => r.categorie === "salaires");
+      // Les lignes de salaires sont exclues de l'import (gérées via les fiches employés)
+      const lignesSalaires = csvParsedRows.filter(r => r.categorie === "salaires");
       const rowsImportables = csvParsedRows.filter(r => r.categorie !== "salaires");
 
-      // Stats : uniquement les lignes importables
       const revenus  = rowsImportables.filter(r => r.type === "revenu").reduce((s,r) => s + r.montant, 0);
       const depenses = rowsImportables.filter(r => r.type === "depense").reduce((s,r) => s + r.montant, 0);
 
@@ -989,33 +989,36 @@
         </div>
         <div class="csv-stat">
           <div class="csv-stat-val">${rowsImportables.length}</div>
-          <div class="csv-stat-lbl">À importer</div>
+          <div class="csv-stat-lbl">Transactions</div>
         </div>
       `;
 
-      // Avertissement si des salaires détectés
+      // Afficher avertissement si des lignes salaires sont détectées
       const warnEl = document.getElementById("csv-warn-salaires");
       if (lignesSalaires.length > 0) {
         warnEl.style.display = "block";
-        warnEl.innerHTML = "👥 <strong>" + lignesSalaires.length + " ligne(s) de salaires exclues</strong> — Les salaires sont gérés via les fiches employés. Ces lignes sont affichées en grisé et ne seront pas importées.";
+        warnEl.innerHTML = "👥 <strong>" + lignesSalaires.length + " ligne(s) de salaires exclues</strong> — Les salaires sont gérés automatiquement via les fiches employés. Ces lignes ne seront pas importées.";
       } else {
         warnEl.style.display = "none";
       }
 
-      // Afficher TOUTES les lignes — salaires grisés et barrés
+      // Afficher TOUTES les lignes — salaires grisés/barrés, autres avec select vide
       const preview = csvParsedRows.slice(0, 50);
       document.getElementById("csv-preview-body").innerHTML = preview.map((r, i) => {
-        const isSalaire = r.categorie === "salaires";
-        const rowStyle  = isSalaire ? "opacity:0.45;background:rgba(99,102,241,0.04);" : "";
-        const txtStyle  = isSalaire ? "text-decoration:line-through;" : "";
+        const isSalaire  = r.categorie === "salaires";
+        const rowStyle   = isSalaire ? "opacity:0.45;background:rgba(99,102,241,0.04);" : "";
+        const txtStyle   = isSalaire ? "text-decoration:line-through;" : "";
+        const selectBord = (!r.categorie && !isSalaire) ? "border:1px solid var(--warning);background:rgba(245,158,11,0.06);" : "";
+        const selectDis  = isSalaire ? "opacity:0.5;pointer-events:none;" : "";
         return `<tr style="${rowStyle}">
           <td style="white-space:nowrap;${txtStyle}">${r.date}</td>
           <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${txtStyle}" title="${r.description}">
             ${isSalaire ? "🚫 " : ""}${r.description}
           </td>
           <td>
-            <select class="select-inline" style="font-size:0.78rem;padding:2px 6px${isSalaire ? ";opacity:0.5;pointer-events:none" : ""}"
+            <select class="select-inline" style="font-size:0.78rem;padding:2px 6px;${selectBord}${selectDis}"
                     onchange="csvParsedRows[${i}].categorie=this.value;csvRenderPreview()">
+              <option value="" ${!r.categorie ? "selected" : ""}>— Catégorie —</option>
               ${CSV_CATEGORIES.map(c => `<option value="${c.val}" ${r.categorie === c.val ? "selected" : ""}>${c.lbl}</option>`).join("")}
             </select>
           </td>
@@ -1033,7 +1036,7 @@
 
       const more = document.getElementById("csv-more-rows");
       more.textContent = csvParsedRows.length > 50
-        ? `... et ${csvParsedRows.length - 50} autres lignes (toutes les lignes non-salaires seront importées)`
+        ? `... et ${csvParsedRows.length - 50} autres transactions (toutes seront importées)`
         : "";
     }
 
