@@ -1006,22 +1006,22 @@
       const preview = csvParsedRows.slice(0, 50);
       document.getElementById("csv-preview-body").innerHTML = preview.map((r, i) => {
         const isSalaire = r.categorie === "salaires";
-        const rowStyle  = isSalaire ? "opacity:0.45;background:rgba(99,102,241,0.04);" : "";
+        const rowStyle  = isSalaire ? "background:rgba(99,102,241,0.04);" : "";
         const txtStyle  = isSalaire ? "text-decoration:line-through;" : "";
         const selBorder = (!r.categorie && !isSalaire) ? "border:1px solid var(--warning);background:rgba(245,158,11,0.06);" : "";
         return `<tr style="${rowStyle}">
-          <td style="white-space:nowrap;${txtStyle}">${r.date}</td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${txtStyle}" title="${r.description}">
+          <td style="white-space:nowrap;${txtStyle}${isSalaire ? 'opacity:0.45;' : ''}">${r.date}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${txtStyle}${isSalaire ? 'opacity:0.45;' : ''}" title="${r.description}">
             ${isSalaire ? "🚫 " : ""}${r.description}
           </td>
           <td>
-            <select class="select-inline" style="font-size:0.78rem;padding:2px 6px;${selBorder}${isSalaire ? 'opacity:1;' : ''}"
+            <select class="select-inline" style="font-size:0.78rem;padding:2px 6px;${selBorder}"
                     onchange="csvParsedRows[${i}].categorie=this.value;csvRenderPreview()">
               <option value="" ${!r.categorie ? "selected" : ""}>— Catégorie —</option>
               ${CSV_CATEGORIES.map(c => `<option value="${c.val}" ${r.categorie === c.val ? "selected" : ""}>${c.lbl}</option>`).join("")}
             </select>
           </td>
-          <td style="text-align:right;font-weight:600;white-space:nowrap;${txtStyle}color:${isSalaire ? "var(--text-muted)" : r.type==="revenu" ? "var(--success)" : "var(--danger)"}">
+          <td style="text-align:right;font-weight:600;white-space:nowrap;${txtStyle}${isSalaire ? 'opacity:0.45;' : ''}color:${isSalaire ? "var(--text-muted)" : r.type==="revenu" ? "var(--success)" : "var(--danger)"}">
             ${r.type==="revenu" ? "+" : "-"}${r.montant.toFixed(2)} €
           </td>
           <td>
