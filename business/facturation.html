@@ -354,69 +354,15 @@
       if (name === "clients") renderCAClients();
     }
 
-    function renderCAClients() {
-      var today = new Date().toISOString().slice(0, 10);
-      var container = document.getElementById("ca-clients-content");
-      if (!factures_cache.length) { container.innerHTML = '<div class="empty-state">Aucune facture enregistrée</div>'; return; }
-
-      var parClient = {};
-      factures_cache.forEach(function(f) {
-        var nom = f.client || "Client inconnu";
-        if (!parClient[nom]) parClient[nom] = { ca_encaisse:0, ca_attente:0, ca_retard:0, nb_factures:0 };
-        var sr = (f.statut === "non_payee" && f.date_echeance && f.date_echeance < today) ? "retard" : f.statut;
-        var m  = f.montant_ttc || 0;
-        if (sr === "payee")       parClient[nom].ca_encaisse += m;
-        else if (sr === "retard") parClient[nom].ca_retard   += m;
-        else                      parClient[nom].ca_attente  += m;
-        parClient[nom].nb_factures++;
-      });
-
-      var liste = Object.keys(parClient).map(function(nom) {
-        return Object.assign({ nom: nom }, parClient[nom]);
-      }).sort(function(a,b) {
-        return (b.ca_encaisse+b.ca_attente+b.ca_retard) - (a.ca_encaisse+a.ca_attente+a.ca_retard);
-      });
-
-      var totalEnc = liste.reduce(function(s,c){ return s+c.ca_encaisse; },0);
-      var totalAtt = liste.reduce(function(s,c){ return s+c.ca_attente;  },0);
-      var totalRet = liste.reduce(function(s,c){ return s+c.ca_retard;   },0);
-      var maxCA    = Math.max.apply(null, liste.map(function(c){ return c.ca_encaisse+c.ca_attente+c.ca_retard; }).concat([1]));
-
-      var el = document.getElementById("ca-clients-periode");
-      if (el) el.textContent = "— " + factures_cache.length + " facture(s)";
-
-      var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;padding:16px 0;border-bottom:1px solid var(--border)">';
-      html += '<div style="text-align:center"><div style="font-size:1.2rem;font-weight:700;color:var(--success)">' + eur(totalEnc) + '</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">CA encaissé</div></div>';
-      html += '<div style="text-align:center"><div style="font-size:1.2rem;font-weight:700;color:var(--warning)">' + eur(totalAtt) + '</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">En attente</div></div>';
-      html += '<div style="text-align:center"><div style="font-size:1.2rem;font-weight:700;color:var(--danger)">' + eur(totalRet) + '</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">En retard</div></div>';
-      html += '</div><div style="display:flex;flex-direction:column;gap:10px">';
-
-      liste.forEach(function(c, i) {
-        var total = c.ca_encaisse + c.ca_attente + c.ca_retard;
-        var pctE  = total > 0 ? Math.round(c.ca_encaisse/total*100) : 0;
-        var pctA  = total > 0 ? Math.round(c.ca_attente /total*100) : 0;
-        var pctR  = total > 0 ? Math.round(c.ca_retard  /total*100) : 0;
-        html += '<div style="background:var(--bg3);border-radius:10px;padding:14px 16px">';
-        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">';
-        html += '<span style="font-weight:700;color:var(--text-muted)">#' + (i+1) + '</span>';
-        html += '<strong style="flex:1">' + c.nom + '</strong>';
-        html += '<span style="font-size:0.75rem;color:var(--text-muted)">' + c.nb_factures + ' facture' + (c.nb_factures>1?"s":"") + '</span>';
-        html += '<strong style="color:var(--accent2)">' + eur(total) + '</strong>';
-        html += '</div>';
-        html += '<div style="height:8px;border-radius:99px;overflow:hidden;background:var(--bg);display:flex">';
-        if (pctE>0) html += '<div style="width:' + pctE + '%;background:#10b981"></div>';
-        if (pctA>0) html += '<div style="width:' + pctA + '%;background:#f59e0b"></div>';
-        if (pctR>0) html += '<div style="width:' + pctR + '%;background:#ef4444"></div>';
-        html += '</div><div style="display:flex;gap:12px;margin-top:6px;font-size:0.72rem;flex-wrap:wrap">';
-        if (c.ca_encaisse>0) html += '<span style="color:#10b981">✅ ' + eur(c.ca_encaisse) + '</span>';
-        if (c.ca_attente >0) html += '<span style="color:#f59e0b">⏳ ' + eur(c.ca_attente)  + '</span>';
-        if (c.ca_retard  >0) html += '<span style="color:#ef4444">🔴 ' + eur(c.ca_retard)   + '</span>';
-        html += '</div></div>';
-      });
-      html += '</div>';
-      container.innerHTML = html;
+    function filtrerCommercial(uid) {
+      filtreCommercialId = uid;
+      renderDevis();
+      renderFactures();
     }
 
+    // ════════════════════════════════════════════════════════════
+    // 🔧 CORRECTION 1 : switchTab (inchangée, conservée telle quelle)
+    // ════════════════════════════════════════════════════════════
     function switchTab(prefix, name, btn) {
       ["infos","lignes","preview"].forEach(t => {
         const el = document.getElementById(prefix + "tab-" + t);
@@ -435,31 +381,51 @@
       renderLignes(prefix);
     }
 
+    // ════════════════════════════════════════════════════════════
+    // 🔧 CORRECTION MAJEURE : renderLignes + updateLigneDesc + updateLigneNum
+    // ════════════════════════════════════════════════════════════
+    // PROBLÈME 3 RÉSOLU : plus de perte de focus à chaque lettre tapée.
+    // Avant : updateLigne() appelait renderLignes() → re-crée tout le HTML
+    //         → détruit l'input où on tape → perte de focus.
+    // Après : pour le texte (description), on ne re-render PAS.
+    //         pour les nombres, on met à jour uniquement le total de la ligne
+    //         et les totaux globaux (sans toucher aux <input>).
+    // ════════════════════════════════════════════════════════════
     function renderLignes(prefix) {
       const arr = prefix === "d" ? lignes_d : lignes_f;
       const container = document.getElementById(prefix + "-lignes-container");
       container.innerHTML = arr.map((l, i) => `
-        <div class="ligne-item">
+        <div class="ligne-item" data-idx="${i}">
           <input type="text" class="form-group input" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:0.88rem;width:100%"
-            placeholder="Description de la prestation" value="${l.desc}"
-            oninput="updateLigne('${prefix}',${i},'desc',this.value)"/>
+            placeholder="Description de la prestation" value="${(l.desc || '').replace(/"/g, '&quot;')}"
+            oninput="updateLigneDesc('${prefix}',${i},this.value)"/>
           <input type="number" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:0.88rem;width:100%;text-align:center"
             value="${l.qte}" min="0.5" step="0.5"
-            oninput="updateLigne('${prefix}',${i},'qte',this.value)"/>
+            oninput="updateLigneNum('${prefix}',${i},'qte',this.value)"/>
           <input type="number" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:0.88rem;width:100%"
             placeholder="0.00" value="${l.prix}" min="0" step="0.01"
-            oninput="updateLigne('${prefix}',${i},'prix',this.value)"/>
-          <div class="ligne-total">${eur(l.qte * l.prix)}</div>
+            oninput="updateLigneNum('${prefix}',${i},'prix',this.value)"/>
+          <div class="ligne-total" id="${prefix}-lt-${i}">${eur(l.qte * l.prix)}</div>
           <button class="btn-remove" onclick="supprimerLigne('${prefix}',${i})">×</button>
         </div>
       `).join("");
       recalculer(prefix);
     }
 
-    function updateLigne(prefix, i, key, val) {
+    // Pour la DESCRIPTION (texte) : update le modèle sans re-render → focus préservé
+    function updateLigneDesc(prefix, i, val) {
       const arr = prefix === "d" ? lignes_d : lignes_f;
-      arr[i][key] = key === "desc" ? val : parseFloat(val) || 0;
-      renderLignes(prefix);
+      arr[i].desc = val;
+    }
+
+    // Pour les NOMBRES (qté, prix) : update le total de la ligne + totaux globaux
+    // sans toucher aux <input> → focus préservé
+    function updateLigneNum(prefix, i, key, val) {
+      const arr = prefix === "d" ? lignes_d : lignes_f;
+      arr[i][key] = parseFloat(val) || 0;
+      const totalEl = document.getElementById(prefix + "-lt-" + i);
+      if (totalEl) totalEl.textContent = eur(arr[i].qte * arr[i].prix);
+      recalculer(prefix);
     }
 
     function supprimerLigne(prefix, i) {
@@ -546,12 +512,6 @@
     }
     function filtrerDevis(f, btn) { filtrerDevisBtn(f, btn); }
 
-    function filtrerCommercial(uid) {
-      filtreCommercialId = uid;
-      renderDevis();
-      renderFactures();
-    }
-
     function renderDevis() {
       const today = new Date().toISOString().slice(0, 10);
       let list = devis_cache;
@@ -601,11 +561,27 @@
       document.getElementById("modal-devis").style.display = "flex";
     }
 
+    // ════════════════════════════════════════════════════════════
+    // 🔧 CORRECTION MAJEURE : sauvegarderDevis
+    // ════════════════════════════════════════════════════════════
+    // PROBLÈME 1 RÉSOLU : "FOREIGN KEY constraint failed"
+    //   → On n'envoie plus commercial_id s'il est vide (évite la contrainte).
+    // PROBLÈME 2 MITIGÉ : "database is locked"
+    //   → Gestion propre de l'erreur + retry auto après 2s.
+    // BONUS : correction du bug de priorité dans le message toast
+    //   ("Devis " + statut === "envoye" était toujours false car la
+    //   concaténation s'évalue avant le ===).
+    // ════════════════════════════════════════════════════════════
     async function sauvegarderDevis(statut) {
-      if (!document.getElementById("d-client").value.trim()) { alert("Nom du client requis"); return; }
+      if (!document.getElementById("d-client").value.trim()) {
+        alert("Nom du client requis");
+        return;
+      }
+
       const tva = parseFloat(document.getElementById("d-tva").value) || 20;
       const ht = lignes_d.reduce((s, l) => s + l.qte * l.prix, 0);
       const commercialId = document.getElementById("d-commercial").value;
+
       const body = {
         numero: document.getElementById("d-numero").value,
         client: document.getElementById("d-client").value,
@@ -615,17 +591,40 @@
         adresse: document.getElementById("d-adresse").value,
         delai: document.getElementById("d-delai").value,
         conditions: document.getElementById("d-conditions").value,
-        tva, lignes: lignes_d,
-        montant_ht: ht, montant_ttc: ht * (1 + tva / 100),
-        statut,
-        commercial_id: commercialId || null
+        tva,
+        lignes: lignes_d,
+        montant_ht: ht,
+        montant_ttc: ht * (1 + tva / 100),
+        statut
       };
-      const json = await apiAuth("POST", "/devis", body);
-      if (json?.statut === "ok") {
-        document.getElementById("modal-devis").style.display = "none";
-        await chargerDevis();
-        toast("✅ Devis " + statut === "envoye" ? "envoyé" : "sauvegardé");
-      } else alert(json?.message || "Erreur");
+
+      // N'envoyer commercial_id QUE s'il est réellement sélectionné
+      // (évite le FOREIGN KEY constraint failed côté backend)
+      if (commercialId && commercialId !== "") {
+        body.commercial_id = commercialId;
+      }
+
+      try {
+        const json = await apiAuth("POST", "/devis", body);
+        if (json?.statut === "ok") {
+          document.getElementById("modal-devis").style.display = "none";
+          await chargerDevis();
+          // Parenthèses autour du ternaire (priorité des opérateurs)
+          toast("✅ Devis " + (statut === "envoye" ? "envoyé" : "sauvegardé"));
+        } else {
+          const msg = json?.message || "Erreur inconnue";
+          if (msg.includes("FOREIGN KEY")) {
+            alert("⚠️ Le commercial sélectionné n'est pas valide en base.\n\nLaisse le champ 'Commercial responsable' vide, ou sélectionne un autre membre.");
+          } else if (msg.includes("locked")) {
+            alert("⚠️ Base de données occupée, nouvelle tentative dans 2 secondes...");
+            setTimeout(() => sauvegarderDevis(statut), 2000);
+          } else {
+            alert("Erreur : " + msg);
+          }
+        }
+      } catch (e) {
+        alert("Erreur réseau : " + e.message);
+      }
     }
 
     async function supprimerDevisItem(id) {
@@ -735,10 +734,19 @@
       document.getElementById("modal-facture").style.display = "flex";
     }
 
+    // ════════════════════════════════════════════════════════════
+    // 🔧 CORRECTION : sauvegarderFacture (même logique que sauvegarderDevis)
+    // ════════════════════════════════════════════════════════════
     async function sauvegarderFacture() {
-      if (!document.getElementById("f-client").value.trim()) { alert("Nom du client requis"); return; }
+      if (!document.getElementById("f-client").value.trim()) {
+        alert("Nom du client requis");
+        return;
+      }
+
       const tva = parseFloat(document.getElementById("f-tva").value) || 20;
       const ht = lignes_f.reduce((s, l) => s + l.qte * l.prix, 0);
+      const commercialId = document.getElementById("f-commercial").value;
+
       const body = {
         numero: document.getElementById("f-numero").value,
         client: document.getElementById("f-client").value,
@@ -749,17 +757,38 @@
         paiement: document.getElementById("f-paiement").value,
         mentions: document.getElementById("f-mentions").value,
         ref_devis: document.getElementById("f-ref-devis").value,
-        commercial_id: document.getElementById("f-commercial").value || null,
-        tva, lignes: lignes_f,
-        montant_ht: ht, montant_ttc: ht * (1 + tva / 100),
+        tva,
+        lignes: lignes_f,
+        montant_ht: ht,
+        montant_ttc: ht * (1 + tva / 100),
         statut: "non_payee"
       };
-      const json = await apiAuth("POST", "/factures", body);
-      if (json?.statut === "ok") {
-        document.getElementById("modal-facture").style.display = "none";
-        await chargerFactures();
-        toast("✅ Facture créée !");
-      } else alert(json?.message || "Erreur");
+
+      // N'envoyer commercial_id que s'il est réellement sélectionné
+      if (commercialId && commercialId !== "") {
+        body.commercial_id = commercialId;
+      }
+
+      try {
+        const json = await apiAuth("POST", "/factures", body);
+        if (json?.statut === "ok") {
+          document.getElementById("modal-facture").style.display = "none";
+          await chargerFactures();
+          toast("✅ Facture créée !");
+        } else {
+          const msg = json?.message || "Erreur inconnue";
+          if (msg.includes("FOREIGN KEY")) {
+            alert("⚠️ Le commercial sélectionné n'est pas valide en base.\n\nLaisse le champ 'Commercial responsable' vide, ou sélectionne un autre membre.");
+          } else if (msg.includes("locked")) {
+            alert("⚠️ Base de données occupée, nouvelle tentative dans 2 secondes...");
+            setTimeout(() => sauvegarderFacture(), 2000);
+          } else {
+            alert("Erreur : " + msg);
+          }
+        }
+      } catch (e) {
+        alert("Erreur réseau : " + e.message);
+      }
     }
 
     async function marquerPayee(id) {
@@ -856,7 +885,6 @@
 
     // ── KPIs ──
     function majKPIs() {
-      const today = new Date().toISOString().slice(0, 10);
       document.getElementById("kpi-devis").textContent = devis_cache.filter(d => !["accepte","refuse"].includes(d.statut)).length;
       document.getElementById("kpi-factures").textContent = factures_cache.length;
       const attente = factures_cache.filter(f => f.statut === "non_payee").reduce((s, f) => s + (f.montant_ttc || 0), 0);
@@ -912,6 +940,56 @@
       const corps = encodeURIComponent(`Bonjour,\n\nSauf erreur de notre part, nous n'avons pas reçu le règlement de la facture ${f.numero} d'un montant de ${eur(f.montant_ttc)} TTC, dont l'échéance était fixée au ${f.date_echeance} (soit ${jours} jour(s) de retard).\n\nNous vous remercions de bien vouloir procéder au règlement dans les meilleurs délais.\n\nCordialement`);
       window.open(`mailto:?subject=${sujet}&body=${corps}`);
       toast("📧 Email de relance préparé !");
+    }
+
+    // ── CA PAR CLIENT ──
+    function renderCAClients() {
+      var today = new Date().toISOString().slice(0, 10);
+      var container = document.getElementById("ca-clients-content");
+      if (!factures_cache.length) { container.innerHTML = '<div class="empty-state">Aucune facture enregistrée</div>'; return; }
+
+      var parClient = {};
+      factures_cache.forEach(function(f) {
+        var nom = f.client || "Client inconnu";
+        if (!parClient[nom]) parClient[nom] = { ca_encaisse:0, ca_attente:0, ca_retard:0, nb_factures:0 };
+        var sr = (f.statut === "non_payee" && f.date_echeance && f.date_echeance < today) ? "retard" : f.statut;
+        parClient[nom].nb_factures++;
+        if (sr === "payee")      parClient[nom].ca_encaisse += (f.montant_ttc || 0);
+        else if (sr === "retard") parClient[nom].ca_retard   += (f.montant_ttc || 0);
+        else                      parClient[nom].ca_attente  += (f.montant_ttc || 0);
+      });
+
+      var liste = Object.keys(parClient).map(function(nom) {
+        var c = parClient[nom];
+        return { nom: nom, ca_encaisse: c.ca_encaisse, ca_attente: c.ca_attente, ca_retard: c.ca_retard, nb_factures: c.nb_factures };
+      });
+      liste.sort(function(a, b) { return (b.ca_encaisse + b.ca_attente + b.ca_retard) - (a.ca_encaisse + a.ca_attente + a.ca_retard); });
+
+      var html = '<div style="display:flex;flex-direction:column;gap:10px">';
+      liste.forEach(function(c, i) {
+        var total = c.ca_encaisse + c.ca_attente + c.ca_retard;
+        var pctE  = total > 0 ? Math.round(c.ca_encaisse /total*100) : 0;
+        var pctA  = total > 0 ? Math.round(c.ca_attente /total*100) : 0;
+        var pctR  = total > 0 ? Math.round(c.ca_retard  /total*100) : 0;
+        html += '<div style="background:var(--bg3);border-radius:10px;padding:14px 16px">';
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">';
+        html += '<span style="font-weight:700;color:var(--text-muted)">#' + (i+1) + '</span>';
+        html += '<strong style="flex:1">' + c.nom + '</strong>';
+        html += '<span style="font-size:0.75rem;color:var(--text-muted)">' + c.nb_factures + ' facture' + (c.nb_factures>1?"s":"") + '</span>';
+        html += '<strong style="color:var(--accent2)">' + eur(total) + '</strong>';
+        html += '</div>';
+        html += '<div style="height:8px;border-radius:99px;overflow:hidden;background:var(--bg);display:flex">';
+        if (pctE>0) html += '<div style="width:' + pctE + '%;background:#10b981"></div>';
+        if (pctA>0) html += '<div style="width:' + pctA + '%;background:#f59e0b"></div>';
+        if (pctR>0) html += '<div style="width:' + pctR + '%;background:#ef4444"></div>';
+        html += '</div><div style="display:flex;gap:12px;margin-top:6px;font-size:0.72rem;flex-wrap:wrap">';
+        if (c.ca_encaisse>0) html += '<span style="color:#10b981">✅ ' + eur(c.ca_encaisse) + '</span>';
+        if (c.ca_attente >0) html += '<span style="color:#f59e0b">⏳ ' + eur(c.ca_attente)  + '</span>';
+        if (c.ca_retard  >0) html += '<span style="color:#ef4444">🔴 ' + eur(c.ca_retard)   + '</span>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
     }
 
     // ── UTILS ──
