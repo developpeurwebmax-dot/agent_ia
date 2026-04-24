@@ -1008,7 +1008,7 @@
         const isSalaire = r.categorie === "salaires";
         const rowStyle  = isSalaire ? "background:rgba(99,102,241,0.04);" : "";
         const txtStyle  = isSalaire ? "text-decoration:line-through;" : "";
-        const selBorder = (!r.categorie && !isSalaire) ? "border:1px solid var(--warning);background:rgba(245,158,11,0.06);" : "";
+        const selBorder = (!r.categorie || isSalaire) ? "border:1px solid var(--warning);background:rgba(245,158,11,0.06);" : "";
         return `<tr style="${rowStyle}">
           <td style="white-space:nowrap;${txtStyle}${isSalaire ? 'opacity:0.45;' : ''}">${r.date}</td>
           <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${txtStyle}${isSalaire ? 'opacity:0.45;' : ''}" title="${r.description}">
