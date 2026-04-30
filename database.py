@@ -92,10 +92,20 @@ def get_db():
         return _PGConnection(conn)
     else:
         import sqlite3
-        conn = sqlite3.connect(os.environ.get("DB_PATH", "database.db"))
+        # timeout + busy_timeout => evite "database is locked" sur ecritures concurrentes
+        conn = sqlite3.connect(
+            os.environ.get("DB_PATH", "database.db"),
+            timeout=30,
+            check_same_thread=False,
+        )
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
+        conn.execute("PRAGMA busy_timeout=30000")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        # foreign_keys volontairement OFF (defaut SQLite) : sur Render free-tier
+        # le FS est ephemere, la DB peut etre recreee alors que des JWT contenant
+        # un user_id ancien restent valides. Sans cette ligne, on echoue sur
+        # "FOREIGN KEY constraint failed" a chaque INSERT post-redemarrage.
         return _SQLiteConnection(conn)
 
 

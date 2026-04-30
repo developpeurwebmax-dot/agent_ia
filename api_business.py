@@ -564,12 +564,18 @@ def projets_route():
                 import time
                 import json as _json
                 pid = f"PRJ_{int(time.time() * 1000000)}"
+                # notes_taches : accepter str (deja JSON) ou list (a serialiser)
+                _nt = data.get("notes_taches")
+                if isinstance(_nt, list):
+                    _nt = _json.dumps(_nt)
+                elif _nt is None:
+                    _nt = "[]"
                 conn.execute("""
                     INSERT INTO projets
                         (id, entreprise_id, nom, client, description, budget, cout_reel,
                          statut, date_debut, date_fin_prevue, date_fin_reelle,
-                         responsable_id, membres)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         responsable_id, membres, notes, notes_taches)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     pid, eid,
                     data.get("nom", ""),
@@ -583,6 +589,8 @@ def projets_route():
                     data.get("date_fin_reelle", ""),
                     data.get("responsable_id"),
                     _json.dumps(data.get("membres", [])),
+                    data.get("notes", ""),
+                    _nt,
                 ))
                 conn.commit()
                 row = conn.execute("SELECT * FROM projets WHERE id=?", (pid,)).fetchone()
@@ -651,11 +659,15 @@ def projet_detail(pid):
             try:
                 champs = ["nom", "client", "description", "budget", "cout_reel",
                           "statut", "date_debut", "date_fin_prevue", "date_fin_reelle",
-                          "responsable_id", "membres"]
+                          "responsable_id", "membres", "notes", "notes_taches"]
                 sets, vals = [], []
                 for k in champs:
                     if k in data:
-                        val = _json.dumps(data[k]) if k == "membres" and isinstance(data[k], list) else data[k]
+                        # membres et notes_taches : serialiser en JSON si c'est une liste
+                        if k in ("membres", "notes_taches") and isinstance(data[k], list):
+                            val = _json.dumps(data[k])
+                        else:
+                            val = data[k]
                         sets.append(f"{k}=?")
                         vals.append(val)
                 if sets:

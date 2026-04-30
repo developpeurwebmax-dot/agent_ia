@@ -17,9 +17,22 @@ def init_db_business():
     for sql in tables:
         conn.execute(sql)
 
+    # Migrations legeres pour les bases deja existantes (CREATE TABLE IF NOT
+    # EXISTS n'ajoute pas les nouvelles colonnes). On essaie chaque ALTER et on
+    # ignore l'erreur si la colonne existe deja.
+    _migrations = [
+        "ALTER TABLE projets ADD COLUMN notes TEXT DEFAULT ''",
+        "ALTER TABLE projets ADD COLUMN notes_taches TEXT DEFAULT '[]'",
+    ]
+    for sql in _migrations:
+        try:
+            conn.execute(sql)
+        except Exception:
+            pass  # colonne deja presente
+
     conn.commit()
     conn.close()
-    print("✅ Tables Business initialisées")
+    print("Tables Business initialisees")
 
 
 def _tables_sqlite():
@@ -158,6 +171,8 @@ def _tables_sqlite():
             date_fin_reelle TEXT,
             responsable_id TEXT,
             membres TEXT DEFAULT '[]',
+            notes TEXT DEFAULT '',
+            notes_taches TEXT DEFAULT '[]',
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (entreprise_id) REFERENCES entreprises(id)
         )""",
