@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA Business — Mon Espace</title>
+  <link rel="stylesheet" href="../style.css"/>
+  <link rel="stylesheet" href="style_business.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── HERO CARD EMPLOYÉ ── */
+    .emp-hero {
+      background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
+      border: 1px solid rgba(99,102,241,0.25);
+      border-radius: 16px;
+      padding: 28px 32px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .emp-hero-avatar {
+      width: 68px; height: 68px;
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.8rem;
+      color: white;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    }
+    .emp-hero-name   { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+    .emp-hero-poste  { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 10px; }
+    .emp-hero-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge-hero {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 0.78rem; color: var(--text-muted);
+    }
+
+    /* ── SOLDE CONGÉS ── */
+    .conges-solde-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .solde-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      text-align: center;
+    }
+    .solde-card-icon  { font-size: 1.6rem; margin-bottom: 8px; }
+    .solde-card-val   { font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1; }
+    .solde-card-lbl   { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+    .solde-bar-track  { height: 5px; background: var(--bg3); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+    .solde-bar-fill   { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--success), #34d399); transition: width 0.5s ease; }
+
+    /* ── POINTAGE RAPIDE ── */
+    .pointage-rapide {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .pointage-time {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 120px;
+    }
+    .pointage-date { font-size: 0.85rem; color: var(--text-muted); }
+    .pointage-status {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--bg3); border-radius: 10px;
+      padding: 10px 16px; flex: 1; min-width: 160px;
+    }
+    .status-dot-lg { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-in  { background: var(--success); box-shadow: 0 0 8px rgba(16,185,129,0.5); }
+    .dot-out { background: var(--text-muted); }
+    .btn-pointer {
+      padding: 12px 24px;
+      border-radius: 10px;
+      border: none;
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-arrivee { background: var(--success); color: white; }
+    .btn-depart  { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+    .btn-pointer:hover { transform: translateY(-1px); filter: brightness(1.1); }
+
+    /* ── HISTORIQUE TABLE ── */
+    .tag-en_attente { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .tag-approuve   { background: rgba(16,185,129,0.15); color: #34d399; }
+    .tag-refuse     { background: rgba(239,68,68,0.15);  color: #f87171; }
+
+    /* ── PAIE CARD ── */
+    .paie-card {
+      background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.05));
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: 12px;
+      padding: 20px 22px;
+    }
+    .paie-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(99,102,241,0.1);
+      font-size: 0.88rem;
+    }
+    .paie-row:last-child { border-bottom: none; }
+    .paie-row-total { font-weight: 700; font-size: 1rem; padding-top: 12px; }
+
+    /* ── EVALUATION CARD ── */
+    .eval-card {
+      background: var(--bg3);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .eval-stars { color: #f59e0b; font-size: 1.1rem; }
+    .note-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; border-radius: 50%;
+      font-weight: 800; font-size: 1.1rem;
+      background: rgba(99,102,241,0.15); color: var(--accent);
+    }
+
+    /* ── MODAL CONGÉ EMPLOYÉ ── */
+    .modal-tabs {
+      display: flex; gap: 4px; background: var(--bg3);
+      padding: 4px; border-radius: 10px;
+      margin-bottom: 20px; width: fit-content;
+    }
+    .modal-tab {
+      padding: 7px 16px; border-radius: 7px; border: none;
+      background: transparent; color: var(--text-muted);
+      font-family: var(--font-body); font-size: 0.85rem;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .modal-tab.active { background: var(--card); color: var(--text); }
+
+    /* ── LAYOUT ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .conges-solde-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 600px) { .conges-solde-grid { grid-template-columns: 1fr; } .emp-hero { flex-direction: column; text-align: center; } }
+
+    /* ── NOT FOUND ── */
+    .not-linked {
+      text-align: center; padding: 60px 20px; color: var(--text-muted);
+    }
+    .not-linked .nl-icon { font-size: 3.5rem; margin-bottom: 16px; }
+    .not-linked h2 { font-size: 1.2rem; color: var(--text); margin-bottom: 8px; }
+    .not-linked p  { font-size: 0.88rem; max-width: 400px; margin: 0 auto 20px; }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="logo">🏢 IA Business</div>
+    <nav>
+      <a href="espace-employe.html" class="nav-link active">👤 Mon Espace</a>
+      <a href="#" class="nav-link" onclick="scrollToSection('section-conges')">🏖️ Mes Congés</a>
+      <a href="#" class="nav-link" onclick="scrollToSection('section-pointage')">⏱️ Mon Pointage</a>
+      <a href="#" class="nav-link" onclick="scrollToSection('section-paie')">💶 Ma Rémunération</a>
+      <a href="#" class="nav-link" onclick="scrollToSection('section-evals')">⭐ Évaluations</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div class="user-info">
+        <span class="user-name" id="sidebar-nom">Mon Profil</span>
+        <span class="user-role" id="sidebar-role">Employé</span>
+      </div>
+      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ══ HEADER ══ -->
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Mon Espace</h1>
+        <p class="page-sub" id="header-date">Chargement...</p>
+      </div>
+      <button class="btn-primary" onclick="ouvrirModalConge()">+ Demande de congé</button>
+    </header>
+
+    <!-- ══ ÉTAT NON LIÉ ══ -->
+    <div id="etat-non-lie" style="display:none">
+      <div class="card">
+        <div class="not-linked">
+          <div class="nl-icon">🔗</div>
+          <h2>Compte non rattaché</h2>
+          <p>Votre compte utilisateur n'est pas encore associé à une fiche employé. Contactez votre responsable RH pour qu'il crée ou lie votre fiche avec l'adresse email <strong id="email-non-lie"></strong>.</p>
+          <button class="btn-secondary" onclick="location.reload()">🔄 Actualiser</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CONTENU PRINCIPAL ══ -->
+    <div id="contenu-principal" style="display:none">
+
+      <!-- HERO EMPLOYÉ -->
+      <div class="emp-hero" id="hero-employe">
+        <div class="emp-hero-avatar" id="hero-avatar">?</div>
+        <div>
+          <div class="emp-hero-name" id="hero-nom">—</div>
+          <div class="emp-hero-poste" id="hero-poste">—</div>
+          <div class="emp-hero-badges">
+            <span class="badge-hero" id="badge-contrat">📋 —</span>
+            <span class="badge-hero" id="badge-dept">🏢 —</span>
+            <span class="badge-hero" id="badge-anciennete">📅 —</span>
+            <span class="badge-hero" id="badge-statut">✅ —</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOLDES CONGÉS -->
+      <div class="conges-solde-grid">
+        <div class="solde-card">
+          <div class="solde-card-icon">🏖️</div>
+          <div class="solde-card-val" id="solde-cp" style="color:var(--success)">—</div>
+          <div class="solde-card-lbl">Congés payés restants</div>
+          <div class="solde-bar-track"><div class="solde-bar-fill" id="bar-cp" style="width:0%"></div></div>
+        </div>
+        <div class="solde-card">
+          <div class="solde-card-icon">⏰</div>
+          <div class="solde-card-val" id="solde-rtt" style="color:var(--accent)">—</div>
+          <div class="solde-card-lbl">RTT disponibles</div>
+          <div class="solde-bar-track" style="display:none" id="bar-rtt-wrap"><div class="solde-bar-fill" id="bar-rtt" style="width:0%;background:linear-gradient(90deg,var(--accent),var(--purple))"></div></div>
+        </div>
+        <div class="solde-card">
+          <div class="solde-card-icon">📅</div>
+          <div class="solde-card-val" id="solde-pris" style="color:var(--warning)">—</div>
+          <div class="solde-card-lbl">Jours pris cette année</div>
+        </div>
+      </div>
+
+      <!-- POINTAGE RAPIDE -->
+      <div class="pointage-rapide" id="section-pointage">
+        <div>
+          <div class="pointage-time" id="horloge">00:00:00</div>
+          <div class="pointage-date" id="date-aujourd-hui">—</div>
+        </div>
+        <div class="pointage-status">
+          <div class="status-dot-lg" id="ptg-dot"></div>
+          <div>
+            <div id="ptg-status-txt" style="font-weight:600;font-size:0.9rem">—</div>
+            <div id="ptg-status-sub" style="font-size:0.75rem;color:var(--text-muted)">—</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn-pointer btn-arrivee" id="btn-arrivee" onclick="pointer('arrivee')">▶ Pointer l'arrivée</button>
+          <button class="btn-pointer btn-depart"  id="btn-depart"  onclick="pointer('depart')" style="display:none">■ Pointer le départ</button>
+          <button class="btn-sm" onclick="ouvrirModalPtgManuel()" style="white-space:nowrap">✏️ Saisie manuelle</button>
+        </div>
+      </div>
+
+      <!-- LAYOUT 2 COLONNES -->
+      <div class="two-col">
+
+        <!-- ── COL GAUCHE : CONGÉS ── -->
+        <div>
+          <div class="card" id="section-conges">
+            <div class="card-header">
+              <span class="card-icon">🏖️</span>
+              <h2>Mes demandes de congé</h2>
+              <div class="tabs" style="margin-left:auto;margin-bottom:0">
+                <button class="tab active" onclick="filtrerMesConges('',this)">Tous</button>
+                <button class="tab" onclick="filtrerMesConges('en_attente',this)">⏳</button>
+                <button class="tab" onclick="filtrerMesConges('approuve',this)">✅</button>
+              </div>
+            </div>
+            <div id="liste-conges">
+              <div class="empty-state">Chargement...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── COL DROITE : PAIE + HISTORIQUE ── -->
+        <div>
+
+          <!-- RÉMUNÉRATION -->
+          <div class="card" id="section-paie" style="margin-bottom:20px">
+            <div class="card-header">
+              <span class="card-icon">💶</span>
+              <h2>Ma rémunération</h2>
+            </div>
+            <div class="paie-card" id="paie-detail">
+              <div class="empty-state">Chargement...</div>
+            </div>
+            <div style="margin-top:12px">
+              <button class="btn-secondary" style="width:100%" onclick="imprimerFichePaie()">🖨️ Générer un aperçu de fiche de paie</button>
+            </div>
+          </div>
+
+          <!-- ÉVALUATIONS -->
+          <div class="card" id="section-evals">
+            <div class="card-header"><span class="card-icon">⭐</span><h2>Mes évaluations</h2></div>
+            <div id="liste-evals"><div class="empty-state">Chargement...</div></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- HISTORIQUE POINTAGE -->
+      <div class="card" style="margin-top:20px">
+        <div class="card-header">
+          <span class="card-icon">⏱️</span>
+          <h2>Historique de pointage</h2>
+          <select id="sel-mois-ptg" class="select-inline" style="margin-left:auto" onchange="chargerPointages()"></select>
+        </div>
+        <div id="ptg-kpis" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px"></div>
+        <div class="table-wrapper">
+          <table class="table">
+            <thead>
+              <tr><th>Date</th><th>Arrivée</th><th>Départ</th><th>Heures travaillées</th><th>Heures sup.</th><th>Notes</th></tr>
+            </thead>
+            <tbody id="tbody-ptg">
+              <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Chargement...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /contenu-principal -->
+  </main>
+
+
+  <!-- ════ MODAL DEMANDE DE CONGÉ ════ -->
+  <div class="modal-overlay" id="modal-conge" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:500px">
+      <h3>🏖️ Demande de congé</h3>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Type de congé</label>
+          <select id="f-type-conge">
+            <option value="conges_payes">Congés payés</option>
+            <option value="rtt">RTT</option>
+            <option value="maladie">Arrêt maladie</option>
+            <option value="sans_solde">Sans solde</option>
+            <option value="evenement_familial">Événement familial</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group"><!-- spacer --></div>
+        <div class="form-group">
+          <label>Date de début *</label>
+          <input type="date" id="f-debut-conge"/>
+        </div>
+        <div class="form-group">
+          <label>Date de fin *</label>
+          <input type="date" id="f-fin-conge" onchange="calcJours()"/>
+        </div>
+        <div class="form-group form-full">
+          <label>Motif (optionnel)</label>
+          <input type="text" id="f-motif-conge" placeholder="Ex: vacances d'été, rendez-vous médical..."/>
+        </div>
+      </div>
+
+      <div id="apercu-jours" style="display:none;background:var(--bg3);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:0.88rem">
+        <span id="apercu-jours-txt"></span>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-conge').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="soumettreConge()">✈️ Soumettre la demande</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════ MODAL POINTAGE MANUEL ════ -->
+  <div class="modal-overlay" id="modal-ptg-manuel" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:440px">
+      <h3>✏️ Saisie de pointage</h3>
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Date *</label>
+          <input type="date" id="f-ptg-date"/>
+        </div>
+        <div class="form-group">
+          <label>Heure d'arrivée</label>
+          <input type="time" id="f-ptg-arrivee" value="09:00"/>
+        </div>
+        <div class="form-group">
+          <label>Heure de départ</label>
+          <input type="time" id="f-ptg-depart" value="18:00"/>
+        </div>
+        <div class="form-group form-full">
+          <label>Notes</label>
+          <input type="text" id="f-ptg-notes" placeholder="Télétravail, déplacement..."/>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-ptg-manuel').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="sauvegarderPtgManuel()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="auth.js"></script>
+  <script>
+    let ENTREPRISE_ID = null;
+    let MON_EMPLOYE   = null;  // fiche employé associée au compte
+    let filtreConge   = "";
+    let ptgAujourdhui = null;  // pointage du jour
+
+    const TYPE_CONGE_LABEL = {
+      conges_payes: "Congés payés", rtt: "RTT", maladie: "Arrêt maladie",
+      sans_solde: "Sans solde", evenement_familial: "Événement familial", autre: "Autre"
+    };
+
+    // ════════════════════════════════════════
+    // INIT
+    // ════════════════════════════════════════
+    async function init() {
+      // Date header
+      document.getElementById("header-date").textContent =
+        new Date().toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+
+      // Horloge
+      majHorloge();
+      setInterval(majHorloge, 1000);
+
+      // Init select mois pointage
+      const sel = document.getElementById("sel-mois-ptg");
+      const now = new Date();
+      for (let i = 0; i < 6; i++) {
+        const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const val = d.toISOString().slice(0, 7);
+        const lbl = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+        const opt = document.createElement("option");
+        opt.value = val; opt.textContent = lbl;
+        if (i === 0) opt.selected = true;
+        sel.appendChild(opt);
+      }
+
+      // Auth + profil
+      const user = await initSidebar();
+      if (!user) return;
+
+      // Date aujourd'hui dans le pointage rapide
+      document.getElementById("date-aujourd-hui").textContent =
+        new Date().toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long" });
+
+      // Charger entreprise
+      const json = await apiAuth("GET", "/business/entreprises");
+      if (!json?.data?.entreprises?.length) {
+        afficherNonLie(user.email || "");
+        return;
+      }
+      ENTREPRISE_ID = json.data.entreprises[0].id;
+
+      // Trouver la fiche employé liée à l'email du compte
+      const empJson = await apiAuth("GET", `/business/rh/employes?entreprise_id=${ENTREPRISE_ID}`);
+      const employes = empJson?.data?.employes || [];
+      MON_EMPLOYE = employes.find(e =>
+        e.email && user.email &&
+        e.email.trim().toLowerCase() === user.email.trim().toLowerCase()
+      );
+
+      if (!MON_EMPLOYE) {
+        afficherNonLie(user.email || "");
+        return;
+      }
+
+      // Afficher le contenu
+      document.getElementById("etat-non-lie").style.display    = "none";
+      document.getElementById("contenu-principal").style.display = "block";
+
+      remplirHero(MON_EMPLOYE);
+      remplirSoldes(MON_EMPLOYE);
+      remplirPaie(MON_EMPLOYE);
+      await chargerPointageAujourdhui();
+      await chargerMesConges();
+      await chargerPointages();
+      await chargerEvaluations();
+    }
+
+    function afficherNonLie(email) {
+      document.getElementById("etat-non-lie").style.display    = "block";
+      document.getElementById("contenu-principal").style.display = "none";
+      document.getElementById("email-non-lie").textContent = email;
+    }
+
+    function majHorloge() {
+      document.getElementById("horloge").textContent =
+        new Date().toLocaleTimeString("fr-FR");
+    }
+
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // ════════════════════════════════════════
+    // HERO CARD
+    // ════════════════════════════════════════
+    function remplirHero(e) {
+      const initials = ((e.prenom?.[0] || "") + (e.nom?.[0] || "")).toUpperCase();
+      document.getElementById("hero-avatar").textContent = initials || "?";
+      document.getElementById("hero-nom").textContent    = `${e.prenom} ${e.nom}`;
+      document.getElementById("hero-poste").textContent  = [e.poste, e.departement].filter(Boolean).join(" · ") || "Poste non défini";
+
+      const anciennete = e.date_embauche
+        ? ancienneteStr(e.date_embauche)
+        : "Ancienneté inconnue";
+      const statutLbl = e.statut === "actif" ? "✅ Actif" : e.statut === "conge" ? "🏖️ En congé" : "⛔ Inactif";
+
+      document.getElementById("badge-contrat").textContent   = "📋 " + (e.type_contrat || "CDI");
+      document.getElementById("badge-dept").textContent      = "🏢 " + (e.departement || "—");
+      document.getElementById("badge-anciennete").textContent = "📅 " + anciennete;
+      document.getElementById("badge-statut").textContent    = statutLbl;
+    }
+
+    function ancienneteStr(dateEmbauche) {
+      const diffMs = new Date() - new Date(dateEmbauche);
+      const ans    = Math.floor(diffMs / (365.25 * 86400000));
+      const mois   = Math.floor((diffMs % (365.25 * 86400000)) / (30.44 * 86400000));
+      if (ans >= 1) return `${ans} an${ans > 1 ? "s" : ""}${mois > 0 ? ` ${mois} mois` : ""}`;
+      if (mois >= 1) return `${mois} mois`;
+      return "< 1 mois";
+    }
+
+    // ════════════════════════════════════════
+    // SOLDES CONGÉS
+    // ════════════════════════════════════════
+    function remplirSoldes(e) {
+      const acquis = e.conges_acquis || 25;
+      const pris   = e.conges_pris   || 0;
+      const reste  = acquis - pris;
+      const pct    = Math.max(0, Math.min(100, (reste / acquis) * 100));
+      const rtt    = e.rtt || 0;
+
+      document.getElementById("solde-cp").textContent  = reste.toFixed(1) + " j";
+      document.getElementById("solde-rtt").textContent = rtt + " j";
+      document.getElementById("solde-pris").textContent = pris + " j";
+      document.getElementById("bar-cp").style.width = pct + "%";
+
+      if (rtt > 0) {
+        document.getElementById("bar-rtt-wrap").style.display = "block";
+        document.getElementById("bar-rtt").style.width = Math.min(100, (rtt / 15) * 100) + "%";
+      }
+    }
+
+    // ════════════════════════════════════════
+    // PAIE
+    // ════════════════════════════════════════
+    function remplirPaie(e) {
+      const brut  = e.salaire_brut || 0;
+      if (!brut) {
+        document.getElementById("paie-detail").innerHTML =
+          '<div class="empty-state" style="text-align:center;padding:20px;color:var(--text-muted)">Rémunération non renseignée</div>';
+        return;
+      }
+      const cs    = brut * 0.22;
+      const net   = brut - cs;
+      const prime = e.prime_annuelle ? e.prime_annuelle / 12 : 0;
+
+      document.getElementById("paie-detail").innerHTML = `
+        <div class="paie-row"><span>Salaire brut mensuel</span><strong>${euros(brut)}</strong></div>
+        <div class="paie-row"><span style="color:var(--text-muted)">Charges salariales (~22%)</span><span style="color:var(--danger)">- ${euros(cs)}</span></div>
+        <div class="paie-row paie-row-total">
+          <span>Salaire net estimé</span>
+          <strong style="color:var(--success);font-size:1.1rem">${euros(net)}</strong>
+        </div>
+        ${prime > 0 ? `<div class="paie-row" style="margin-top:8px"><span style="color:var(--text-muted)">Prime mensuelle (1/12)</span><span style="color:var(--accent)">${euros(prime)}</span></div>` : ""}
+        <p style="font-size:0.7rem;color:var(--text-muted);margin-top:12px">⚠️ Estimation indicative — consultez votre bulletin officiel</p>
+      `;
+    }
+
+    // ════════════════════════════════════════
+    // POINTAGE RAPIDE
+    // ════════════════════════════════════════
+    async function chargerPointageAujourdhui() {
+      const today = new Date().toISOString().slice(0, 10);
+      const mois  = today.slice(0, 7);
+      const json  = await apiAuth("GET",
+        `/business/rh/pointages?entreprise_id=${ENTREPRISE_ID}&employe_id=${MON_EMPLOYE.id}&mois=${mois}`);
+      const pts   = json?.data || [];
+      ptgAujourdhui = pts.find(p => p.date === today) || null;
+      majUIPointage();
+    }
+
+    function majUIPointage() {
+      const dot   = document.getElementById("ptg-dot");
+      const txt   = document.getElementById("ptg-status-txt");
+      const sub   = document.getElementById("ptg-status-sub");
+      const btnA  = document.getElementById("btn-arrivee");
+      const btnD  = document.getElementById("btn-depart");
+
+      if (!ptgAujourdhui) {
+        dot.className = "status-dot-lg dot-out";
+        txt.textContent = "Non pointé aujourd'hui";
+        sub.textContent = "Cliquez sur 'Pointer l'arrivée' pour commencer";
+        btnA.style.display = "inline-flex";
+        btnD.style.display = "none";
+      } else if (ptgAujourdhui.heure_arrivee && !ptgAujourdhui.heure_depart) {
+        dot.className = "status-dot-lg dot-in";
+        txt.textContent = "En poste depuis " + ptgAujourdhui.heure_arrivee;
+        sub.textContent = "N'oubliez pas de pointer votre départ";
+        btnA.style.display = "none";
+        btnD.style.display = "inline-flex";
+      } else if (ptgAujourdhui.heure_arrivee && ptgAujourdhui.heure_depart) {
+        dot.className = "status-dot-lg dot-out";
+        txt.textContent = "Journée terminée ✓";
+        sub.textContent = `${ptgAujourdhui.heure_arrivee} → ${ptgAujourdhui.heure_depart} · ${ptgAujourdhui.heures_travaillees}h travaillées`;
+        btnA.style.display = "none";
+        btnD.style.display = "none";
+      }
+    }
+
+    async function pointer(action) {
+      const now   = new Date();
+      const heure = now.toTimeString().slice(0, 5);
+      const date  = now.toISOString().slice(0, 10);
+
+      let body;
+      if (action === "arrivee") {
+        body = {
+          entreprise_id: ENTREPRISE_ID,
+          employe_id:    MON_EMPLOYE.id,
+          date,
+          heure_arrivee: heure,
+          heure_depart:  "",
+          heures_travaillees: 0,
+        };
+      } else {
+        if (!ptgAujourdhui) return;
+        const [hA, mA] = (ptgAujourdhui.heure_arrivee || "09:00").split(":").map(Number);
+        const [hD, mD] = heure.split(":").map(Number);
+        const heures   = ((hD * 60 + mD) - (hA * 60 + mA)) / 60;
+        body = {
+          entreprise_id:      ENTREPRISE_ID,
+          employe_id:         MON_EMPLOYE.id,
+          date,
+          heure_arrivee:      ptgAujourdhui.heure_arrivee,
+          heure_depart:       heure,
+          heures_travaillees: Math.max(0, Math.round(heures * 10) / 10),
+        };
+      }
+
+      const json = await apiAuth("POST", "/business/rh/pointages", body);
+      if (json?.statut === "ok") {
+        await chargerPointageAujourdhui();
+        await chargerPointages();
+        toast(action === "arrivee" ? "▶ Arrivée pointée à " + heure : "■ Départ pointé à " + heure);
+      } else {
+        alert(json?.message || "Erreur lors du pointage");
+      }
+    }
+
+    // ════════════════════════════════════════
+    // CONGÉS
+    // ════════════════════════════════════════
+    async function chargerMesConges() {
+      let url = `/business/rh/conges?entreprise_id=${ENTREPRISE_ID}&employe_id=${MON_EMPLOYE.id}`;
+      if (filtreConge) url += `&statut=${filtreConge}`;
+      const json = await apiAuth("GET", url);
+      const data = json?.data || [];
+      const div  = document.getElementById("liste-conges");
+
+      if (!data.length) {
+        div.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-muted);font-size:0.88rem">
+          Aucune demande de congé${filtreConge ? " avec ce statut" : ""}.<br>
+          <button class="btn-primary" style="margin-top:12px" onclick="ouvrirModalConge()">+ Faire une demande</button>
+        </div>`;
+        return;
+      }
+
+      div.innerHTML = data.map(c => {
+        const tagCls = `tag-${c.statut}`;
+        const statutTxt = c.statut === "en_attente" ? "⏳ En attente"
+                        : c.statut === "approuve"   ? "✅ Approuvé"
+                        : "❌ Refusé";
+        return `
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:0.9rem">${TYPE_CONGE_LABEL[c.type] || c.type}</div>
+              <div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px">
+                ${fmtDate(c.date_debut)} → ${fmtDate(c.date_fin)}
+                · <strong>${c.nb_jours} j</strong>
+                ${c.motif ? ' · ' + c.motif : ""}
+              </div>
+            </div>
+            <span class="badge ${tagCls}">${statutTxt}</span>
+          </div>`;
+      }).join("");
+    }
+
+    function filtrerMesConges(statut, btn) {
+      filtreConge = statut;
+      document.querySelectorAll("#section-conges .tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      chargerMesConges();
+    }
+
+    function ouvrirModalConge() {
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById("f-debut-conge").value = today;
+      document.getElementById("f-fin-conge").value   = today;
+      document.getElementById("f-motif-conge").value = "";
+      document.getElementById("apercu-jours").style.display = "none";
+      document.getElementById("modal-conge").style.display  = "flex";
+    }
+
+    function calcJours() {
+      const d1 = new Date(document.getElementById("f-debut-conge").value);
+      const d2 = new Date(document.getElementById("f-fin-conge").value);
+      if (isNaN(d1) || isNaN(d2) || d2 < d1) {
+        document.getElementById("apercu-jours").style.display = "none";
+        return;
+      }
+      let jours = 0;
+      for (let d = new Date(d1); d <= d2; d.setDate(d.getDate() + 1)) {
+        if (d.getDay() !== 0 && d.getDay() !== 6) jours++;
+      }
+      document.getElementById("apercu-jours").style.display = "block";
+      document.getElementById("apercu-jours-txt").innerHTML =
+        `📅 <strong>${jours} jour${jours > 1 ? "s" : ""} ouvré${jours > 1 ? "s" : ""}</strong> du ${fmtDate(d1.toISOString().slice(0,10))} au ${fmtDate(d2.toISOString().slice(0,10))}`;
+    }
+
+    async function soumettreConge() {
+      const body = {
+        entreprise_id: ENTREPRISE_ID,
+        employe_id:    MON_EMPLOYE.id,
+        type:          document.getElementById("f-type-conge").value,
+        date_debut:    document.getElementById("f-debut-conge").value,
+        date_fin:      document.getElementById("f-fin-conge").value,
+        motif:         document.getElementById("f-motif-conge").value.trim(),
+      };
+      if (!body.date_debut || !body.date_fin) {
+        alert("Dates de début et de fin requises");
+        return;
+      }
+      const json = await apiAuth("POST", "/business/rh/conges", body);
+      if (json?.statut === "ok") {
+        document.getElementById("modal-conge").style.display = "none";
+        await chargerMesConges();
+        toast("✅ Demande envoyée — en attente de validation !");
+      } else {
+        alert(json?.message || "Erreur");
+      }
+    }
+
+    // ════════════════════════════════════════
+    // HISTORIQUE POINTAGE
+    // ════════════════════════════════════════
+    async function chargerPointages() {
+      const mois = document.getElementById("sel-mois-ptg").value;
+      if (!mois || !MON_EMPLOYE) return;
+
+      const json = await apiAuth("GET",
+        `/business/rh/pointages?entreprise_id=${ENTREPRISE_ID}&employe_id=${MON_EMPLOYE.id}&mois=${mois}`);
+      const data = json?.data || [];
+
+      const totalH   = data.reduce((s, p) => s + (p.heures_travaillees || 0), 0);
+      const totalSup = data.reduce((s, p) => s + (p.heures_supplementaires || 0), 0);
+
+      document.getElementById("ptg-kpis").innerHTML = `
+        <div class="kpi-mini"><div class="kpi-mini-icon">📅</div><div><div class="kpi-mini-val">${data.length}</div><div class="kpi-mini-lbl">Jours pointés</div></div></div>
+        <div class="kpi-mini"><div class="kpi-mini-icon">⏱️</div><div><div class="kpi-mini-val">${totalH.toFixed(1)}h</div><div class="kpi-mini-lbl">Heures travaillées</div></div></div>
+        <div class="kpi-mini"><div class="kpi-mini-icon">⚡</div><div><div class="kpi-mini-val" style="color:var(--warning)">${totalSup.toFixed(1)}h</div><div class="kpi-mini-lbl">Heures sup.</div></div></div>
+      `;
+
+      const tbody = document.getElementById("tbody-ptg");
+      if (!data.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun pointage ce mois</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = data.map(p => `
+        <tr>
+          <td>${fmtDate(p.date)}</td>
+          <td>${p.heure_arrivee || "—"}</td>
+          <td>${p.heure_depart || "—"}</td>
+          <td><strong>${p.heures_travaillees}h</strong></td>
+          <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${p.heures_supplementaires}h</span>` : "—"}</td>
+          <td style="color:var(--text-muted);font-size:0.82rem">${p.notes || "—"}</td>
+        </tr>
+      `).join("");
+    }
+
+    // ════════════════════════════════════════
+    // MODAL POINTAGE MANUEL
+    // ════════════════════════════════════════
+    function ouvrirModalPtgManuel() {
+      document.getElementById("f-ptg-date").value    = new Date().toISOString().slice(0, 10);
+      document.getElementById("f-ptg-arrivee").value = "09:00";
+      document.getElementById("f-ptg-depart").value  = "18:00";
+      document.getElementById("f-ptg-notes").value   = "";
+      document.getElementById("modal-ptg-manuel").style.display = "flex";
+    }
+
+    async function sauvegarderPtgManuel() {
+      const arrivee = document.getElementById("f-ptg-arrivee").value;
+      const depart  = document.getElementById("f-ptg-depart").value;
+      const [hA, mA] = arrivee.split(":").map(Number);
+      const [hD, mD] = depart.split(":").map(Number);
+      const heures   = Math.max(0, Math.round(((hD * 60 + mD) - (hA * 60 + mA)) / 6) / 10);
+
+      const body = {
+        entreprise_id:      ENTREPRISE_ID,
+        employe_id:         MON_EMPLOYE.id,
+        date:               document.getElementById("f-ptg-date").value,
+        heure_arrivee:      arrivee,
+        heure_depart:       depart,
+        heures_travaillees: heures,
+        notes:              document.getElementById("f-ptg-notes").value.trim(),
+      };
+      if (!body.date) { alert("Date requise"); return; }
+
+      const json = await apiAuth("POST", "/business/rh/pointages", body);
+      if (json?.statut === "ok") {
+        document.getElementById("modal-ptg-manuel").style.display = "none";
+        await chargerPointageAujourdhui();
+        await chargerPointages();
+        toast("✅ Pointage enregistré !");
+      } else {
+        alert(json?.message || "Erreur");
+      }
+    }
+
+    // ════════════════════════════════════════
+    // ÉVALUATIONS
+    // ════════════════════════════════════════
+    async function chargerEvaluations() {
+      const json = await apiAuth("GET",
+        `/business/rh/evaluations?entreprise_id=${ENTREPRISE_ID}&employe_id=${MON_EMPLOYE.id}`);
+      const data = json?.data || [];
+      const div  = document.getElementById("liste-evals");
+
+      if (!data.length) {
+        div.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.88rem">Aucune évaluation enregistrée.</div>`;
+        return;
+      }
+
+      div.innerHTML = data.map(ev => {
+        const note  = ev.note_globale || 0;
+        const stars = "★".repeat(Math.round(note)) + "☆".repeat(5 - Math.round(note));
+        return `
+          <div class="eval-card">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+              <div class="note-badge">${note.toFixed(1)}</div>
+              <div>
+                <div class="eval-stars">${stars}</div>
+                <div style="font-size:0.78rem;color:var(--text-muted)">Période ${ev.periode}</div>
+              </div>
+            </div>
+            ${ev.points_forts ? `<div style="font-size:0.82rem;margin-bottom:6px"><strong style="color:var(--success)">Points forts :</strong> ${ev.points_forts}</div>` : ""}
+            ${ev.axes_amelioration ? `<div style="font-size:0.82rem;margin-bottom:6px"><strong style="color:var(--warning)">Axes d'amélioration :</strong> ${ev.axes_amelioration}</div>` : ""}
+            ${ev.commentaire ? `<div style="font-size:0.82rem;color:var(--text-muted)">${ev.commentaire}</div>` : ""}
+          </div>`;
+      }).join("");
+    }
+
+    // ════════════════════════════════════════
+    // FICHE DE PAIE (impression)
+    // ════════════════════════════════════════
+    function imprimerFichePaie() {
+      if (!MON_EMPLOYE) return;
+      const e    = MON_EMPLOYE;
+      const brut = e.salaire_brut || 0;
+      if (!brut) { alert("Rémunération non renseignée — contactez votre RH."); return; }
+
+      const cs    = brut * 0.22;
+      const net   = brut - cs;
+      const cp    = brut * 0.42;
+      const prime = e.prime_annuelle ? e.prime_annuelle / 12 : 0;
+      const mois  = new Date().toLocaleDateString("fr-FR", { month:"long", year:"numeric" });
+      const today = new Date().toLocaleDateString("fr-FR");
+      const eur   = n => new Intl.NumberFormat("fr-FR", { style:"currency", currency:"EUR", minimumFractionDigits:2 }).format(n || 0);
+
+      const html = `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"/><title>Fiche de paie — ${e.prenom} ${e.nom}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;color:#111;background:#fff;padding:20px}
+  .hdr{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:16px}
+  .co{font-size:16px;font-weight:700}.ttl{font-size:18px;font-weight:700;text-align:right}.per{font-size:10px;color:#555;text-align:right}
+  .sec-ttl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#555;background:#f5f5f5;padding:5px 8px;margin-bottom:6px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .ir{display:flex;justify-content:space-between;padding:3px 8px;border-bottom:1px solid #eee}.ir:last-child{border-bottom:none}
+  .il{color:#555}.iv{font-weight:600}
+  table{width:100%;border-collapse:collapse;margin-bottom:14px}
+  th{background:#f0f0f0;padding:6px 8px;text-align:left;font-size:10px;text-transform:uppercase;border:1px solid #ddd}
+  td{padding:5px 8px;border:1px solid #eee}td.r{text-align:right;font-weight:600}
+  .tot td{background:#f5f5f5;font-weight:700;border-top:2px solid #333}
+  .net td{background:#1a1a2e;color:white;font-size:13px;font-weight:700;padding:8px}
+  .foot{margin-top:20px;border-top:1px solid #ddd;padding-top:12px;font-size:9px;color:#888}
+  @media print{body{padding:0}}
+</style></head><body>
+<div class="hdr">
+  <div><div class="co">🏢 Agent IA Business</div><div style="font-size:10px;color:#555;margin-top:4px">Votre entreprise</div></div>
+  <div><div class="ttl">BULLETIN DE PAIE</div><div class="per">Période : ${mois}</div><div class="per">Émis le : ${today}</div></div>
+</div>
+<div class="two">
+  <div>
+    <div class="sec-ttl">Employé</div>
+    <div class="ir"><span class="il">Nom</span><span class="iv">${e.prenom} ${e.nom}</span></div>
+    <div class="ir"><span class="il">Poste</span><span class="iv">${e.poste || "—"}</span></div>
+    <div class="ir"><span class="il">Contrat</span><span class="iv">${e.type_contrat || "CDI"}</span></div>
+    ${e.date_embauche ? `<div class="ir"><span class="il">Embauché le</span><span class="iv">${e.date_embauche}</span></div>` : ""}
+  </div>
+  <div>
+    <div class="sec-ttl">Congés</div>
+    <div class="ir"><span class="il">Jours acquis / an</span><span class="iv">${e.conges_acquis || 25} j</span></div>
+    <div class="ir"><span class="il">Jours pris</span><span class="iv">${e.conges_pris || 0} j</span></div>
+    <div class="ir"><span class="il">Solde restant</span><span class="iv" style="color:${((e.conges_acquis||25)-(e.conges_pris||0))>5?'green':'orange'}">${(e.conges_acquis||25)-(e.conges_pris||0)} j</span></div>
+  </div>
+</div>
+<div class="sec-ttl">Éléments de rémunération</div>
+<table><thead><tr><th>Désignation</th><th>Montant</th></tr></thead>
+<tbody>
+  <tr><td>Salaire de base brut</td><td class="r">${eur(brut)}</td></tr>
+  ${prime > 0 ? `<tr><td>Prime mensuelle (1/12 prime annuelle)</td><td class="r">${eur(prime)}</td></tr>` : ""}
+  <tr class="tot"><td><strong>Total brut</strong></td><td class="r">${eur(brut + prime)}</td></tr>
+</tbody></table>
+<div class="sec-ttl">Cotisations et retenues</div>
+<table><thead><tr><th>Cotisation</th><th>Taux salarié</th><th class="r">Montant</th></tr></thead>
+<tbody>
+  <tr><td>Sécurité sociale — maladie</td><td>0,50%</td><td class="r">${eur(brut*0.005)}</td></tr>
+  <tr><td>Retraite complémentaire</td><td>3,93%</td><td class="r">${eur(brut*0.0393)}</td></tr>
+  <tr><td>CSG / CRDS</td><td>9,70%</td><td class="r">${eur(brut*0.9825*0.097)}</td></tr>
+  <tr><td>Autres cotisations (estimé)</td><td>8,07%</td><td class="r">${eur(brut*0.0807)}</td></tr>
+  <tr class="tot"><td colspan="2"><strong>Total retenues salariales</strong></td><td class="r">${eur(cs)}</td></tr>
+</tbody></table>
+<table><tbody>
+  <tr class="net"><td colspan="2"><strong>NET À PAYER</strong></td><td class="r">${eur(net + prime)}</td></tr>
+</tbody></table>
+<div class="foot">⚠️ Ce bulletin est généré à titre indicatif sur la base de taux moyens 2024. Les montants exacts dépendent de la situation individuelle. Consultez votre expert-comptable pour un bulletin officiel.</div>
+</body></html>`;
+
+      const w = window.open("", "_blank");
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => w.print(), 500);
+    }
+
+    // ════════════════════════════════════════
+    // UTILS
+    // ════════════════════════════════════════
+    function euros(n) {
+      if (!n && n !== 0) return "—";
+      return new Intl.NumberFormat("fr-FR", { style:"currency", currency:"EUR", maximumFractionDigits:0 }).format(n);
+    }
+
+    function fmtDate(d) {
+      return d ? new Date(d + "T12:00:00").toLocaleDateString("fr-FR") : "—";
+    }
+
+    function toast(msg, color = "#10b981") {
+      const t = document.createElement("div");
+      t.textContent = msg;
+      t.style.cssText = `position:fixed;bottom:28px;right:28px;background:${color};color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3)`;
+      document.body.appendChild(t);
+      setTimeout(() => { t.style.opacity="0";t.style.transition="opacity 0.4s";setTimeout(()=>t.remove(),400); }, 2500);
+    }
+
+    // ════════════════════════════════════════
+    // LANCEMENT
+    // ════════════════════════════════════════
+    init();
+  </script>
+</body>
+</html>
