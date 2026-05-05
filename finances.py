@@ -18,6 +18,20 @@ def _generer_id(prefix="TRX"):
     return f"{prefix}_{int(time.time() * 1000000)}"
 
 
+def _decaler_mois(reference: date, delta: int) -> date:
+    """
+    Retourne le 1er jour du mois décalé de `delta` mois par rapport à `reference`.
+    delta négatif = passé, positif = futur. Gère correctement les changements d'année.
+
+    Évite le bug d'approximation `timedelta(days=i*30)` qui dérive sur les mois
+    de 31 jours et provoque des mois dupliqués dans les listes mensuelles.
+    """
+    mois  = reference.month - 1 + delta
+    annee = reference.year + mois // 12
+    mois  = mois % 12 + 1
+    return date(annee, mois, 1)
+
+
 # ─────────────────────────────────────────────
 # CATÉGORISATION AUTOMATIQUE
 # ─────────────────────────────────────────────
@@ -530,7 +544,7 @@ def get_dashboard_financier(entreprise_id: str, periode: str = None) -> dict:
         # Évolution mensuelle (12 derniers mois)
         evolution = []
         for i in range(11, -1, -1):
-            d        = today.replace(day=1) - timedelta(days=i * 30)
+            d        = _decaler_mois(today, -i)
             mois_str = d.strftime("%Y-%m")
             rev = scalar(conn.execute(
                 "SELECT COALESCE(SUM(montant),0) as c FROM transactions "
@@ -580,7 +594,7 @@ def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
         depenses_moy = 0
 
         for i in range(1, 4):
-            d        = today.replace(day=1) - timedelta(days=i * 30)
+            d        = _decaler_mois(today, -i)
             mois_str = d.strftime("%Y-%m")
 
             revenus_moy += sc(conn.execute(
@@ -604,7 +618,7 @@ def calculer_projection(entreprise_id: str, nb_mois: int = 6) -> list:
         projection  = []
         solde_cumul = 0
         for i in range(1, nb_mois + 1):
-            d = today.replace(day=1) + timedelta(days=i * 30)
+            d = _decaler_mois(today, i)
             solde_cumul += revenus_moy - depenses_moy
             projection.append({
                 "mois":               d.strftime("%Y-%m"),
@@ -642,7 +656,7 @@ def detecter_anomalies(entreprise_id: str) -> list:
             totaux = []
 
             for i in range(1, 4):
-                d        = today.replace(day=1) - timedelta(days=i * 30)
+                d        = _decaler_mois(today, -i)
                 mois_str = d.strftime("%Y-%m")
                 row = conn.execute(
                     "SELECT COALESCE(SUM(montant),0) as c FROM transactions "
