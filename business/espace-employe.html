@@ -174,6 +174,7 @@
       <a href="#" class="nav-link" onclick="scrollToSection('section-conges')">🏖️ Mes Congés</a>
       <a href="#" class="nav-link" onclick="scrollToSection('section-pointage')">⏱️ Mon Pointage</a>
       <a href="#" class="nav-link" onclick="scrollToSection('section-paie')">💶 Ma Rémunération</a>
+      <a href="#" class="nav-link" onclick="scrollToSection('section-projets')">📁 Mes Projets</a>
       <a href="#" class="nav-link" onclick="scrollToSection('section-evals')">⭐ Évaluations</a>
     </nav>
     <div class="sidebar-footer">
@@ -287,7 +288,16 @@
               <div class="empty-state">Chargement...</div>
             </div>
           </div>
-        </div>
+
+          <!-- MES PROJETS (col gauche) -->
+          <div class="card" id="section-projets" style="margin-top:20px">
+            <div class="card-header">
+              <span class="card-icon">📁</span>
+              <h2>Mes projets</h2>
+            </div>
+            <div id="liste-mes-projets"><div class="empty-state">Chargement...</div></div>
+          </div>
+        </div><!-- /col gauche -->
 
         <!-- ── COL DROITE : PAIE + HISTORIQUE ── -->
         <div>
@@ -413,6 +423,7 @@
   </div>
 
 
+  <script src="role-guard.js"></script>
   <script src="auth.js"></script>
   <script>
     let ENTREPRISE_ID = null;
@@ -429,6 +440,9 @@
     // INIT
     // ════════════════════════════════════════
     async function init() {
+      // Vérifier l'accès (espace-employe toujours autorisé pour tous, mais charge le rôle)
+      await verifierAccesPage(["espace-employe.html"]);
+
       // Date header
       document.getElementById("header-date").textContent =
         new Date().toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
@@ -490,6 +504,7 @@
       await chargerMesConges();
       await chargerPointages();
       await chargerEvaluations();
+      await chargerMesProjets();
     }
 
     function afficherNonLie(email) {
@@ -864,6 +879,56 @@
             ${ev.points_forts ? `<div style="font-size:0.82rem;margin-bottom:6px"><strong style="color:var(--success)">Points forts :</strong> ${ev.points_forts}</div>` : ""}
             ${ev.axes_amelioration ? `<div style="font-size:0.82rem;margin-bottom:6px"><strong style="color:var(--warning)">Axes d'amélioration :</strong> ${ev.axes_amelioration}</div>` : ""}
             ${ev.commentaire ? `<div style="font-size:0.82rem;color:var(--text-muted)">${ev.commentaire}</div>` : ""}
+          </div>`;
+      }).join("");
+    }
+
+    // ════════════════════════════════════════
+    // MES PROJETS
+    // ════════════════════════════════════════
+    async function chargerMesProjets() {
+      const json = await apiAuth("GET", `/business/rh/mes-projets?entreprise_id=${ENTREPRISE_ID}`);
+      const data = (json?.data?.projets) || [];
+      const div  = document.getElementById("liste-mes-projets");
+
+      if (!data.length) {
+        div.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.88rem">
+          Vous n'êtes affecté à aucun projet pour le moment.
+        </div>`;
+        return;
+      }
+
+      const statutConfig = {
+        en_cours:  { label: "En cours",  color: "var(--accent)" },
+        en_pause:  { label: "En pause",  color: "var(--warning)" },
+        termine:   { label: "Terminé",   color: "var(--success)" },
+        annule:    { label: "Annulé",    color: "var(--danger)" },
+      };
+
+      div.innerHTML = data.map(p => {
+        const st    = statutConfig[p.statut] || { label: p.statut, color: "var(--text-muted)" };
+        const desc  = (p.description || "").length > 100
+          ? p.description.substring(0, 100) + "…"
+          : (p.description || "");
+        const dates = [p.date_debut, p.date_fin_prevue].filter(Boolean);
+        const roleBadge = p.role_dans_projet === "responsable"
+          ? `<span class="badge" style="background:rgba(99,102,241,0.15);color:var(--accent)">👑 Responsable</span>`
+          : `<span class="badge badge-grey">👥 Membre</span>`;
+
+        return `
+          <div style="padding:14px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px">
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:0.95rem">${p.nom}</div>
+                ${p.client ? `<div style="font-size:0.78rem;color:var(--text-muted)">${p.client}</div>` : ""}
+              </div>
+              <span class="badge" style="background:rgba(0,0,0,0.2);color:${st.color};border:1px solid ${st.color};opacity:.9;white-space:nowrap">${st.label}</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+              ${roleBadge}
+              ${dates.length ? `<span class="badge-hero">📅 ${dates.map(fmtDate).join(" → ")}</span>` : ""}
+            </div>
+            ${desc ? `<div style="font-size:0.8rem;color:var(--text-muted)">${desc}</div>` : ""}
           </div>`;
       }).join("");
     }

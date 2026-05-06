@@ -77,7 +77,42 @@ async function initSidebar() {
   var el = function(id) { return document.getElementById(id); };
   if (el("sidebar-avatar")) el("sidebar-avatar").textContent = (user.prenom || "U")[0].toUpperCase();
   if (el("sidebar-nom"))    el("sidebar-nom").textContent    = (user.prenom || "") + " " + (user.nom || "");
-  if (el("sidebar-role"))   el("sidebar-role").textContent   = user.metier || "Dirigeant";
+
+  // Récupérer le rôle (déjà chargé par role-guard.js ou à charger maintenant)
+  var role = window.ROLE_UTILISATEUR || null;
+  if (!role) {
+    try {
+      var json = await apiAuth("GET", "/business/entreprises");
+      var ents = (json && json.data && json.data.entreprises) || [];
+      if (ents.length) {
+        role = ents[0].role || null;
+        window.ROLE_UTILISATEUR    = role;
+        window.ENTREPRISE_ID_GLOBAL = ents[0].id;
+      }
+    } catch(e) {}
+  }
+
+  if (el("sidebar-role")) {
+    var roleLabel = {
+      admin: "Administrateur", rh: "Responsable RH",
+      comptable: "Comptable", commercial: "Commercial", employe: "Employé"
+    };
+    el("sidebar-role").textContent = (role && roleLabel[role]) || user.metier || "Dirigeant";
+  }
+
+  // Pour un employé : masquer tous les liens sauf "Mon Espace"
+  if (role === "employe") {
+    var liens = document.querySelectorAll(".sidebar nav .nav-link");
+    liens.forEach(function(lien) {
+      var href = lien.getAttribute("href") || "";
+      var estEspaceEmploye = href.indexOf("espace-employe.html") !== -1;
+      // Conserver aussi les ancres internes (onclick scroll) si on est déjà sur espace-employe
+      var estAncreInterne  = href === "#";
+      if (!estEspaceEmploye && !estAncreInterne) {
+        lien.style.display = "none";
+      }
+    });
+  }
 
   return user;
 }

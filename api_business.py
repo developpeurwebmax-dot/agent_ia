@@ -65,11 +65,37 @@ business = Blueprint("business", __name__, url_prefix="/business")
 
 
 # ─────────────────────────────────────────────
-# HELPER PERMISSION
+# HELPERS PERMISSION
 # ─────────────────────────────────────────────
 
 def _check_acces(entreprise_id: str, user_id: str) -> bool:
     return get_role_user(entreprise_id, user_id) is not None
+
+
+def _est_employe(entreprise_id: str, user_id: str) -> bool:
+    """Retourne True si l'utilisateur a le rôle 'employe' dans cette entreprise."""
+    return get_role_user(entreprise_id, user_id) == "employe"
+
+
+def _get_employe_du_user(entreprise_id: str, user_id: str):
+    """
+    Retourne la fiche employé (dict) liée au compte user via son email.
+    Retourne None si aucune fiche n'est associée.
+    """
+    from auth import get_user_by_id
+    user = get_user_by_id(user_id)
+    if not user or not user.get("email"):
+        return None
+    email = user["email"].strip().lower()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM employes WHERE entreprise_id=? AND lower(trim(email))=?",
+            (entreprise_id, email)
+        ).fetchone()
+        return row_to_dict(row) if row else None
+    finally:
+        conn.close()
 
 
 # ─────────────────────────────────────────────
@@ -127,6 +153,8 @@ def list_membres():
     eid = request.args.get("entreprise_id")
     if not eid or not _check_acces(eid, request.user_id):
         return reponse_erreur("Accès refusé", 403)
+    if _est_employe(eid, request.user_id):
+        return reponse_erreur("Accès refusé", 403)
     return reponse_ok({"membres": get_membres(eid)})
 
 
@@ -138,6 +166,8 @@ def inviter():
         eid  = data.get("entreprise_id")
         if not eid:
             return reponse_erreur("entreprise_id requis")
+        if _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
         result = inviter_membre(eid, request.user_id, data.get("email", ""), data.get("role", "employe"))
         return reponse_ok(result, "Membre invité", 201)
     except (PermissionError, ValueError) as e:
@@ -152,6 +182,8 @@ def update_role(uid):
     try:
         data = get_json()
         eid  = data.get("entreprise_id")
+        if eid and _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
         modifier_role_membre(eid, request.user_id, uid, data.get("role"))
         return reponse_ok({}, "Rôle modifié")
     except (PermissionError, ValueError) as e:
@@ -163,6 +195,8 @@ def update_role(uid):
 def retirer(uid):
     try:
         eid = request.args.get("entreprise_id")
+        if eid and _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
         retirer_membre(eid, request.user_id, uid)
         return reponse_ok({}, "Membre retiré")
     except PermissionError as e:
@@ -182,6 +216,8 @@ def transactions_route():
             eid  = data.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
             txn = creer_transaction(eid, data)
             return reponse_ok(txn, "Transaction créée", 201)
         except ValueError as e:
@@ -192,6 +228,8 @@ def transactions_route():
         try:
             eid = request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
             filtres = {
                 "type":       request.args.get("type"),
@@ -215,6 +253,8 @@ def transaction_detail(tid):
             eid  = data.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
             txn = modifier_transaction(tid, eid, data)
             return reponse_ok(txn, "Transaction mise à jour")
         except Exception as e:
@@ -224,6 +264,8 @@ def transaction_detail(tid):
             data = get_json() or {}
             eid  = data.get("entreprise_id") or request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
             supprimer_transaction(tid, eid)
             return reponse_ok({}, "Transaction supprimée")
@@ -238,6 +280,8 @@ def import_csv():
         data    = get_json()
         eid     = data.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
         contenu = data.get("contenu_csv", "")
         if not contenu:
@@ -257,6 +301,8 @@ def import_bulk():
         eid          = data.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
         transactions = data.get("transactions", [])
         if not transactions:
             return reponse_erreur("Aucune transaction fournie")
@@ -275,6 +321,8 @@ def generer_paie():
         eid  = data.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
         mois = data.get("mois")
         if not mois:
             return reponse_erreur("mois requis (format YYYY-MM)")
@@ -292,6 +340,8 @@ def dashboard_finances():
         eid     = request.args.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
         periode = request.args.get("periode", "mois_courant")
         data    = get_dashboard_financier(eid, periode)
         return reponse_ok(data)
@@ -306,6 +356,8 @@ def projection():
         eid = request.args.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
         data = calculer_projection(eid, int(request.args.get("mois", 3)))
         return reponse_ok(data)
     except Exception as e:
@@ -318,6 +370,8 @@ def anomalies():
     try:
         eid = request.args.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
         data = detecter_anomalies(eid)
         return reponse_ok(data)
@@ -338,6 +392,8 @@ def employes_route():
             eid  = data.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
             emp = creer_employe(eid, data)
             return reponse_ok(emp, "Employé créé", 201)
         except ValueError as e:
@@ -349,6 +405,12 @@ def employes_route():
             eid = request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            # Un employé ne voit que sa propre fiche
+            if _est_employe(eid, request.user_id):
+                ma_fiche = _get_employe_du_user(eid, request.user_id)
+                if not ma_fiche:
+                    return reponse_ok({"employes": [], "total": 0})
+                return reponse_ok({"employes": [ma_fiche], "total": 1})
             employes = get_employes(eid, request.args.get("statut"))
             return reponse_ok({"employes": employes, "total": len(employes)})
         except Exception as e:
@@ -362,6 +424,11 @@ def employe_detail(empid):
         eid = request.args.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
+        # Un employé ne peut consulter que sa propre fiche
+        if _est_employe(eid, request.user_id):
+            ma_fiche = _get_employe_du_user(eid, request.user_id)
+            if not ma_fiche or ma_fiche.get("id") != empid:
+                return reponse_erreur("Accès refusé", 403)
         emp = get_employe(empid, eid)
         if not emp:
             return reponse_erreur("Employé non trouvé", 404)
@@ -372,6 +439,8 @@ def employe_detail(empid):
             eid  = data.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
             emp = modifier_employe(empid, eid, data)
             return reponse_ok(emp, "Employé mis à jour")
         except Exception as e:
@@ -380,6 +449,8 @@ def employe_detail(empid):
         try:
             eid = request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
             supprimer_employe(empid, eid)
             return reponse_ok({}, "Employé supprimé")
@@ -393,6 +464,8 @@ def masse_sal():
     try:
         eid = request.args.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
         data = get_masse_salariale(eid)
         return reponse_ok(data)
@@ -413,6 +486,12 @@ def conges_route():
             eid   = data.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            # Un employé ne peut créer une demande que pour lui-même
+            if _est_employe(eid, request.user_id):
+                ma_fiche = _get_employe_du_user(eid, request.user_id)
+                if not ma_fiche:
+                    return reponse_erreur("Fiche employé introuvable", 403)
+                data["employe_id"] = ma_fiche["id"]
             conge = creer_conge(eid, data)
             return reponse_ok(conge, "Demande de congé créée", 201)
         except ValueError as e:
@@ -424,6 +503,16 @@ def conges_route():
             eid  = request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            # Un employé ne consulte que ses propres congés
+            if _est_employe(eid, request.user_id):
+                ma_fiche = _get_employe_du_user(eid, request.user_id)
+                if not ma_fiche:
+                    return reponse_ok([])
+                emp_id_demande = request.args.get("employe_id")
+                if emp_id_demande and emp_id_demande != ma_fiche["id"]:
+                    return reponse_erreur("Accès refusé", 403)
+                data = get_conges(eid, ma_fiche["id"], request.args.get("statut"))
+                return reponse_ok(data)
             data = get_conges(eid, request.args.get("employe_id"), request.args.get("statut"))
             return reponse_ok(data)
         except Exception as e:
@@ -437,6 +526,8 @@ def valider(cid):
         data  = get_json()
         eid   = data.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
         conge = valider_conge(cid, eid, data.get("statut"), data.get("commentaire", ""))
         return reponse_ok(conge, "Congé mis à jour")
@@ -459,6 +550,12 @@ def pointages_route():
             eid  = data.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            # Un employé ne peut pointer que pour lui-même
+            if _est_employe(eid, request.user_id):
+                ma_fiche = _get_employe_du_user(eid, request.user_id)
+                if not ma_fiche:
+                    return reponse_erreur("Fiche employé introuvable", 403)
+                data["employe_id"] = ma_fiche["id"]
             ptg  = pointer_heures(eid, data)
             return reponse_ok(ptg, "Pointage enregistré", 201)
         except ValueError as e:
@@ -470,6 +567,16 @@ def pointages_route():
             eid  = request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            # Un employé ne consulte que ses propres pointages
+            if _est_employe(eid, request.user_id):
+                ma_fiche = _get_employe_du_user(eid, request.user_id)
+                if not ma_fiche:
+                    return reponse_ok([])
+                emp_id_demande = request.args.get("employe_id")
+                if emp_id_demande and emp_id_demande != ma_fiche["id"]:
+                    return reponse_erreur("Accès refusé", 403)
+                data = get_pointages(eid, ma_fiche["id"], request.args.get("mois"))
+                return reponse_ok(data)
             data = get_pointages(eid, request.args.get("employe_id"), request.args.get("mois"))
             return reponse_ok(data)
         except Exception as e:
@@ -489,6 +596,8 @@ def evaluations_route():
             eid   = data.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
             eval_ = creer_evaluation(eid, data)
             return reponse_ok(eval_, "Évaluation créée", 201)
         except ValueError as e:
@@ -500,6 +609,16 @@ def evaluations_route():
             eid  = request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            # Un employé ne consulte que ses propres évaluations
+            if _est_employe(eid, request.user_id):
+                ma_fiche = _get_employe_du_user(eid, request.user_id)
+                if not ma_fiche:
+                    return reponse_ok([])
+                emp_id_demande = request.args.get("employe_id")
+                if emp_id_demande and emp_id_demande != ma_fiche["id"]:
+                    return reponse_erreur("Accès refusé", 403)
+                data = get_evaluations(eid, ma_fiche["id"])
+                return reponse_ok(data)
             data = get_evaluations(eid, request.args.get("employe_id"))
             return reponse_ok(data)
         except Exception as e:
@@ -517,6 +636,8 @@ def analyser_business():
         data = get_json()
         eid  = data.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
 
         dashboard = get_dashboard_financier(eid, "annee")
@@ -547,6 +668,51 @@ def analyser_business():
 # PROJETS
 # ─────────────────────────────────────────────
 
+@business.route("/rh/mes-projets", methods=["GET", "OPTIONS"])
+@token_requis
+def mes_projets():
+    """Retourne les projets où l'utilisateur connecté est responsable ou membre."""
+    import json as _json
+    try:
+        eid = request.args.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        ma_fiche = _get_employe_du_user(eid, request.user_id)
+        if not ma_fiche:
+            return reponse_ok({"projets": [], "total": 0})
+        emp_id = ma_fiche["id"]
+        conn = get_db()
+        try:
+            # Utiliser des guillemets dans le LIKE pour éviter les faux positifs
+            # (l'ID est stocké dans un tableau JSON sous la forme ["EMP_xxx", ...])
+            like_pattern = f'%"{emp_id}"%'
+            rows = conn.execute("""
+                SELECT id, nom, client, statut, date_debut, date_fin_prevue,
+                       description, responsable_id, membres
+                FROM projets
+                WHERE entreprise_id=?
+                  AND (responsable_id=? OR membres LIKE ?)
+                ORDER BY created_at DESC
+            """, (eid, emp_id, like_pattern)).fetchall()
+            projets = []
+            for row in rows:
+                p = row_to_dict(row)
+                membres = _json.loads(p.get("membres") or "[]")
+                p["membres"] = membres
+                p["role_dans_projet"] = (
+                    "responsable" if p.get("responsable_id") == emp_id else "membre"
+                )
+                # Ne pas exposer budget ni cout_reel
+                p.pop("budget", None)
+                p.pop("cout_reel", None)
+                projets.append(p)
+            return reponse_ok({"projets": projets, "total": len(projets)})
+        finally:
+            conn.close()
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
 @business.route("/projets", methods=["GET", "POST", "OPTIONS"])
 @token_requis
 def projets_route():
@@ -555,6 +721,8 @@ def projets_route():
             data = get_json()
             eid  = data.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
             if not data.get("nom"):
                 return reponse_erreur("Nom du projet requis")
@@ -607,6 +775,8 @@ def projets_route():
             eid = request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
             statut = request.args.get("statut")
             conn = get_db()
             try:
@@ -636,6 +806,8 @@ def projet_detail(pid):
             eid = request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
             conn = get_db()
             try:
                 row = conn.execute("SELECT * FROM projets WHERE id=? AND entreprise_id=?", (pid, eid)).fetchone()
@@ -654,6 +826,8 @@ def projet_detail(pid):
             data = get_json()
             eid  = data.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
             conn = get_db()
             try:
@@ -687,6 +861,8 @@ def projet_detail(pid):
         try:
             eid = request.args.get("entreprise_id") or (get_json() or {}).get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
+                return reponse_erreur("Accès refusé", 403)
+            if _est_employe(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
             conn = get_db()
             try:

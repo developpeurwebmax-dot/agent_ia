@@ -644,6 +644,7 @@
     </div>
   </div>
 
+    <script src="role-guard.js"></script>
     <script src="auth.js"></script>
   <script>
     let ENTREPRISE_ID    = null;
@@ -658,6 +659,7 @@
     // INIT
     // ════════════════════════════════════════
     async function init() {
+      await verifierAccesPage([]);
       const user = await initSidebar();
       if (!user) return;
 
