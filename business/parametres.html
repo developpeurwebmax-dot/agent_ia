@@ -231,8 +231,12 @@
               <option value="rh">👥 Responsable RH</option>
               <option value="comptable">💰 Comptable</option>
               <option value="commercial" selected>📊 Commercial</option>
-              <option value="employe">👤 Employé (lecture seule)</option>
             </select>
+            <p style="margin-top:8px;font-size:0.82rem;color:var(--text-muted,#64748b)">
+              💡 Pour ajouter un employé avec un accès limité, utilisez la page
+              <a href="employes.html" style="color:var(--primary,#6366f1);font-weight:600">Équipe &amp; RH</a>
+              (création unifiée fiche + compte de connexion).
+            </p>
           </div>
         </div>
 
@@ -257,6 +261,11 @@
 
       <!-- TABLEAU PERMISSIONS -->
       <div class="card" style="margin-top:16px">
+        <p style="margin-bottom:14px;font-size:0.83rem;color:var(--text-muted,#64748b);background:var(--bg-secondary,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:10px 14px">
+          ℹ️ Le rôle <strong>Employé</strong> est attribué automatiquement lors de la création d'un employé dans
+          <a href="employes.html" style="color:var(--primary,#6366f1);font-weight:600">Équipe &amp; RH</a>.
+          Il n'est pas disponible dans ce formulaire d'invitation.
+        </p>
         <h3 style="margin-bottom:16px;font-size:0.9rem">Tableau des permissions</h3>
         <div class="table-wrapper">
           <table class="table">

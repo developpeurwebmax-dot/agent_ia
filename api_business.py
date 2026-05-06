@@ -168,7 +168,13 @@ def inviter():
             return reponse_erreur("entreprise_id requis")
         if _est_employe(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
-        result = inviter_membre(eid, request.user_id, data.get("email", ""), data.get("role", "employe"))
+        role = data.get("role", "employe")
+        if role == "employe":
+            return reponse_erreur(
+                "Pour ajouter un employé, utilisez la page Équipe & RH (création unifiée fiche + compte)",
+                400
+            )
+        result = inviter_membre(eid, request.user_id, data.get("email", ""), role)
         return reponse_ok(result, "Membre invité", 201)
     except (PermissionError, ValueError) as e:
         return reponse_erreur(str(e))
@@ -456,6 +462,48 @@ def employe_detail(empid):
             return reponse_ok({}, "Employé supprimé")
         except Exception as e:
             return reponse_erreur(str(e))
+
+
+@business.route("/rh/employes-avec-compte", methods=["POST", "OPTIONS"])
+@token_requis
+def creer_employe_avec_compte():
+    try:
+        data = get_json()
+        eid = data.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+
+        creer_compte = data.get("creer_compte", False)
+        email = (data.get("email") or "").strip()
+        compte_cree = False
+        mot_de_passe_temp = None
+
+        if creer_compte:
+            if not email:
+                return reponse_erreur("L'email est requis pour créer un compte de connexion")
+            try:
+                result_invite = inviter_membre(eid, request.user_id, email, "employe")
+                compte_cree = result_invite.get("compte_cree", False)
+                mot_de_passe_temp = result_invite.get("mot_de_passe_temp")
+            except ValueError as e:
+                msg = str(e)
+                # Si déjà membre, on continue quand même à créer la fiche
+                if "déjà membre" not in msg.lower():
+                    return reponse_erreur(msg)
+
+        emp = creer_employe(eid, data)
+        return reponse_ok({
+            "employe": emp,
+            "compte_cree": compte_cree,
+            "mot_de_passe_temp": mot_de_passe_temp,
+            "email": email if creer_compte else None
+        }, "Employé créé", 201)
+    except ValueError as e:
+        return reponse_erreur(str(e))
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
 
 
 @business.route("/rh/masse-salariale", methods=["GET", "OPTIONS"])
