@@ -117,6 +117,14 @@ async function initSidebar() {
   return user;
 }
 
+// ── INIT SIDEBAR EMPLOYÉ (sans DOM sidebar) ──
+async function initSidebarEmploye() {
+  if (!estConnecte()) { window.location.href = "connexion.html"; return null; }
+  var user = await chargerProfil();
+  if (!user) { window.location.href = "connexion.html"; return null; }
+  return user;
+}
+
 // ── BANNIÈRE API HORS LIGNE ──
 function afficherBanniereHorsLigne() {
   if (document.getElementById("banniere-offline")) return;

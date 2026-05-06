@@ -156,6 +156,10 @@
     @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } .conges-solde-grid { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 600px) { .conges-solde-grid { grid-template-columns: 1fr; } .emp-hero { flex-direction: column; text-align: center; } }
 
+    /* ── LAYOUT PLEINE LARGEUR (sans sidebar) ── */
+    main.main-employe { margin-left:0; width:100%; max-width:1400px; margin:0 auto; padding:24px 32px; }
+    @media (max-width:700px) { main.main-employe { padding:16px; } }
+
     /* ── NOT FOUND ── */
     .not-linked {
       text-align: center; padding: 60px 20px; color: var(--text-muted);
@@ -167,27 +171,7 @@
 </head>
 <body>
 
-  <aside class="sidebar">
-    <div class="logo">🏢 IA Business</div>
-    <nav>
-      <a href="espace-employe.html" class="nav-link active">👤 Mon Espace</a>
-      <a href="#" class="nav-link" onclick="scrollToSection('section-conges')">🏖️ Mes Congés</a>
-      <a href="#" class="nav-link" onclick="scrollToSection('section-pointage')">⏱️ Mon Pointage</a>
-      <a href="#" class="nav-link" onclick="scrollToSection('section-paie')">💶 Ma Rémunération</a>
-      <a href="#" class="nav-link" onclick="scrollToSection('section-projets')">📁 Mes Projets</a>
-      <a href="#" class="nav-link" onclick="scrollToSection('section-evals')">⭐ Évaluations</a>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="user-avatar" id="sidebar-avatar">U</div>
-      <div class="user-info">
-        <span class="user-name" id="sidebar-nom">Mon Profil</span>
-        <span class="user-role" id="sidebar-role">Employé</span>
-      </div>
-      <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:auto" title="Déconnexion">🚪</span>
-    </div>
-  </aside>
-
-  <main class="main">
+  <main class="main main-employe">
 
     <!-- ══ HEADER ══ -->
     <header class="topbar">
@@ -195,7 +179,33 @@
         <h1 class="page-title">Mon Espace</h1>
         <p class="page-sub" id="header-date">Chargement...</p>
       </div>
-      <button class="btn-primary" onclick="ouvrirModalConge()">+ Demande de congé</button>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+
+        <!-- Sélecteur d'entreprise (multi-entreprises uniquement) -->
+        <div id="selecteur-entreprise" style="display:none;position:relative">
+          <button class="btn-secondary" id="btn-selecteur" onclick="toggleDropdownEntreprise()" style="display:flex;align-items:center;gap:8px">
+            <span>🏢</span>
+            <span id="nom-entreprise-active">—</span>
+            <span style="font-size:0.7rem">▼</span>
+          </button>
+          <div id="dropdown-entreprises" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px;min-width:240px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.3)">
+            <!-- Rempli dynamiquement -->
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="ouvrirModalConge()">+ Demande de congé</button>
+
+        <!-- Mini user bloc -->
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg2);border-radius:10px;border:1px solid var(--border)">
+          <div class="user-avatar" id="user-avatar-mini" style="width:30px;height:30px;font-size:0.8rem;flex-shrink:0">U</div>
+          <div style="display:flex;flex-direction:column;line-height:1.3">
+            <span id="user-nom-mini" style="font-size:0.82rem;font-weight:600">—</span>
+            <span style="font-size:0.7rem;color:var(--text-muted)">Employé</span>
+          </div>
+          <span onclick="seDeconnecter()" style="cursor:pointer;color:var(--text-muted);font-size:1rem;margin-left:6px" title="Déconnexion">🚪</span>
+        </div>
+
+      </div>
     </header>
 
     <!-- ══ ÉTAT NON LIÉ ══ -->
@@ -207,6 +217,16 @@
           <p>Votre compte utilisateur n'est pas encore associé à une fiche employé. Contactez votre responsable RH pour qu'il crée ou lie votre fiche avec l'adresse email <strong id="email-non-lie"></strong>.</p>
           <button class="btn-secondary" onclick="location.reload()">🔄 Actualiser</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ══ ÉCRAN DE CHOIX D'ENTREPRISE (multi-entreprises) ══ -->
+    <div id="ecran-choix-entreprise" style="display:none">
+      <div class="card" style="max-width:560px;margin:80px auto;text-align:center">
+        <div style="font-size:3rem;margin-bottom:12px">🏢</div>
+        <h2 style="margin-bottom:8px">Bienvenue !</h2>
+        <p style="color:var(--text-muted);margin-bottom:24px">Vous êtes employé dans plusieurs entreprises. Laquelle souhaitez-vous consulter ?</p>
+        <div id="liste-choix-entreprises" style="display:flex;flex-direction:column;gap:10px;text-align:left"></div>
       </div>
     </div>
 
@@ -423,13 +443,14 @@
   </div>
 
 
-  <script src="role-guard.js"></script>
   <script src="auth.js"></script>
   <script>
-    let ENTREPRISE_ID = null;
-    let MON_EMPLOYE   = null;  // fiche employé associée au compte
-    let filtreConge   = "";
-    let ptgAujourdhui = null;  // pointage du jour
+    let ENTREPRISE_ID   = null;
+    let MON_EMPLOYE     = null;
+    let MES_ENTREPRISES = [];
+    let USER_GLOBAL     = null;
+    let filtreConge     = "";
+    let ptgAujourdhui   = null;
 
     const TYPE_CONGE_LABEL = {
       conges_payes: "Congés payés", rtt: "RTT", maladie: "Arrêt maladie",
@@ -439,63 +460,106 @@
     // ════════════════════════════════════════
     // INIT
     // ════════════════════════════════════════
-    async function init() {
-      // Vérifier l'accès (espace-employe toujours autorisé pour tous, mais charge le rôle)
-      await verifierAccesPage(["espace-employe.html"]);
-
-      // Date header
-      document.getElementById("header-date").textContent =
-        new Date().toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
-
-      // Horloge
-      majHorloge();
-      setInterval(majHorloge, 1000);
-
-      // Init select mois pointage
+    function initSelectMoisPointage() {
       const sel = document.getElementById("sel-mois-ptg");
       const now = new Date();
       for (let i = 0; i < 6; i++) {
         const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const val = d.toISOString().slice(0, 7);
-        const lbl = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
         const opt = document.createElement("option");
-        opt.value = val; opt.textContent = lbl;
+        opt.value       = d.toISOString().slice(0, 7);
+        opt.textContent = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
         if (i === 0) opt.selected = true;
         sel.appendChild(opt);
       }
+    }
 
-      // Auth + profil
-      const user = await initSidebar();
+    async function init() {
+      document.getElementById("header-date").textContent =
+        new Date().toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+      majHorloge();
+      setInterval(majHorloge, 1000);
+      initSelectMoisPointage();
+
+      const user = await initSidebarEmploye();
       if (!user) return;
 
-      // Date aujourd'hui dans le pointage rapide
       document.getElementById("date-aujourd-hui").textContent =
         new Date().toLocaleDateString("fr-FR", { weekday:"long", day:"numeric", month:"long" });
 
-      // Charger entreprise
-      const json = await apiAuth("GET", "/business/entreprises");
-      if (!json?.data?.entreprises?.length) {
-        afficherNonLie(user.email || "");
+      const json  = await apiAuth("GET", "/business/entreprises");
+      const toutes = (json?.data?.entreprises) || [];
+      const mesEntreprisesEmploye = toutes.filter(e => e.role === "employe");
+
+      if (mesEntreprisesEmploye.length === 0) {
+        afficherAucuneEntreprise(user.email || "");
         return;
       }
-      ENTREPRISE_ID = json.data.entreprises[0].id;
 
-      // Trouver la fiche employé liée à l'email du compte
-      const empJson = await apiAuth("GET", `/business/rh/employes?entreprise_id=${ENTREPRISE_ID}`);
+      MES_ENTREPRISES = mesEntreprisesEmploye;
+
+      if (mesEntreprisesEmploye.length === 1) {
+        masquerSelecteurEntreprise();
+        await activerEntreprise(mesEntreprisesEmploye[0], user);
+      } else {
+        afficherEcranChoix(mesEntreprisesEmploye, user);
+      }
+    }
+
+    // ════════════════════════════════════════
+    // MULTI-ENTREPRISES
+    // ════════════════════════════════════════
+    function afficherEcranChoix(entreprises, user) {
+      USER_GLOBAL = user;
+      document.getElementById("contenu-principal").style.display       = "none";
+      document.getElementById("etat-non-lie").style.display            = "none";
+      document.getElementById("ecran-choix-entreprise").style.display  = "block";
+
+      document.getElementById("liste-choix-entreprises").innerHTML = entreprises.map(e => `
+        <button class="btn-secondary" style="padding:14px 18px;display:flex;align-items:center;gap:12px;text-align:left;width:100%"
+          onclick='choisirEntreprise(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+          <div style="font-size:1.5rem">🏢</div>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:0.95rem">${e.nom}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted)">${e.secteur || "Aucun secteur"}</div>
+          </div>
+          <span style="font-size:0.85rem;color:var(--text-muted)">→</span>
+        </button>
+      `).join("");
+    }
+
+    async function choisirEntreprise(entreprise) {
+      document.getElementById("ecran-choix-entreprise").style.display = "none";
+      await activerEntreprise(entreprise, USER_GLOBAL);
+    }
+
+    async function activerEntreprise(entreprise, user) {
+      ENTREPRISE_ID = entreprise.id;
+      USER_GLOBAL   = user;
+
+      if (MES_ENTREPRISES.length > 1) {
+        afficherSelecteurEntreprise(entreprise);
+      }
+
+      const initials = ((user.prenom?.[0] || "") + (user.nom?.[0] || "")).toUpperCase() || "U";
+      document.getElementById("user-avatar-mini").textContent = initials;
+      document.getElementById("user-nom-mini").textContent    =
+        `${user.prenom || ""} ${user.nom || ""}`.trim() || user.email;
+
+      const empJson  = await apiAuth("GET", `/business/rh/employes?entreprise_id=${ENTREPRISE_ID}`);
       const employes = empJson?.data?.employes || [];
       MON_EMPLOYE = employes.find(e =>
         e.email && user.email &&
         e.email.trim().toLowerCase() === user.email.trim().toLowerCase()
-      );
+      ) || null;
 
       if (!MON_EMPLOYE) {
         afficherNonLie(user.email || "");
         return;
       }
 
-      // Afficher le contenu
-      document.getElementById("etat-non-lie").style.display    = "none";
-      document.getElementById("contenu-principal").style.display = "block";
+      document.getElementById("etat-non-lie").style.display      = "none";
+      document.getElementById("ecran-choix-entreprise").style.display = "none";
+      document.getElementById("contenu-principal").style.display  = "block";
 
       remplirHero(MON_EMPLOYE);
       remplirSoldes(MON_EMPLOYE);
@@ -504,14 +568,60 @@
       await chargerMesConges();
       await chargerPointages();
       await chargerEvaluations();
-      await chargerMesProjets();
+      if (typeof chargerMesProjets === "function") await chargerMesProjets();
+    }
+
+    function afficherSelecteurEntreprise(active) {
+      document.getElementById("selecteur-entreprise").style.display = "block";
+      document.getElementById("nom-entreprise-active").textContent  = active.nom;
+
+      document.getElementById("dropdown-entreprises").innerHTML = MES_ENTREPRISES.map(e => `
+        <button onclick='switchEntreprise(${JSON.stringify(e).replace(/'/g, "&#39;")})'
+          style="display:block;width:100%;text-align:left;padding:10px 12px;border-radius:6px;border:none;
+          background:${e.id === active.id ? "var(--bg3)" : "transparent"};color:var(--text);cursor:pointer;font-size:0.85rem">
+          <div style="font-weight:${e.id === active.id ? "600" : "400"}">${e.id === active.id ? "✓ " : ""}🏢 ${e.nom}</div>
+          ${e.secteur ? `<div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">${e.secteur}</div>` : ""}
+        </button>
+      `).join("");
+    }
+
+    function masquerSelecteurEntreprise() {
+      document.getElementById("selecteur-entreprise").style.display = "none";
+    }
+
+    function toggleDropdownEntreprise() {
+      const dd = document.getElementById("dropdown-entreprises");
+      dd.style.display = dd.style.display === "block" ? "none" : "block";
+    }
+
+    async function switchEntreprise(entreprise) {
+      if (entreprise.id === ENTREPRISE_ID) { toggleDropdownEntreprise(); return; }
+      document.getElementById("dropdown-entreprises").style.display = "none";
+      document.getElementById("contenu-principal").style.display    = "none";
+      await activerEntreprise(entreprise, USER_GLOBAL);
+    }
+
+    function afficherAucuneEntreprise(email) {
+      document.getElementById("ecran-choix-entreprise").style.display = "none";
+      document.getElementById("contenu-principal").style.display      = "none";
+      document.getElementById("etat-non-lie").style.display           = "block";
+      document.getElementById("email-non-lie").textContent = email;
     }
 
     function afficherNonLie(email) {
-      document.getElementById("etat-non-lie").style.display    = "block";
-      document.getElementById("contenu-principal").style.display = "none";
+      document.getElementById("ecran-choix-entreprise").style.display = "none";
+      document.getElementById("contenu-principal").style.display      = "none";
+      document.getElementById("etat-non-lie").style.display           = "block";
       document.getElementById("email-non-lie").textContent = email;
     }
+
+    // Fermer le dropdown si clic à l'extérieur
+    document.addEventListener("click", function(e) {
+      var sel = document.getElementById("selecteur-entreprise");
+      if (sel && !sel.contains(e.target)) {
+        document.getElementById("dropdown-entreprises").style.display = "none";
+      }
+    });
 
     function majHorloge() {
       document.getElementById("horloge").textContent =
