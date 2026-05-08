@@ -337,9 +337,17 @@
           </div>
 
           <!-- ÉVALUATIONS -->
-          <div class="card" id="section-evals">
+          <div class="card" id="section-evals" style="margin-bottom:20px">
             <div class="card-header"><span class="card-icon">⭐</span><h2>Mes évaluations</h2></div>
             <div id="liste-evals"><div class="empty-state">Chargement...</div></div>
+          </div>
+
+          <!-- HORAIRES -->
+          <div class="card">
+            <div class="card-header"><span class="card-icon">⏰</span><h2>Mes horaires</h2></div>
+            <div id="mes-horaires" style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem">
+              <div class="empty-state">Chargement...</div>
+            </div>
           </div>
 
         </div>
@@ -564,6 +572,7 @@
       remplirHero(MON_EMPLOYE);
       remplirSoldes(MON_EMPLOYE);
       remplirPaie(MON_EMPLOYE);
+      remplirMesHoraires(MON_EMPLOYE);
       await chargerPointageAujourdhui();
       await chargerMesConges();
       await chargerPointages();
@@ -626,6 +635,31 @@
     function majHorloge() {
       document.getElementById("horloge").textContent =
         new Date().toLocaleTimeString("fr-FR");
+    }
+
+    // ════════════════════════════════════════
+    // MES HORAIRES
+    // ════════════════════════════════════════
+    function remplirMesHoraires(e) {
+      const c = document.getElementById("mes-horaires");
+      if (!c) return;
+      const h = e?.horaires;
+      if (!h || typeof h !== "object") {
+        c.innerHTML = '<div class="empty-state">Horaires non définis</div>';
+        return;
+      }
+      const labels = {lundi:"Lundi",mardi:"Mardi",mercredi:"Mercredi",jeudi:"Jeudi",vendredi:"Vendredi",samedi:"Samedi",dimanche:"Dimanche"};
+      const lignes = Object.entries(labels).map(([jk, lbl]) => {
+        const j = h[jk] || {actif:false};
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg3);border-radius:6px">
+          <span style="${j.actif ? "" : "color:var(--text-muted)"}">${lbl}</span>
+          <span style="color:${j.actif ? "var(--text)" : "var(--text-muted)"};font-weight:${j.actif ? "600" : "400"}">${j.actif ? `${j.debut} → ${j.fin}` : "Repos"}</span>
+        </div>`;
+      }).join("");
+      const pause = h.pause_debut && h.pause_fin
+        ? `<div style="font-size:0.78rem;color:var(--text-muted);text-align:center;margin-top:6px;padding:4px">Pause : ${h.pause_debut} → ${h.pause_fin}</div>`
+        : "";
+      c.innerHTML = lignes + pause;
     }
 
     function scrollToSection(id) {

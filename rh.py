@@ -8,6 +8,34 @@ from datetime import datetime, date, timedelta
 from database import get_db, row_to_dict, rows_to_list
 
 
+HORAIRES_DEFAUT = {
+    "lundi":    {"actif": True,  "debut": "09:00", "fin": "18:00"},
+    "mardi":    {"actif": True,  "debut": "09:00", "fin": "18:00"},
+    "mercredi": {"actif": True,  "debut": "09:00", "fin": "18:00"},
+    "jeudi":    {"actif": True,  "debut": "09:00", "fin": "18:00"},
+    "vendredi": {"actif": True,  "debut": "09:00", "fin": "18:00"},
+    "samedi":   {"actif": False, "debut": "09:00", "fin": "18:00"},
+    "dimanche": {"actif": False, "debut": "09:00", "fin": "18:00"},
+    "pause_debut": "12:00",
+    "pause_fin":   "13:00",
+}
+
+_JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+
+
+def _parser_horaires(raw):
+    if not raw:
+        return {k: v.copy() if isinstance(v, dict) else v for k, v in HORAIRES_DEFAUT.items()}
+    try:
+        h = json.loads(raw) if isinstance(raw, str) else raw
+        for jour in _JOURS:
+            if jour not in h:
+                h[jour] = HORAIRES_DEFAUT[jour].copy()
+        return h
+    except Exception:
+        return {k: v.copy() if isinstance(v, dict) else v for k, v in HORAIRES_DEFAUT.items()}
+
+
 def _generer_id(prefix="EMP"):
     import time
     return f"{prefix}_{int(time.time() * 1000000)}"
@@ -25,12 +53,17 @@ def creer_employe(entreprise_id: str, data: dict) -> dict:
     conn = get_db()
     try:
         eid = _generer_id("EMP")
+        horaires_raw = data.get("horaires")
+        if isinstance(horaires_raw, dict):
+            horaires_json = json.dumps(horaires_raw)
+        else:
+            horaires_json = json.dumps(HORAIRES_DEFAUT)
         conn.execute("""
             INSERT INTO employes
                 (id, entreprise_id, prenom, nom, email, telephone, poste, departement,
                  type_contrat, date_embauche, salaire_brut, statut,
-                 conges_acquis, conges_pris, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 conges_acquis, conges_pris, notes, horaires)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             eid, entreprise_id,
             data["prenom"], data["nom"],
@@ -44,10 +77,13 @@ def creer_employe(entreprise_id: str, data: dict) -> dict:
             data.get("statut", "actif"),
             float(data.get("conges_acquis", 25)),
             float(data.get("conges_pris", 0)),
-            data.get("notes", "")
+            data.get("notes", ""),
+            horaires_json,
         ))
         conn.commit()
-        return row_to_dict(conn.execute("SELECT * FROM employes WHERE id=?", (eid,)).fetchone())
+        e = row_to_dict(conn.execute("SELECT * FROM employes WHERE id=?", (eid,)).fetchone())
+        e["horaires"] = _parser_horaires(e.get("horaires"))
+        return e
     finally:
         conn.close()
 
@@ -66,10 +102,10 @@ def get_employes(entreprise_id: str, statut: str = None) -> list:
                 (entreprise_id,)
             ).fetchall()
         employes = rows_to_list(rows)
-        # Ajouter charges calculées pour chaque employé
         for e in employes:
-            e["charges_patronales"] = calculer_charges(e.get("salaire_brut", 0))["charges_patronales"]
+            e["charges_patronales"]  = calculer_charges(e.get("salaire_brut", 0))["charges_patronales"]
             e["cout_total_employeur"] = calculer_charges(e.get("salaire_brut", 0))["cout_total_employeur"]
+            e["horaires"] = _parser_horaires(e.get("horaires"))
         return employes
     finally:
         conn.close()
@@ -85,6 +121,7 @@ def get_employe(eid: str, entreprise_id: str) -> dict | None:
             return None
         e = row_to_dict(row)
         e.update(calculer_charges(e.get("salaire_brut", 0)))
+        e["horaires"] = _parser_horaires(e.get("horaires"))
         return e
     finally:
         conn.close()
@@ -95,7 +132,9 @@ def modifier_employe(eid: str, entreprise_id: str, data: dict) -> dict:
     try:
         champs_ok = ["prenom", "nom", "email", "telephone", "poste", "departement",
                      "type_contrat", "date_embauche", "salaire_brut", "statut",
-                     "conges_acquis", "conges_pris", "notes"]
+                     "conges_acquis", "conges_pris", "notes", "horaires"]
+        if "horaires" in data and isinstance(data["horaires"], dict):
+            data["horaires"] = json.dumps(data["horaires"])
         sets, vals = [], []
         for k in champs_ok:
             if k in data:

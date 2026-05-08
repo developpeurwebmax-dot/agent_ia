@@ -282,6 +282,7 @@
       <button class="tab active" onclick="showTab('equipe', this)">👥 Mon équipe</button>
       <button class="tab" onclick="showTab('conges', this)">🏖️ Congés</button>
       <button class="tab" onclick="showTab('pointage', this)">⏱️ Pointage</button>
+      <button class="tab" onclick="showTab('planning', this)">📅 Planning</button>
       <button class="tab" onclick="showTab('charges', this)">💼 Coûts salariaux</button>
     </div>
 
@@ -365,6 +366,29 @@
       </div>
     </div>
 
+    <!-- ══════ TAB PLANNING ══════ -->
+    <div class="tab-content" id="tab-planning">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="changerSemainePlanning(-1)">◀</button>
+        <h3 id="planning-titre" style="margin:0;font-size:1rem;min-width:280px;text-align:center">—</h3>
+        <button class="btn-secondary" onclick="changerSemainePlanning(1)">▶</button>
+        <button class="btn-sm" onclick="changerSemainePlanning(0)">Aujourd'hui</button>
+      </div>
+      <div class="table-wrapper">
+        <table class="table" id="table-planning">
+          <thead id="thead-planning"></thead>
+          <tbody id="tbody-planning">
+            <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Chargement...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:14px;padding:12px;background:var(--bg3);border-radius:10px;font-size:0.78rem;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap">
+        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(16,185,129,0.4);border-radius:2px;margin-right:6px"></span>Jour travaillé</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:rgba(245,158,11,0.4);border-radius:2px;margin-right:6px"></span>Congé approuvé</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--bg3);border:1px solid var(--border);border-radius:2px;margin-right:6px"></span>Repos</span>
+      </div>
+    </div>
+
     <!-- ══════ TAB COÛTS SALARIAUX ══════ -->
     <div class="tab-content" id="tab-charges">
       <div class="grid">
@@ -436,6 +460,7 @@
       <div class="modal-tabs">
         <button class="modal-tab active" onclick="switchEmpTab('infos', this)">👤 Informations</button>
         <button class="modal-tab" onclick="switchEmpTab('contrat', this)">📋 Contrat & Salaire</button>
+        <button class="modal-tab" onclick="switchEmpTab('horaires', this)">⏰ Horaires</button>
         <button class="modal-tab" onclick="switchEmpTab('conges', this)">🏖️ Congés</button>
       </div>
 
@@ -506,6 +531,27 @@
             <div><div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:3px">Coût total</div><div style="font-weight:700;color:var(--accent2)" id="ap-cout">—</div></div>
           </div>
           <p style="font-size:0.7rem;color:var(--text-muted);margin-top:8px;text-align:center">Estimations indicatives — ces données restent dans la fiche employé et n'impactent pas vos finances</p>
+        </div>
+      </div>
+
+      <!-- Tab Horaires -->
+      <div id="etab-horaires" style="display:none">
+        <div style="background:var(--bg3);border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:0.82rem;color:var(--text-muted)">
+          💡 Définissez les horaires habituels de cet employé. Ils servent à pré-remplir le pointage et générer le planning d'équipe.
+        </div>
+        <div id="horaires-jours" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+          <!-- Généré par renderHoraires() -->
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Pause déjeuner</div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <input type="time" id="f-pause-debut" value="12:00" style="flex:1"/>
+            <span style="color:var(--text-muted)">→</span>
+            <input type="time" id="f-pause-fin" value="13:00" style="flex:1"/>
+          </div>
+        </div>
+        <div style="text-align:center;padding:10px;background:rgba(99,102,241,0.08);border-radius:8px;font-size:0.88rem;font-weight:600">
+          Total : <span id="horaires-total-val">—</span>
         </div>
       </div>
 
@@ -663,8 +709,25 @@
     let empIdEdition     = null;
     let filtreStatut     = "";
     let filtreConge      = "en_attente";
+    let horairesEdition  = null;
+    let semaineCourantePlanning = null;
 
     const AV_COLORS = ["av-blue","av-purple","av-green","av-orange","av-pink","av-teal"];
+
+    // Horaires par défaut côté JS (miroir de HORAIRES_DEFAUT Python)
+    const HORAIRES_DEFAUT_JS = {
+      lundi:    {actif:true,  debut:"09:00", fin:"18:00"},
+      mardi:    {actif:true,  debut:"09:00", fin:"18:00"},
+      mercredi: {actif:true,  debut:"09:00", fin:"18:00"},
+      jeudi:    {actif:true,  debut:"09:00", fin:"18:00"},
+      vendredi: {actif:true,  debut:"09:00", fin:"18:00"},
+      samedi:   {actif:false, debut:"09:00", fin:"18:00"},
+      dimanche: {actif:false, debut:"09:00", fin:"18:00"},
+      pause_debut: "12:00",
+      pause_fin:   "13:00",
+    };
+    const JOURS_KEYS   = ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"];
+    const JOURS_LABELS = {lundi:"Lundi",mardi:"Mardi",mercredi:"Mercredi",jeudi:"Jeudi",vendredi:"Vendredi",samedi:"Samedi",dimanche:"Dimanche"};
 
     // ════════════════════════════════════════
     // INIT
@@ -708,6 +771,7 @@
       document.getElementById("tab-" + tab).classList.add("active");
       btn.classList.add("active");
       if (tab === "pointage") chargerPointages();
+      if (tab === "planning") chargerPlanning();
       if (tab === "charges")  chargerCoutsEmployes();
     }
 
@@ -894,6 +958,16 @@
       majApercu();
       majSoldeApercu();
 
+      // Horaires
+      if (emp?.horaires && typeof emp.horaires === "object") {
+        horairesEdition = JSON.parse(JSON.stringify(emp.horaires));
+      } else {
+        horairesEdition = JSON.parse(JSON.stringify(HORAIRES_DEFAUT_JS));
+      }
+      g("f-pause-debut").value = horairesEdition.pause_debut || "12:00";
+      g("f-pause-fin").value   = horairesEdition.pause_fin   || "13:00";
+      renderHoraires();
+
       // Checkbox "créer compte" — visible en création seulement
       const zoneCompte = document.getElementById("zone-creer-compte");
       const cbCompte   = document.getElementById("cb-creer-compte");
@@ -912,7 +986,7 @@
     function editerEmploye(emp) { ouvrirModalEmploye(emp); }
 
     function switchEmpTab(tab, btn) {
-      ["infos", "contrat", "conges"].forEach(t => {
+      ["infos", "contrat", "horaires", "conges"].forEach(t => {
         const el = document.getElementById("etab-" + t);
         if (el) el.style.display = t === tab ? "block" : "none";
       });
@@ -950,6 +1024,174 @@
       if (el) el.addEventListener("input", majSoldeApercu);
     });
 
+    // ════════════════════════════════════════
+    // HORAIRES MODAL
+    // ════════════════════════════════════════
+    function renderHoraires() {
+      const container = document.getElementById("horaires-jours");
+      if (!container || !horairesEdition) return;
+      container.innerHTML = JOURS_KEYS.map(jk => {
+        const j = horairesEdition[jk] || {actif:false, debut:"09:00", fin:"18:00"};
+        return `<div style="display:flex;gap:10px;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:8px">
+          <label style="display:flex;align-items:center;gap:8px;min-width:110px;cursor:pointer">
+            <input type="checkbox" ${j.actif ? "checked" : ""} onchange="toggleJour('${jk}',this.checked)" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)"/>
+            <span style="font-weight:${j.actif ? "600" : "400"};color:${j.actif ? "var(--text)" : "var(--text-muted)"}">${JOURS_LABELS[jk]}</span>
+          </label>
+          <input type="time" value="${j.debut}" onchange="majHoraireJour('${jk}','debut',this.value)" ${!j.actif ? "disabled" : ""} style="flex:1;opacity:${j.actif ? 1 : 0.4}"/>
+          <span style="color:var(--text-muted)">→</span>
+          <input type="time" value="${j.fin}" onchange="majHoraireJour('${jk}','fin',this.value)" ${!j.actif ? "disabled" : ""} style="flex:1;opacity:${j.actif ? 1 : 0.4}"/>
+        </div>`;
+      }).join("");
+      majTotalHoraires();
+    }
+
+    function toggleJour(jk, actif) {
+      if (!horairesEdition) return;
+      horairesEdition[jk].actif = actif;
+      renderHoraires();
+    }
+
+    function majHoraireJour(jk, champ, valeur) {
+      if (!horairesEdition) return;
+      horairesEdition[jk][champ] = valeur;
+      majTotalHoraires();
+    }
+
+    function majTotalHoraires() {
+      if (!horairesEdition) return;
+      let totalMin = 0;
+      const pd = document.getElementById("f-pause-debut")?.value || "12:00";
+      const pf = document.getElementById("f-pause-fin")?.value   || "13:00";
+      const [ph1, pm1] = pd.split(":").map(Number);
+      const [ph2, pm2] = pf.split(":").map(Number);
+      const pauseMin   = (ph2 * 60 + pm2) - (ph1 * 60 + pm1);
+      JOURS_KEYS.forEach(jk => {
+        const j = horairesEdition[jk];
+        if (!j?.actif) return;
+        const [h1, m1] = j.debut.split(":").map(Number);
+        const [h2, m2] = j.fin.split(":").map(Number);
+        let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+        if (pauseMin > 0 && (h1 * 60 + m1) < (ph1 * 60 + pm1) && (h2 * 60 + m2) > (ph2 * 60 + pm2)) {
+          mins -= pauseMin;
+        }
+        if (mins > 0) totalMin += mins;
+      });
+      const h = Math.floor(totalMin / 60);
+      const m = totalMin % 60;
+      const el = document.getElementById("horaires-total-val");
+      if (el) el.textContent = `${h}h${m > 0 ? String(m).padStart(2, "0") : ""} / semaine`;
+    }
+
+    ["f-pause-debut", "f-pause-fin"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("change", majTotalHoraires);
+    });
+
+    // ════════════════════════════════════════
+    // PLANNING
+    // ════════════════════════════════════════
+    function dateLundi(d) {
+      const date = new Date(d);
+      const day  = (date.getDay() + 6) % 7;
+      date.setDate(date.getDate() - day);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    function fmtDateCourte(d) {
+      return d.toLocaleDateString("fr-FR", {day:"numeric", month:"short"});
+    }
+
+    async function chargerPlanning() {
+      if (!ENTREPRISE_ID) return;
+      if (!semaineCourantePlanning) semaineCourantePlanning = dateLundi(new Date());
+
+      const semaine_du = semaineCourantePlanning.toISOString().slice(0, 10);
+      const json = await apiAuth("GET", `/business/rh/planning?entreprise_id=${ENTREPRISE_ID}&semaine_du=${semaine_du}`);
+      const data = json?.data;
+      if (!data) return;
+
+      const fin = new Date(semaineCourantePlanning);
+      fin.setDate(fin.getDate() + 6);
+      document.getElementById("planning-titre").textContent =
+        `Semaine du ${fmtDateCourte(semaineCourantePlanning)} au ${fmtDateCourte(fin)}`;
+
+      const jours_lbl = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+      const thead = document.getElementById("thead-planning");
+      const premierEmp = data.planning[0];
+      thead.innerHTML = `<tr>
+        <th style="min-width:160px">Employé</th>
+        ${premierEmp ? premierEmp.jours.map((j, i) => {
+          const d = new Date(j.date + "T12:00:00");
+          return `<th style="text-align:center;min-width:90px">
+            <div style="font-weight:600">${jours_lbl[i]}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted);font-weight:400">${d.getDate()}/${d.getMonth()+1}</div>
+          </th>`;
+        }).join("") : ""}
+      </tr>`;
+
+      const tbody = document.getElementById("tbody-planning");
+      if (!data.planning.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Aucun employé actif</td></tr>`;
+        return;
+      }
+
+      const lblConge = {
+        conges_payes:"🏖️ Congé", rtt:"⏰ RTT", maladie:"🤒 Maladie",
+        sans_solde:"💼 Sans solde", evenement_familial:"👨‍👩‍👧 Évén.", autre:"📅 Absent"
+      };
+
+      tbody.innerHTML = data.planning.map(emp => `
+        <tr>
+          <td>
+            <div style="font-weight:600">${emp.prenom} ${emp.nom}</div>
+            <div style="font-size:0.72rem;color:var(--text-muted)">${emp.poste || ""}</div>
+          </td>
+          ${emp.jours.map(j => {
+            if (j.en_conge) return `<td style="text-align:center;background:rgba(245,158,11,0.12);font-size:0.78rem;color:#f59e0b;font-weight:600">${lblConge[j.type_conge] || "📅 Absent"}</td>`;
+            if (!j.actif)   return `<td style="text-align:center;color:var(--text-muted);font-size:0.78rem">—</td>`;
+            return `<td style="text-align:center;background:rgba(16,185,129,0.08);font-size:0.78rem">
+              <div style="font-weight:600;color:#10b981">${j.debut}</div>
+              <div style="font-size:0.7rem;color:var(--text-muted)">→ ${j.fin}</div>
+            </td>`;
+          }).join("")}
+        </tr>
+      `).join("");
+    }
+
+    function changerSemainePlanning(delta) {
+      if (delta === 0) {
+        semaineCourantePlanning = dateLundi(new Date());
+      } else {
+        if (!semaineCourantePlanning) semaineCourantePlanning = dateLundi(new Date());
+        const d = new Date(semaineCourantePlanning);
+        d.setDate(d.getDate() + delta * 7);
+        semaineCourantePlanning = d;
+      }
+      chargerPlanning();
+    }
+
+    // ════════════════════════════════════════
+    // PRÉ-REMPLISSAGE POINTAGE
+    // ════════════════════════════════════════
+    function prefillHorairesPointage() {
+      const empId = document.getElementById("f-ptg-emp")?.value;
+      const date  = document.getElementById("f-ptg-date")?.value;
+      if (!empId || !date) return;
+      const emp = employes_cache.find(e => e.id === empId);
+      if (!emp?.horaires) return;
+      const jourSemaine = new Date(date + "T12:00:00").getDay();
+      const jk = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"][jourSemaine];
+      const h = emp.horaires[jk];
+      if (h?.actif) {
+        document.getElementById("f-ptg-arrivee").value = h.debut;
+        document.getElementById("f-ptg-depart").value  = h.fin;
+      }
+    }
+
+    document.getElementById("f-ptg-emp").addEventListener("change", prefillHorairesPointage);
+    document.getElementById("f-ptg-date").addEventListener("change", prefillHorairesPointage);
+
     async function sauvegarderEmploye() {
       const prenom = document.getElementById("f-prenom").value.trim();
       const nom    = document.getElementById("f-nom").value.trim();
@@ -973,6 +1215,13 @@
         conges_pris:    parseFloat(document.getElementById("f-conges-pris").value)   || 0,
         rtt:            parseFloat(document.getElementById("f-rtt").value)           || 0,
       };
+
+      // Sync pause dans horairesEdition avant envoi
+      if (horairesEdition) {
+        horairesEdition.pause_debut = document.getElementById("f-pause-debut")?.value || "12:00";
+        horairesEdition.pause_fin   = document.getElementById("f-pause-fin")?.value   || "13:00";
+        body.horaires = horairesEdition;
+      }
 
       const creerCompte = !empIdEdition && document.getElementById("cb-creer-compte")?.checked;
 

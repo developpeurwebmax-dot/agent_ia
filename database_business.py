@@ -23,6 +23,7 @@ def init_db_business():
     _migrations = [
         "ALTER TABLE projets ADD COLUMN notes TEXT DEFAULT ''",
         "ALTER TABLE projets ADD COLUMN notes_taches TEXT DEFAULT '[]'",
+        "ALTER TABLE employes ADD COLUMN horaires TEXT DEFAULT '{}'",
     ]
     for sql in _migrations:
         try:

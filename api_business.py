@@ -761,6 +761,79 @@ def mes_projets():
         return reponse_erreur(str(e), 500)
 
 
+@business.route("/rh/planning", methods=["GET", "OPTIONS"])
+@token_requis
+def planning_route():
+    try:
+        eid = request.args.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+
+        semaine_du = request.args.get("semaine_du")
+        if not semaine_du:
+            return reponse_erreur("semaine_du requis (YYYY-MM-DD)")
+
+        from datetime import datetime as _dt, timedelta as _td
+        from rh import get_employes as _get_emp, get_conges as _get_cong, \
+                       _parser_horaires as _ph, HORAIRES_DEFAUT as _HD
+
+        d = _dt.strptime(semaine_du, "%Y-%m-%d").date()
+        lundi = d - _td(days=d.weekday())
+        fin_semaine = lundi + _td(days=6)
+
+        employes = _get_emp(eid, statut="actif")
+        tous_conges = _get_cong(eid, statut="approuve")
+        conges_semaine = [
+            c for c in tous_conges
+            if _dt.strptime(c["date_fin"],   "%Y-%m-%d").date() >= lundi
+            and _dt.strptime(c["date_debut"], "%Y-%m-%d").date() <= fin_semaine
+        ]
+
+        jours_keys = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+        planning = []
+        for emp in employes:
+            ligne = {
+                "employe_id": emp["id"],
+                "prenom":     emp["prenom"],
+                "nom":        emp["nom"],
+                "poste":      emp.get("poste", ""),
+                "jours":      []
+            }
+            horaires = emp.get("horaires") or _ph(None)
+            for i, jk in enumerate(jours_keys):
+                date_jour = lundi + _td(days=i)
+                jour_data = horaires.get(jk, _HD[jk])
+                en_conge  = False
+                type_conge = None
+                for c in conges_semaine:
+                    if c["employe_id"] != emp["id"]:
+                        continue
+                    debut_c = _dt.strptime(c["date_debut"], "%Y-%m-%d").date()
+                    fin_c   = _dt.strptime(c["date_fin"],   "%Y-%m-%d").date()
+                    if debut_c <= date_jour <= fin_c:
+                        en_conge   = True
+                        type_conge = c["type"]
+                        break
+                ligne["jours"].append({
+                    "date":       date_jour.isoformat(),
+                    "actif":      jour_data.get("actif", False),
+                    "debut":      jour_data.get("debut", ""),
+                    "fin":        jour_data.get("fin", ""),
+                    "en_conge":   en_conge,
+                    "type_conge": type_conge,
+                })
+            planning.append(ligne)
+
+        return reponse_ok({
+            "semaine_du": lundi.isoformat(),
+            "planning":   planning,
+        })
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
 @business.route("/projets", methods=["GET", "POST", "OPTIONS"])
 @token_requis
 def projets_route():
