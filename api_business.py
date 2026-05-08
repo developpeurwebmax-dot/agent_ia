@@ -93,7 +93,12 @@ def _get_employe_du_user(entreprise_id: str, user_id: str):
             "SELECT * FROM employes WHERE entreprise_id=? AND lower(trim(email))=?",
             (entreprise_id, email)
         ).fetchone()
-        return row_to_dict(row) if row else None
+        if not row:
+            return None
+        e = row_to_dict(row)
+        from rh import _parser_horaires as _ph_local
+        e["horaires"] = _ph_local(e.get("horaires"))
+        return e
     finally:
         conn.close()
 

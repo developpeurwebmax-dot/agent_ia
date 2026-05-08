@@ -474,7 +474,7 @@
       for (let i = 0; i < 6; i++) {
         const d   = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const opt = document.createElement("option");
-        opt.value       = d.toISOString().slice(0, 7);
+        opt.value       = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
         opt.textContent = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
         if (i === 0) opt.selected = true;
         sel.appendChild(opt);
@@ -643,7 +643,8 @@
     function remplirMesHoraires(e) {
       const c = document.getElementById("mes-horaires");
       if (!c) return;
-      const h = e?.horaires;
+      let h = e?.horaires;
+      if (typeof h === "string") { try { h = JSON.parse(h); } catch { h = null; } }
       if (!h || typeof h !== "object") {
         c.innerHTML = '<div class="empty-state">Horaires non définis</div>';
         return;
