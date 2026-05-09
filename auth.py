@@ -142,6 +142,7 @@ def connecter_user(email: str, password: str) -> dict:
 
         user.pop("password", None)
         user["modules"] = user.get("modules", "dashboard,devis,factures,taches").split(",")
+        user["must_change_password"] = int(user.get("must_change_password") or 0)
         try:
             import json
             user["profil_legal"] = json.loads(user.get("profil_legal") or "{}")
@@ -167,6 +168,7 @@ def get_user_by_id(user_id: str) -> dict | None:
         user = dict(row)
         user.pop("password", None)
         user["modules"] = user.get("modules", "dashboard,devis,factures,taches").split(",")
+        user["must_change_password"] = int(user.get("must_change_password") or 0)
         try:
             import json
             user["profil_legal"] = json.loads(user.get("profil_legal") or "{}")
