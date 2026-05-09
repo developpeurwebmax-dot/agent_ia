@@ -7,19 +7,33 @@ from database import get_db, USE_POSTGRES
 
 def init_db_business():
     """Crée toutes les tables business si elles n'existent pas."""
-    conn = get_db()
 
     if USE_POSTGRES:
         tables = _tables_postgres()
     else:
         tables = _tables_sqlite()
 
+    # ── Création des tables ──
+    # Chaque table dans sa propre connexion/transaction pour que PostgreSQL
+    # ne reste pas dans un état aborted si une table existe déjà.
     for sql in tables:
-        conn.execute(sql)
+        conn = get_db()
+        try:
+            conn.execute(sql)
+            conn.commit()
+        except Exception as e:
+            print(f"[init_db] table ignorée (déjà présente ?) : {e}")
+            try:
+                conn._conn.rollback()
+            except Exception:
+                pass
+        finally:
+            conn.close()
 
-    # Migrations legeres pour les bases deja existantes (CREATE TABLE IF NOT
-    # EXISTS n'ajoute pas les nouvelles colonnes). On essaie chaque ALTER et on
-    # ignore l'erreur si la colonne existe deja.
+    # ── Migrations légères ──
+    # Une connexion DISTINCTE par ALTER TABLE : sur PostgreSQL une migration
+    # échouée (colonne déjà présente → DuplicateColumn) n'avorte plus les
+    # migrations suivantes — chaque connexion a sa propre transaction.
     _migrations = [
         "ALTER TABLE projets ADD COLUMN notes TEXT DEFAULT ''",
         "ALTER TABLE projets ADD COLUMN notes_taches TEXT DEFAULT '[]'",
@@ -30,15 +44,23 @@ def init_db_business():
         # Changement de mot de passe forcé à la 1ère connexion
         "ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0",
     ]
+
     for sql in _migrations:
+        conn = get_db()
         try:
             conn.execute(sql)
-        except Exception:
-            pass  # colonne deja presente
+            conn.commit()
+            print(f"[migration OK] {sql[:70]}")
+        except Exception as e:
+            print(f"[migration ignorée] {sql[:70]}")
+            try:
+                conn._conn.rollback()
+            except Exception:
+                pass
+        finally:
+            conn.close()
 
-    conn.commit()
-    conn.close()
-    print("Tables Business initialisees")
+    print("Tables Business initialisées")
 
 
 def _tables_sqlite():

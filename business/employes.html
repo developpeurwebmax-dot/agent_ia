@@ -462,7 +462,6 @@
         <button class="modal-tab" onclick="switchEmpTab('contrat', this)">📋 Contrat & Salaire</button>
         <button class="modal-tab" onclick="switchEmpTab('horaires', this)">⏰ Horaires</button>
         <button class="modal-tab" onclick="switchEmpTab('conges', this)">🏖️ Congés</button>
-        <button class="modal-tab" onclick="switchEmpTab('remarques', this)">📌 Remarques</button>
       </div>
 
       <!-- Tab Infos -->
@@ -576,14 +575,6 @@
           <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Solde de congés</div>
           <div id="solde-bar"></div>
         </div>
-      </div>
-
-      <!-- Tab Remarques (lecture + suppression, admin/RH) -->
-      <div id="etab-remarques" style="display:none">
-        <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:14px">
-          Remarques laissées par le manager pour cet employé.
-        </div>
-        <div id="liste-remarques-admin"><div class="empty-state">Chargement...</div></div>
       </div>
 
       <div class="modal-actions" style="margin-top:20px">
@@ -1026,16 +1017,12 @@
     function editerEmploye(emp) { ouvrirModalEmploye(emp); }
 
     function switchEmpTab(tab, btn) {
-      ["infos", "contrat", "horaires", "conges", "remarques"].forEach(t => {
+      ["infos", "contrat", "horaires", "conges"].forEach(t => {
         const el = document.getElementById("etab-" + t);
         if (el) el.style.display = t === tab ? "block" : "none";
       });
       document.querySelectorAll("#modal-employe .modal-tab").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      // Bouton Enregistrer inutile sur l'onglet Remarques (lecture seule)
-      const btnSave = document.getElementById("btn-sauvegarder-emp");
-      if (btnSave) btnSave.style.display = tab === "remarques" ? "none" : "";
-      if (tab === "remarques" && empIdEdition) chargerRemarquesEmploye(empIdEdition);
     }
 
     function majApercu() {
