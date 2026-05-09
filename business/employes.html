@@ -462,6 +462,7 @@
         <button class="modal-tab" onclick="switchEmpTab('contrat', this)">📋 Contrat & Salaire</button>
         <button class="modal-tab" onclick="switchEmpTab('horaires', this)">⏰ Horaires</button>
         <button class="modal-tab" onclick="switchEmpTab('conges', this)">🏖️ Congés</button>
+        <button class="modal-tab" onclick="switchEmpTab('remarques', this)">📌 Remarques</button>
       </div>
 
       <!-- Tab Infos -->
@@ -577,9 +578,17 @@
         </div>
       </div>
 
+      <!-- Tab Remarques (lecture + suppression, admin/RH) -->
+      <div id="etab-remarques" style="display:none">
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:14px">
+          Remarques laissées par le manager pour cet employé.
+        </div>
+        <div id="liste-remarques-admin"><div class="empty-state">Chargement...</div></div>
+      </div>
+
       <div class="modal-actions" style="margin-top:20px">
         <button class="btn-secondary" onclick="fermerModalEmploye()">Annuler</button>
-        <button class="btn-primary" onclick="sauvegarderEmploye()">💾 Enregistrer</button>
+        <button class="btn-primary" id="btn-sauvegarder-emp" onclick="sauvegarderEmploye()">💾 Enregistrer</button>
       </div>
     </div>
   </div>
@@ -659,6 +668,36 @@
       <div class="modal-actions">
         <button class="btn-secondary" onclick="document.getElementById('modal-ptg').style.display='none'">Annuler</button>
         <button class="btn-primary" onclick="sauvegarderPointage()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════
+       MODAL REMARQUE (ajouter une remarque)
+  ══════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-remarque" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:460px">
+      <h3>📌 Ajouter une remarque</h3>
+      <p id="modal-remarque-nom" style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px"></p>
+      <input type="hidden" id="f-remarque-emp-id"/>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Remarque <span style="color:var(--danger)">*</span></label>
+        <textarea id="f-remarque-texte" rows="4" placeholder="Décrivez la remarque, rappel ou feedback..." minlength="5" maxlength="500"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--font-body);font-size:0.9rem;resize:vertical;outline:none"></textarea>
+        <div style="font-size:0.75rem;color:var(--text-muted);text-align:right;margin-top:4px"><span id="remarque-count">0</span>/500</div>
+      </div>
+      <div class="form-group" style="margin-bottom:20px">
+        <label>Priorité</label>
+        <select id="f-remarque-priorite" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none">
+          <option value="normale">🔵 Normale</option>
+          <option value="haute">🔴 Priorité haute</option>
+          <option value="info">ℹ️ Info</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-remarque').style.display='none'">Annuler</button>
+        <button class="btn-primary" onclick="sauvegarderRemarque()">📌 Envoyer</button>
       </div>
     </div>
   </div>
@@ -896,6 +935,7 @@
 
           <div class="emp-card-actions" style="margin-top:12px">
             <button class="btn-secondary" style="flex:1;margin-top:0;font-size:0.82rem" onclick='editerEmploye(${JSON.stringify(e).replace(/'/g,"&#39;")})'>✏️ Modifier</button>
+            <button class="btn-sm" title="Ajouter une remarque" onclick="ouvrirModalRemarque('${e.id}','${e.prenom} ${e.nom}')">📌</button>
             <button class="btn-sm btn-danger" onclick="confirmerSuppr('${e.id}','${e.prenom} ${e.nom}')">🗑</button>
           </div>
         </div>`;
@@ -986,12 +1026,16 @@
     function editerEmploye(emp) { ouvrirModalEmploye(emp); }
 
     function switchEmpTab(tab, btn) {
-      ["infos", "contrat", "horaires", "conges"].forEach(t => {
+      ["infos", "contrat", "horaires", "conges", "remarques"].forEach(t => {
         const el = document.getElementById("etab-" + t);
         if (el) el.style.display = t === tab ? "block" : "none";
       });
       document.querySelectorAll("#modal-employe .modal-tab").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
+      // Bouton Enregistrer inutile sur l'onglet Remarques (lecture seule)
+      const btnSave = document.getElementById("btn-sauvegarder-emp");
+      if (btnSave) btnSave.style.display = tab === "remarques" ? "none" : "";
+      if (tab === "remarques" && empIdEdition) chargerRemarquesEmploye(empIdEdition);
     }
 
     function majApercu() {
@@ -1665,6 +1709,98 @@
       w.document.close();
       setTimeout(() => w.print(), 500);
     }
+
+    // ════════════════════════════════════════
+    // REMARQUES (notes manager → employé)
+    // ════════════════════════════════════════
+    function ouvrirModalRemarque(empId, empNom) {
+      document.getElementById("f-remarque-emp-id").value     = empId;
+      document.getElementById("modal-remarque-nom").textContent = `Pour : ${empNom}`;
+      document.getElementById("f-remarque-texte").value      = "";
+      document.getElementById("f-remarque-priorite").value   = "normale";
+      document.getElementById("remarque-count").textContent  = "0";
+      document.getElementById("modal-remarque").style.display = "flex";
+    }
+
+    document.getElementById("f-remarque-texte")?.addEventListener("input", function() {
+      document.getElementById("remarque-count").textContent = this.value.length;
+    });
+
+    async function sauvegarderRemarque() {
+      const empId     = document.getElementById("f-remarque-emp-id").value;
+      const texte     = document.getElementById("f-remarque-texte").value.trim();
+      const priorite  = document.getElementById("f-remarque-priorite").value;
+
+      if (!texte || texte.length < 5) { alert("La remarque doit faire au moins 5 caractères."); return; }
+      if (texte.length > 500)         { alert("La remarque ne peut pas dépasser 500 caractères."); return; }
+
+      const json = await apiAuth("POST", "/business/rh/evaluations", {
+        entreprise_id: ENTREPRISE_ID,
+        employe_id:    empId,
+        commentaire:   texte,
+        priorite
+      });
+      if (json?.statut === "ok") {
+        document.getElementById("modal-remarque").style.display = "none";
+        toast("📌 Remarque envoyée !");
+      } else {
+        alert(json?.message || "Erreur lors de l'envoi.");
+      }
+    }
+
+    async function chargerRemarquesEmploye(empId) {
+      const div  = document.getElementById("liste-remarques-admin");
+      if (!div) return;
+      div.innerHTML = `<div class="empty-state">Chargement...</div>`;
+      const json = await apiAuth("GET",
+        `/business/rh/evaluations?entreprise_id=${ENTREPRISE_ID}&employe_id=${empId}`);
+      const data = json?.data || [];
+
+      if (!data.length) {
+        div.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.88rem">Aucune remarque pour cet employé.</div>`;
+        return;
+      }
+
+      const triees = [...data].sort((a, b) =>
+        (b.created_at || "").localeCompare(a.created_at || ""));
+
+      const PRIORITE = {
+        haute:   { label: "🔴 Priorité haute", color: "#f87171" },
+        normale: { label: "🔵 Normale",        color: "var(--accent)" },
+        info:    { label: "ℹ️ Info",           color: "var(--text-muted)" },
+      };
+
+      div.innerHTML = triees.map(r => {
+        const p       = PRIORITE[r.priorite] || PRIORITE.normale;
+        const lue     = r.lue === 1 || r.lue === "1";
+        const dateStr = r.created_at
+          ? new Date(r.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+          : "";
+        return `
+          <div style="padding:12px;background:var(--bg3);border-radius:8px;margin-bottom:8px;${lue ? "opacity:0.65" : ""}">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:0.75rem;font-weight:600;color:${p.color}">${p.label}</span>
+              ${lue ? `<span style="font-size:0.72rem;color:var(--text-muted)">✓ Lue</span>` : `<span style="font-size:0.72rem;color:var(--accent)">● Non lue</span>`}
+              <span style="font-size:0.72rem;color:var(--text-muted);margin-left:auto">${dateStr}</span>
+              <button class="btn-sm btn-danger" style="padding:2px 8px;font-size:0.72rem" onclick="supprimerRemarque('${r.id}','${empId}')">🗑</button>
+            </div>
+            <div style="font-size:0.88rem;color:var(--text)">${r.commentaire || ""}</div>
+          </div>`;
+      }).join("");
+    }
+
+    async function supprimerRemarque(rid, empId) {
+      if (!confirm("Supprimer cette remarque ?")) return;
+      const json = await apiAuth("DELETE",
+        `/business/rh/evaluations/${rid}?entreprise_id=${ENTREPRISE_ID}`);
+      if (json?.statut === "ok") {
+        toast("Remarque supprimée.");
+        chargerRemarquesEmploye(empId);
+      } else {
+        alert(json?.message || "Erreur.");
+      }
+    }
+
 
     // ════════════════════════════════════════
     // GÉNÉRATION PAIE

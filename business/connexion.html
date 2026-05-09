@@ -340,6 +340,12 @@
           setToken(json.data.token);
           setUserCache(json.data.user);
 
+          // 1ère connexion avec mot de passe temporaire → changement obligatoire
+          if (json.data.user.must_change_password === 1) {
+            window.location.href = "changer-mdp.html";
+            return;
+          }
+
           // Vérifier si l'utilisateur a une entreprise Business
           const resBiz = await fetch(API_URL + "/business/entreprises", {
             headers: { "Authorization": "Bearer " + json.data.token }

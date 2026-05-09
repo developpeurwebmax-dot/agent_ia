@@ -53,10 +53,27 @@ async function apiAuth(method, endpoint, body) {
 
 // ── CHARGER PROFIL ──
 async function chargerProfil() {
+  var estSurChangeMdp = window.location.pathname.indexOf("changer-mdp.html") !== -1;
+
   var cached = getUserCache();
-  if (cached) return cached;
+  if (cached) {
+    // Garde-fou : si must_change_password, rediriger vers la page de changement
+    if (cached.must_change_password === 1 && !estSurChangeMdp) {
+      window.location.replace("changer-mdp.html");
+      return null;
+    }
+    return cached;
+  }
+
   var json = await apiAuth("GET", "/auth/profil");
-  if (json && json.statut === "ok") { setUserCache(json.data); return json.data; }
+  if (json && json.statut === "ok") {
+    setUserCache(json.data);
+    if (json.data.must_change_password === 1 && !estSurChangeMdp) {
+      window.location.replace("changer-mdp.html");
+      return null;
+    }
+    return json.data;
+  }
   return null;
 }
 

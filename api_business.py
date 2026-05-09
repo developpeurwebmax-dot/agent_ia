@@ -57,7 +57,8 @@ from rh import (
     calculer_charges, get_masse_salariale,
     creer_conge, get_conges, valider_conge,
     pointer_heures, get_pointages,
-    creer_evaluation, get_evaluations
+    creer_evaluation, get_evaluations,
+    marquer_remarque_lue, supprimer_remarque
 )
 from database import get_db, row_to_dict, rows_to_list
 
@@ -652,7 +653,7 @@ def evaluations_route():
             if _est_employe(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
             eval_ = creer_evaluation(eid, data)
-            return reponse_ok(eval_, "Évaluation créée", 201)
+            return reponse_ok(eval_, "Remarque créée", 201)
         except ValueError as e:
             return reponse_erreur(str(e))
         except Exception as e:
@@ -662,7 +663,7 @@ def evaluations_route():
             eid  = request.args.get("entreprise_id")
             if not eid or not _check_acces(eid, request.user_id):
                 return reponse_erreur("Accès refusé", 403)
-            # Un employé ne consulte que ses propres évaluations
+            # Un employé ne consulte que ses propres remarques
             if _est_employe(eid, request.user_id):
                 ma_fiche = _get_employe_du_user(eid, request.user_id)
                 if not ma_fiche:
@@ -676,6 +677,41 @@ def evaluations_route():
             return reponse_ok(data)
         except Exception as e:
             return reponse_erreur(str(e), 500)
+
+
+@business.route("/rh/evaluations/<rid>/lue", methods=["PUT", "OPTIONS"])
+@token_requis
+def remarque_lue(rid):
+    """Permet à un employé de marquer SA remarque comme lue."""
+    try:
+        data = get_json()
+        eid  = data.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        # Seul l'employé concerné peut marquer ses propres remarques
+        ma_fiche = _get_employe_du_user(eid, request.user_id)
+        if not ma_fiche:
+            return reponse_erreur("Fiche employé introuvable", 403)
+        marquer_remarque_lue(rid, eid, ma_fiche["id"])
+        return reponse_ok({}, "Remarque marquée comme lue")
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
+@business.route("/rh/evaluations/<rid>", methods=["DELETE", "OPTIONS"])
+@token_requis
+def supprimer_remarque_route(rid):
+    """Permet à un admin/RH de supprimer une remarque."""
+    try:
+        eid = request.args.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé — admin/RH requis", 403)
+        supprimer_remarque(rid, eid)
+        return reponse_ok({}, "Remarque supprimée")
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
 
 
 # ─────────────────────────────────────────────

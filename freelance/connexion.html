@@ -197,6 +197,12 @@
           setToken(json.data.token);
           setUserCache(json.data.user);
 
+          // 1ère connexion avec mot de passe temporaire → changement obligatoire
+          if (json.data.user.must_change_password === 1) {
+            window.location.href = "../business/changer-mdp.html";
+            return;
+          }
+
           // ── Détection intelligente de l'espace ──
           // Si l'utilisateur a une entreprise → espace Business
           // Sinon → espace Freelance

@@ -191,8 +191,9 @@ def inviter_membre(entreprise_id: str, inviteur_id: str, email_invite: str, role
 
             conn.execute("""
                 INSERT INTO users
-                    (id, prenom, nom, email, password, metier, plan, modules, date_inscription)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (id, prenom, nom, email, password, metier, plan, modules,
+                     date_inscription, must_change_password)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 new_user_id,
                 prenom_auto,
@@ -202,7 +203,8 @@ def inviter_membre(entreprise_id: str, inviteur_id: str, email_invite: str, role
                 ROLE_LABELS.get(role, role),
                 "business",
                 "dashboard,devis,factures,taches,crm,analytics",
-                datetime.now().isoformat()
+                datetime.now().isoformat(),
+                1  # Force le changement de mot de passe à la 1ère connexion
             ))
 
             user = {

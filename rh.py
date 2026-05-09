@@ -375,29 +375,54 @@ def get_pointages(entreprise_id: str, employe_id: str = None, mois: str = None) 
 # ─────────────────────────────────────────────
 
 def creer_evaluation(entreprise_id: str, data: dict) -> dict:
+    """Crée une remarque rapide du manager vers un employé."""
     if not data.get("employe_id"):
         raise ValueError("Employé requis")
+    commentaire = (data.get("commentaire") or "").strip()
+    if not commentaire:
+        raise ValueError("Le texte de la remarque est obligatoire")
+    priorite = data.get("priorite", "normale")
+    if priorite not in ("haute", "normale", "info"):
+        priorite = "normale"
+
     conn = get_db()
     try:
         vid = _generer_id("EVA")
         conn.execute("""
             INSERT INTO evaluations
-                (id, entreprise_id, employe_id, periode, note_globale,
-                 competences, objectifs_atteints, commentaire, points_forts, axes_amelioration)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            vid, entreprise_id,
-            data["employe_id"],
-            data.get("periode", date.today().strftime("%Y")),
-            float(data.get("note_globale", 0)),
-            json.dumps(data.get("competences", {})),
-            data.get("objectifs_atteints", ""),
-            data.get("commentaire", ""),
-            data.get("points_forts", ""),
-            data.get("axes_amelioration", "")
-        ))
+                (id, entreprise_id, employe_id, commentaire, priorite)
+            VALUES (?, ?, ?, ?, ?)
+        """, (vid, entreprise_id, data["employe_id"], commentaire, priorite))
         conn.commit()
         return row_to_dict(conn.execute("SELECT * FROM evaluations WHERE id=?", (vid,)).fetchone())
+    finally:
+        conn.close()
+
+
+def marquer_remarque_lue(remarque_id: str, entreprise_id: str, employe_id: str) -> bool:
+    """Marque une remarque comme lue par l'employé."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE evaluations SET lue=1 WHERE id=? AND entreprise_id=? AND employe_id=?",
+            (remarque_id, entreprise_id, employe_id)
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def supprimer_remarque(remarque_id: str, entreprise_id: str) -> bool:
+    """Supprime une remarque (admin/RH uniquement)."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "DELETE FROM evaluations WHERE id=? AND entreprise_id=?",
+            (remarque_id, entreprise_id)
+        )
+        conn.commit()
+        return True
     finally:
         conn.close()
 

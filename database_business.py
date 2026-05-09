@@ -24,6 +24,11 @@ def init_db_business():
         "ALTER TABLE projets ADD COLUMN notes TEXT DEFAULT ''",
         "ALTER TABLE projets ADD COLUMN notes_taches TEXT DEFAULT '[]'",
         "ALTER TABLE employes ADD COLUMN horaires TEXT DEFAULT '{}'",
+        # Remarques (anciennement évaluations) — priorité + statut de lecture
+        "ALTER TABLE evaluations ADD COLUMN priorite TEXT DEFAULT 'normale'",
+        "ALTER TABLE evaluations ADD COLUMN lue INTEGER DEFAULT 0",
+        # Changement de mot de passe forcé à la 1ère connexion
+        "ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0",
     ]
     for sql in _migrations:
         try:

@@ -14,7 +14,8 @@ import uuid
 from database import get_db, row_to_dict, rows_to_list, init_db
 from auth import (
     inscrire_user, connecter_user, get_user_by_id,
-    modifier_user, changer_plan, supprimer_user, verifier_token
+    modifier_user, changer_plan, supprimer_user, verifier_token,
+    changer_mdp_initial
 )
 from agent import (
     generer_plan_journalier,
@@ -169,6 +170,26 @@ def delete_compte():
     """Supprime le compte et toutes les données."""
     supprimer_user(request.user_id)
     return reponse_ok({}, "Compte supprimé")
+
+
+@app.route("/auth/changer-mdp-initial", methods=["POST", "OPTIONS"])
+@token_requis
+def changer_mdp_initial_route():
+    """Change le mot de passe temporaire lors de la 1ère connexion."""
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        data           = get_json()
+        ancien         = data.get("ancien_password", "")
+        nouveau        = data.get("nouveau_password", "")
+        if not ancien or not nouveau:
+            return reponse_erreur("Les deux mots de passe sont requis")
+        user = changer_mdp_initial(request.user_id, ancien, nouveau)
+        return reponse_ok(user, "Mot de passe modifié")
+    except ValueError as e:
+        return reponse_erreur(str(e))
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
 
 
 # ─────────────────────────────────────────────

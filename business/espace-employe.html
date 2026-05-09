@@ -122,14 +122,31 @@
     .paie-row:last-child { border-bottom: none; }
     .paie-row-total { font-weight: 700; font-size: 1rem; padding-top: 12px; }
 
-    /* ── EVALUATION CARD ── */
-    .eval-card {
+    /* ── REMARQUE CARD ── */
+    .remarque-card {
       background: var(--bg3);
       border-radius: 10px;
       padding: 14px 16px;
       margin-bottom: 10px;
     }
-    .eval-stars { color: #f59e0b; font-size: 1.1rem; }
+    /* Badge de priorité des remarques */
+    .priorite-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    }
+    .priorite-haute  { background: rgba(239,68,68,0.15);  color: #f87171; }
+    .priorite-normale{ background: rgba(99,102,241,0.15); color: var(--accent); }
+    .priorite-info   { background: rgba(148,163,184,0.15);color: var(--text-muted); }
+    /* Point bleu pulsant (remarque non lue) */
+    .pulse-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); flex-shrink: 0;
+      animation: pulse-anim 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse-anim {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:0.4; transform:scale(1.5); }
+    }
     .note-badge {
       display: inline-flex; align-items: center; justify-content: center;
       width: 40px; height: 40px; border-radius: 50%;
@@ -317,6 +334,12 @@
             </div>
             <div id="liste-mes-projets"><div class="empty-state">Chargement...</div></div>
           </div>
+
+          <!-- MES NOTES & REMARQUES (col gauche, sous Mes projets) -->
+          <div class="card" id="section-remarques" style="margin-top:20px">
+            <div class="card-header"><span class="card-icon">📌</span><h2>Mes notes & remarques</h2></div>
+            <div id="liste-remarques"><div class="empty-state">Chargement...</div></div>
+          </div>
         </div><!-- /col gauche -->
 
         <!-- ── COL DROITE : PAIE + HISTORIQUE ── -->
@@ -334,12 +357,6 @@
             <div style="margin-top:12px">
               <button class="btn-secondary" style="width:100%" onclick="imprimerFichePaie()">🖨️ Générer un aperçu de fiche de paie</button>
             </div>
-          </div>
-
-          <!-- ÉVALUATIONS -->
-          <div class="card" id="section-evals" style="margin-bottom:20px">
-            <div class="card-header"><span class="card-icon">⭐</span><h2>Mes évaluations</h2></div>
-            <div id="liste-evals"><div class="empty-state">Chargement...</div></div>
           </div>
 
           <!-- HORAIRES -->
@@ -576,7 +593,7 @@
       await chargerPointageAujourdhui();
       await chargerMesConges();
       await chargerPointages();
-      await chargerEvaluations();
+      await chargerRemarques();
       if (typeof chargerMesProjets === "function") await chargerMesProjets();
     }
 
@@ -996,36 +1013,59 @@
     }
 
     // ════════════════════════════════════════
-    // ÉVALUATIONS
+    // NOTES & REMARQUES
     // ════════════════════════════════════════
-    async function chargerEvaluations() {
+    async function chargerRemarques() {
       const json = await apiAuth("GET",
         `/business/rh/evaluations?entreprise_id=${ENTREPRISE_ID}&employe_id=${MON_EMPLOYE.id}`);
       const data = json?.data || [];
-      const div  = document.getElementById("liste-evals");
+      const div  = document.getElementById("liste-remarques");
 
       if (!data.length) {
-        div.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.88rem">Aucune évaluation enregistrée.</div>`;
+        div.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:0.88rem">Aucune remarque pour le moment 🎉</div>`;
         return;
       }
 
-      div.innerHTML = data.map(ev => {
-        const note  = ev.note_globale || 0;
-        const stars = "★".repeat(Math.round(note)) + "☆".repeat(5 - Math.round(note));
+      // Trier : non lues d'abord, puis par created_at décroissant
+      const triees = [...data].sort((a, b) => {
+        if ((a.lue || 0) !== (b.lue || 0)) return (a.lue || 0) - (b.lue || 0);
+        return (b.created_at || "").localeCompare(a.created_at || "");
+      });
+
+      const PRIORITE = {
+        haute:   { cls: "priorite-haute",   label: "🔴 Priorité haute" },
+        normale: { cls: "priorite-normale", label: "🔵 Normale" },
+        info:    { cls: "priorite-info",    label: "ℹ️ Info" },
+      };
+
+      div.innerHTML = triees.map(r => {
+        const lue     = r.lue === 1 || r.lue === "1";
+        const p       = PRIORITE[r.priorite] || PRIORITE.normale;
+        const dateStr = r.created_at
+          ? new Date(r.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+          : "";
         return `
-          <div class="eval-card">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-              <div class="note-badge">${note.toFixed(1)}</div>
-              <div>
-                <div class="eval-stars">${stars}</div>
-                <div style="font-size:0.78rem;color:var(--text-muted)">Période ${ev.periode}</div>
-              </div>
+          <div class="remarque-card" style="${lue ? "opacity:0.7" : ""}">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+              ${!lue ? `<span class="pulse-dot"></span>` : ""}
+              <span class="priorite-badge ${p.cls}">${p.label}</span>
+              ${dateStr ? `<span style="font-size:0.75rem;color:var(--text-muted);margin-left:auto">${dateStr}</span>` : ""}
             </div>
-            ${ev.points_forts ? `<div style="font-size:0.82rem;margin-bottom:6px"><strong style="color:var(--success)">Points forts :</strong> ${ev.points_forts}</div>` : ""}
-            ${ev.axes_amelioration ? `<div style="font-size:0.82rem;margin-bottom:6px"><strong style="color:var(--warning)">Axes d'amélioration :</strong> ${ev.axes_amelioration}</div>` : ""}
-            ${ev.commentaire ? `<div style="font-size:0.82rem;color:var(--text-muted)">${ev.commentaire}</div>` : ""}
+            <div style="font-size:0.9rem;color:var(--text);line-height:1.55">${r.commentaire || ""}</div>
+            ${lue
+              ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:8px">✓ Lue</div>`
+              : `<div style="margin-top:10px">
+                   <button class="btn-sm" onclick="marquerRemarqueLue('${r.id}')">✓ Marquer comme lue</button>
+                 </div>`
+            }
           </div>`;
       }).join("");
+    }
+
+    async function marquerRemarqueLue(remarqueId) {
+      const json = await apiAuth("PUT", `/business/rh/evaluations/${remarqueId}/lue`,
+        { entreprise_id: ENTREPRISE_ID });
+      if (json?.statut === "ok") await chargerRemarques();
     }
 
     // ════════════════════════════════════════

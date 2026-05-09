@@ -177,6 +177,41 @@ def get_user_by_id(user_id: str) -> dict | None:
         conn.close()
 
 
+def changer_mdp_initial(user_id: str, ancien_password: str, nouveau_password: str) -> dict:
+    """
+    Change le mot de passe lors de la 1ère connexion et désactive le flag must_change_password.
+    Lève ValueError si les règles ne sont pas respectées.
+    """
+    import re
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+        if not row:
+            raise ValueError("Utilisateur introuvable")
+        user = dict(row)
+
+        if not verifier_password(ancien_password, user["password"]):
+            raise ValueError("Le mot de passe temporaire est incorrect")
+
+        if len(nouveau_password) < 8:
+            raise ValueError("Le nouveau mot de passe doit contenir au moins 8 caractères")
+        if not re.search(r"[0-9]", nouveau_password):
+            raise ValueError("Le nouveau mot de passe doit contenir au moins un chiffre")
+        if not re.search(r"[a-zA-Z]", nouveau_password):
+            raise ValueError("Le nouveau mot de passe doit contenir au moins une lettre")
+        if verifier_password(nouveau_password, user["password"]):
+            raise ValueError("Le nouveau mot de passe doit être différent du mot de passe temporaire")
+
+        conn.execute(
+            "UPDATE users SET password=?, must_change_password=0 WHERE id=?",
+            (hasher_password(nouveau_password), user_id)
+        )
+        conn.commit()
+        return get_user_by_id(user_id)
+    finally:
+        conn.close()
+
+
 def modifier_user(user_id: str, data: dict) -> dict:
     """Modifie les infos d'un utilisateur."""
     import json

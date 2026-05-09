@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agent IA Business — Changement de mot de passe</title>
+  <link rel="stylesheet" href="../style.css"/>
+  <link rel="stylesheet" href="style_business.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+
+    .auth-wrap {
+      display: flex;
+      width: 900px;
+      max-width: 98vw;
+      min-height: 540px;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+    }
+
+    .auth-left {
+      flex: 1;
+      background: linear-gradient(135deg, #0f1729 0%, #0d0d1a 100%);
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-right: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .auth-left::before {
+      content: '';
+      position: absolute;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 70%);
+      top: -80px; right: -80px;
+      border-radius: 50%;
+    }
+    .auth-left::after {
+      content: '';
+      position: absolute;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
+      bottom: -50px; left: -50px;
+      border-radius: 50%;
+    }
+
+    .auth-logo {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #f87171;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .auth-tagline h2 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 12px;
+    }
+    .auth-tagline p {
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      line-height: 1.6;
+    }
+
+    .auth-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .auth-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.85rem;
+      color: var(--text-soft);
+    }
+    .step-num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: rgba(239,68,68,0.2);
+      color: #f87171;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .auth-right {
+      width: 420px;
+      background: var(--card);
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-right h3 {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .auth-sub {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .auth-form { display: flex; flex-direction: column; gap: 16px; }
+
+    .auth-form .form-group label {
+      font-size: 0.82rem;
+      color: var(--text-soft);
+      font-weight: 500;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .auth-form input {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+      box-sizing: border-box;
+    }
+    .auth-form input:focus { border-color: #60a5fa; }
+
+    .btn-auth {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-top: 4px;
+    }
+    .btn-auth:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-auth:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .error-msg {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #f87171;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .success-msg {
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.3);
+      color: #34d399;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      display: none;
+    }
+
+    /* Indicateur de force du mot de passe */
+    .strength-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .strength-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s, background 0.3s;
+      width: 0;
+    }
+    .strength-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-wrap">
+    <!-- GAUCHE -->
+    <div class="auth-left">
+      <div class="auth-logo">🔒 Sécurité du compte</div>
+
+      <div class="auth-tagline">
+        <h2>Changement de mot de passe obligatoire</h2>
+        <p>Votre compte a été créé par un administrateur avec un mot de passe temporaire. Pour protéger votre accès, vous devez définir un mot de passe personnel.</p>
+      </div>
+
+      <div class="auth-steps">
+        <div class="auth-step">
+          <div class="step-num">1</div>
+          <span>Saisissez le mot de passe temporaire reçu de votre administrateur</span>
+        </div>
+        <div class="auth-step">
+          <div class="step-num">2</div>
+          <span>Choisissez un nouveau mot de passe personnel (min. 8 caractères, 1 chiffre, 1 lettre)</span>
+        </div>
+        <div class="auth-step">
+          <div class="step-num">3</div>
+          <span>Confirmez votre nouveau mot de passe et accédez à votre espace</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DROITE -->
+    <div class="auth-right">
+      <h3>🔒 Nouveau mot de passe</h3>
+      <p class="auth-sub">Cette étape est obligatoire. Vous ne pouvez pas accéder à votre espace sans effectuer ce changement.</p>
+
+      <div class="error-msg"   id="error-msg"></div>
+      <div class="success-msg" id="success-msg"></div>
+
+      <div class="auth-form">
+        <div class="form-group">
+          <label>Mot de passe temporaire</label>
+          <input type="password" id="mdp-ancien" placeholder="Mot de passe reçu de l'admin" autocomplete="current-password"/>
+        </div>
+        <div class="form-group">
+          <label>Nouveau mot de passe</label>
+          <input type="password" id="mdp-nouveau" placeholder="Min. 8 caractères, 1 chiffre, 1 lettre"
+            autocomplete="new-password" oninput="majForce(this.value)"/>
+          <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+          <div class="strength-label" id="strength-label">Saisissez un mot de passe</div>
+        </div>
+        <div class="form-group">
+          <label>Confirmer le nouveau mot de passe</label>
+          <input type="password" id="mdp-confirm" placeholder="Répétez le nouveau mot de passe" autocomplete="new-password"/>
+        </div>
+        <button class="btn-auth" id="btn-changer" onclick="changerMdp()">
+          Définir mon mot de passe →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://agent-ia-zgha.onrender.com";
+
+    function getToken()      { return localStorage.getItem("jwt_token") || null; }
+    function setToken(t)     { localStorage.setItem("jwt_token", t); }
+    function setUserCache(u) { localStorage.setItem("user_cache", JSON.stringify(u)); }
+
+    // Si pas de token → retour à la connexion
+    if (!getToken()) {
+      window.location.replace("connexion.html");
+    }
+
+    function majForce(mdp) {
+      const fill  = document.getElementById("strength-fill");
+      const label = document.getElementById("strength-label");
+      let score = 0;
+      if (mdp.length >= 8)               score++;
+      if (/[0-9]/.test(mdp))             score++;
+      if (/[a-z]/.test(mdp) && /[A-Z]/.test(mdp)) score++;
+      if (/[^a-zA-Z0-9]/.test(mdp))     score++;
+
+      const configs = [
+        { pct: "0%",   bg: "transparent", txt: "Saisissez un mot de passe" },
+        { pct: "33%",  bg: "#ef4444",     txt: "Faible" },
+        { pct: "60%",  bg: "#f59e0b",     txt: "Moyen" },
+        { pct: "85%",  bg: "#3b82f6",     txt: "Fort" },
+        { pct: "100%", bg: "#10b981",     txt: "Très fort" },
+      ];
+      const c = configs[Math.min(score, 4)];
+      fill.style.width      = c.pct;
+      fill.style.background = c.bg;
+      label.textContent     = c.txt;
+      label.style.color     = c.bg || "var(--text-muted)";
+    }
+
+    async function changerMdp() {
+      const ancien  = document.getElementById("mdp-ancien").value;
+      const nouveau = document.getElementById("mdp-nouveau").value;
+      const confirm = document.getElementById("mdp-confirm").value;
+      const errEl   = document.getElementById("error-msg");
+      const sucEl   = document.getElementById("success-msg");
+      const btn     = document.getElementById("btn-changer");
+
+      errEl.style.display = "none";
+      sucEl.style.display = "none";
+
+      function erreur(msg) {
+        errEl.textContent    = msg;
+        errEl.style.display  = "block";
+        btn.textContent      = "Définir mon mot de passe →";
+        btn.disabled         = false;
+      }
+
+      if (!ancien || !nouveau || !confirm) { erreur("Tous les champs sont requis."); return; }
+      if (nouveau.length < 8)              { erreur("Le nouveau mot de passe doit contenir au moins 8 caractères."); return; }
+      if (!/[0-9]/.test(nouveau))          { erreur("Le nouveau mot de passe doit contenir au moins un chiffre."); return; }
+      if (!/[a-zA-Z]/.test(nouveau))       { erreur("Le nouveau mot de passe doit contenir au moins une lettre."); return; }
+      if (nouveau !== confirm)             { erreur("Les deux mots de passe ne correspondent pas."); return; }
+      if (nouveau === ancien)              { erreur("Le nouveau mot de passe doit être différent du mot de passe temporaire."); return; }
+
+      btn.textContent = "Enregistrement...";
+      btn.disabled    = true;
+
+      try {
+        const res  = await fetch(API_URL + "/auth/changer-mdp-initial", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + getToken() },
+          body:    JSON.stringify({ ancien_password: ancien, nouveau_password: nouveau })
+        });
+        const json = await res.json();
+
+        if (json.statut === "ok") {
+          // Mettre à jour le cache utilisateur (must_change_password passe à 0)
+          setUserCache(json.data);
+          sucEl.textContent   = "✅ Mot de passe modifié avec succès ! Redirection...";
+          sucEl.style.display = "block";
+          setTimeout(() => window.location.replace("espace-employe.html"), 1500);
+        } else {
+          erreur(json.message || "Erreur lors du changement de mot de passe.");
+        }
+      } catch(e) {
+        erreur("Erreur de connexion au serveur.");
+      }
+    }
+
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") changerMdp();
+    });
+  </script>
+</body>
+</html>
