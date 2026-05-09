@@ -158,6 +158,7 @@ def init_db():
             modules     TEXT DEFAULT 'dashboard,devis,factures,taches',
             profil_legal TEXT DEFAULT '{}',
             date_inscription TEXT,
+            must_change_password INTEGER DEFAULT 0,
             created_at  TEXT DEFAULT (to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS'))
         )"""
 
@@ -306,6 +307,7 @@ def init_db():
             plan TEXT DEFAULT 'starter',
             modules TEXT DEFAULT 'dashboard,devis,factures,taches',
             profil_legal TEXT DEFAULT '{}', date_inscription TEXT,
+            must_change_password INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now')))""")
 
         conn.execute("""CREATE TABLE IF NOT EXISTS prospects (
