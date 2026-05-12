@@ -370,6 +370,117 @@ def get_pointages(entreprise_id: str, employe_id: str = None, mois: str = None) 
         conn.close()
 
 
+def calculer_heures_avec_pause(heure_arrivee: str, heure_depart: str, horaires: dict) -> float:
+    """Heures nettes en déduisant la pause déjeuner si elle chevauche la plage de travail."""
+    def hm(t):
+        h, m = t.split(":")
+        return int(h) * 60 + int(m)
+
+    arr = hm(heure_arrivee)
+    dep = hm(heure_depart)
+    if dep <= arr:
+        return 0.0
+    brut = dep - arr
+    p_debut = hm(horaires.get("pause_debut", "12:00"))
+    p_fin   = hm(horaires.get("pause_fin",   "13:00"))
+    chevauchement = max(0, min(dep, p_fin) - max(arr, p_debut))
+    return round(max(0, brut - chevauchement) / 60, 2)
+
+
+def _heures_contractuelles_jour(horaires: dict, jour_iso: str) -> float:
+    """Heures contractuelles pour un jour donné (YYYY-MM-DD)."""
+    jours_semaine = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+    weekday = datetime.fromisoformat(jour_iso).weekday()
+    jour = jours_semaine[weekday]
+    j = horaires.get(jour, {})
+    if not j.get("actif", False):
+        return 0.0
+    def hm(t):
+        h, m = t.split(":")
+        return int(h) * 60 + int(m)
+    return round((hm(j.get("fin", "18:00")) - hm(j.get("debut", "09:00"))) / 60, 2)
+
+
+def check_in(entreprise_id: str, employe_id: str) -> dict:
+    """Pointe l'arrivée. Lève ValueError si déjà pointé aujourd'hui."""
+    today = date.today().isoformat()
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            "SELECT id FROM pointages WHERE entreprise_id=? AND employe_id=? AND date=?",
+            (entreprise_id, employe_id, today)
+        ).fetchone()
+        if existing:
+            raise ValueError("Vous avez déjà pointé aujourd'hui")
+        pid = _generer_id("PTG")
+        heure_arrivee = datetime.now().strftime("%H:%M")
+        conn.execute("""
+            INSERT INTO pointages
+                (id, entreprise_id, employe_id, date, heure_arrivee,
+                 heures_travaillees, heures_supplementaires)
+            VALUES (?, ?, ?, ?, ?, 0, 0)
+        """, (pid, entreprise_id, employe_id, today, heure_arrivee))
+        conn.commit()
+        return row_to_dict(conn.execute("SELECT * FROM pointages WHERE id=?", (pid,)).fetchone())
+    finally:
+        conn.close()
+
+
+def check_out(entreprise_id: str, employe_id: str, horaires_raw: str = None) -> dict:
+    """Pointe le départ et calcule les heures nettes avec déduction de la pause."""
+    today = date.today().isoformat()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM pointages WHERE entreprise_id=? AND employe_id=? AND date=?"
+            " AND (heure_depart IS NULL OR heure_depart='')",
+            (entreprise_id, employe_id, today)
+        ).fetchone()
+        if not row:
+            raise ValueError("Aucun pointage d'arrivée trouvé pour aujourd'hui")
+        ptg = dict(row)
+        heure_depart = datetime.now().strftime("%H:%M")
+        horaires = _parser_horaires(horaires_raw)
+        heures_nettes = calculer_heures_avec_pause(ptg["heure_arrivee"], heure_depart, horaires)
+        heures_contrat = _heures_contractuelles_jour(horaires, today)
+        heures_supp = max(0.0, round(heures_nettes - heures_contrat, 2))
+        pause_debut = horaires.get("pause_debut", "12:00")
+        pause_fin   = horaires.get("pause_fin",   "13:00")
+        conn.execute("""
+            UPDATE pointages
+            SET heure_depart=?, heures_travaillees=?, heures_supplementaires=?, notes=?
+            WHERE id=?
+        """, (heure_depart, heures_nettes, heures_supp,
+              f"Pause {pause_debut}–{pause_fin} déduite", ptg["id"]))
+        conn.commit()
+        return row_to_dict(conn.execute("SELECT * FROM pointages WHERE id=?", (ptg["id"],)).fetchone())
+    finally:
+        conn.close()
+
+
+def get_pointage_today(entreprise_id: str, employe_id: str) -> dict:
+    """Retourne le pointage du jour avec un champ statut."""
+    today = date.today().isoformat()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM pointages WHERE entreprise_id=? AND employe_id=? AND date=?",
+            (entreprise_id, employe_id, today)
+        ).fetchone()
+        if not row:
+            return {"statut": "non_commence", "date": today}
+        ptg = dict(row)
+        if ptg.get("heure_arrivee") and not ptg.get("heure_depart"):
+            ptg["statut"] = "en_service"
+        elif ptg.get("heure_arrivee") and ptg.get("heure_depart"):
+            ptg["statut"] = "termine"
+        else:
+            ptg["statut"] = "non_commence"
+        return ptg
+    finally:
+        conn.close()
+
+
 # ─────────────────────────────────────────────
 # ÉVALUATIONS
 # ─────────────────────────────────────────────

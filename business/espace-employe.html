@@ -297,6 +297,7 @@
           <button class="btn-pointer btn-depart"  id="btn-depart"  onclick="pointer('depart')" style="display:none">■ Pointer le départ</button>
           <button class="btn-sm" onclick="ouvrirModalPtgManuel()" style="white-space:nowrap">✏️ Saisie manuelle</button>
         </div>
+        <div id="ptg-pause-info" style="display:none;font-size:0.75rem;color:var(--text-muted);padding:4px 0 0 0;width:100%"></div>
       </div>
 
       <!-- LAYOUT 2 COLONNES -->
@@ -374,7 +375,7 @@
         <div class="table-wrapper">
           <table class="table">
             <thead>
-              <tr><th>Date</th><th>Arrivée</th><th>Départ</th><th>Heures travaillées</th><th>Heures sup.</th><th>Notes</th></tr>
+              <tr><th>Date</th><th>Arrivée</th><th>Départ</th><th>Heures travaillées</th><th>Pause déduite</th><th>Heures sup.</th><th>Notes</th></tr>
             </thead>
             <tbody id="tbody-ptg">
               <tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Chargement...</td></tr>
@@ -758,80 +759,83 @@
     // POINTAGE RAPIDE
     // ════════════════════════════════════════
     async function chargerPointageAujourdhui() {
-      const today = new Date().toISOString().slice(0, 10);
-      const mois  = today.slice(0, 7);
-      const json  = await apiAuth("GET",
-        `/business/rh/pointages?entreprise_id=${ENTREPRISE_ID}&employe_id=${MON_EMPLOYE.id}&mois=${mois}`);
-      const pts   = json?.data || [];
-      ptgAujourdhui = pts.find(p => p.date === today) || null;
+      const json = await apiAuth("GET",
+        `/business/rh/pointage/today?entreprise_id=${ENTREPRISE_ID}`);
+      ptgAujourdhui = json?.data || null;
       majUIPointage();
     }
 
     function majUIPointage() {
-      const dot   = document.getElementById("ptg-dot");
-      const txt   = document.getElementById("ptg-status-txt");
-      const sub   = document.getElementById("ptg-status-sub");
-      const btnA  = document.getElementById("btn-arrivee");
-      const btnD  = document.getElementById("btn-depart");
+      const dot       = document.getElementById("ptg-dot");
+      const txt       = document.getElementById("ptg-status-txt");
+      const sub       = document.getElementById("ptg-status-sub");
+      const btnA      = document.getElementById("btn-arrivee");
+      const btnD      = document.getElementById("btn-depart");
+      const pauseInfo = document.getElementById("ptg-pause-info");
 
-      if (!ptgAujourdhui) {
+      const statut = ptgAujourdhui?.statut || "non_commence";
+
+      if (statut === "non_commence") {
         dot.className = "status-dot-lg dot-out";
         txt.textContent = "Non pointé aujourd'hui";
         sub.textContent = "Cliquez sur 'Pointer l'arrivée' pour commencer";
         btnA.style.display = "inline-flex";
         btnD.style.display = "none";
-      } else if (ptgAujourdhui.heure_arrivee && !ptgAujourdhui.heure_depart) {
+        pauseInfo.style.display = "none";
+      } else if (statut === "en_service") {
         dot.className = "status-dot-lg dot-in";
         txt.textContent = "En poste depuis " + ptgAujourdhui.heure_arrivee;
         sub.textContent = "N'oubliez pas de pointer votre départ";
         btnA.style.display = "none";
         btnD.style.display = "inline-flex";
-      } else if (ptgAujourdhui.heure_arrivee && ptgAujourdhui.heure_depart) {
+        pauseInfo.style.display = "none";
+      } else {
         dot.className = "status-dot-lg dot-out";
         txt.textContent = "Journée terminée ✓";
-        sub.textContent = `${ptgAujourdhui.heure_arrivee} → ${ptgAujourdhui.heure_depart} · ${ptgAujourdhui.heures_travaillees}h travaillées`;
+        sub.textContent = `${ptgAujourdhui.heure_arrivee} → ${ptgAujourdhui.heure_depart} · ${ptgAujourdhui.heures_travaillees}h nettes`;
         btnA.style.display = "none";
         btnD.style.display = "none";
+        const notes = ptgAujourdhui.notes || "";
+        if (notes) {
+          pauseInfo.textContent = "☕ " + notes;
+          pauseInfo.style.display = "block";
+        } else {
+          pauseInfo.style.display = "none";
+        }
       }
     }
 
     async function pointer(action) {
-      const now   = new Date();
-      const heure = now.toTimeString().slice(0, 5);
-      const date  = now.toISOString().slice(0, 10);
+      const btnA = document.getElementById("btn-arrivee");
+      const btnD = document.getElementById("btn-depart");
 
-      let body;
       if (action === "arrivee") {
-        body = {
-          entreprise_id: ENTREPRISE_ID,
-          employe_id:    MON_EMPLOYE.id,
-          date,
-          heure_arrivee: heure,
-          heure_depart:  "",
-          heures_travaillees: 0,
-        };
+        btnA.disabled = true;
+        const json = await apiAuth("POST", "/business/rh/pointage/check-in",
+          { entreprise_id: ENTREPRISE_ID });
+        btnA.disabled = false;
+        if (json?.statut === "ok") {
+          const h = json.data?.heure_arrivee || new Date().toTimeString().slice(0, 5);
+          await chargerPointageAujourdhui();
+          await chargerPointages();
+          toast("▶ Arrivée pointée à " + h);
+        } else {
+          alert(json?.message || "Erreur lors du pointage");
+        }
       } else {
-        if (!ptgAujourdhui) return;
-        const [hA, mA] = (ptgAujourdhui.heure_arrivee || "09:00").split(":").map(Number);
-        const [hD, mD] = heure.split(":").map(Number);
-        const heures   = ((hD * 60 + mD) - (hA * 60 + mA)) / 60;
-        body = {
-          entreprise_id:      ENTREPRISE_ID,
-          employe_id:         MON_EMPLOYE.id,
-          date,
-          heure_arrivee:      ptgAujourdhui.heure_arrivee,
-          heure_depart:       heure,
-          heures_travaillees: Math.max(0, Math.round(heures * 10) / 10),
-        };
-      }
-
-      const json = await apiAuth("POST", "/business/rh/pointages", body);
-      if (json?.statut === "ok") {
-        await chargerPointageAujourdhui();
-        await chargerPointages();
-        toast(action === "arrivee" ? "▶ Arrivée pointée à " + heure : "■ Départ pointé à " + heure);
-      } else {
-        alert(json?.message || "Erreur lors du pointage");
+        if (!confirm("Confirmer le pointage de départ ?")) return;
+        btnD.disabled = true;
+        const json = await apiAuth("POST", "/business/rh/pointage/check-out",
+          { entreprise_id: ENTREPRISE_ID });
+        btnD.disabled = false;
+        if (json?.statut === "ok") {
+          const h = json.data?.heure_depart || new Date().toTimeString().slice(0, 5);
+          await chargerPointageAujourdhui();
+          await chargerPointages();
+          toast("■ Départ pointé à " + h);
+        } else {
+          alert(json?.message || "Erreur lors du pointage");
+        }
       }
     }
 
@@ -950,19 +954,29 @@
 
       const tbody = document.getElementById("tbody-ptg");
       if (!data.length) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun pointage ce mois</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun pointage ce mois</td></tr>`;
         return;
       }
-      tbody.innerHTML = data.map(p => `
+      tbody.innerHTML = data.map(p => {
+        let pauseMin = "—";
+        if (p.heure_arrivee && p.heure_depart && p.heures_travaillees != null) {
+          const [hA, mA] = p.heure_arrivee.split(":").map(Number);
+          const [hD, mD] = p.heure_depart.split(":").map(Number);
+          const brutMin  = (hD * 60 + mD) - (hA * 60 + mA);
+          const pauseM   = Math.round(brutMin - p.heures_travaillees * 60);
+          pauseMin = pauseM > 0 ? `${pauseM} min` : "—";
+        }
+        return `
         <tr>
           <td>${fmtDate(p.date)}</td>
           <td>${p.heure_arrivee || "—"}</td>
           <td>${p.heure_depart || "—"}</td>
           <td><strong>${p.heures_travaillees}h</strong></td>
+          <td style="color:var(--text-muted);font-size:0.82rem">${pauseMin}</td>
           <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${p.heures_supplementaires}h</span>` : "—"}</td>
           <td style="color:var(--text-muted);font-size:0.82rem">${p.notes || "—"}</td>
-        </tr>
-      `).join("");
+        </tr>`;
+      }).join("");
     }
 
     // ════════════════════════════════════════

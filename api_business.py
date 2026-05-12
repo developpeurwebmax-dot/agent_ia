@@ -57,6 +57,7 @@ from rh import (
     calculer_charges, get_masse_salariale,
     creer_conge, get_conges, valider_conge,
     pointer_heures, get_pointages,
+    check_in, check_out, get_pointage_today,
     creer_evaluation, get_evaluations,
     marquer_remarque_lue, supprimer_remarque
 )
@@ -635,6 +636,70 @@ def pointages_route():
             return reponse_ok(data)
         except Exception as e:
             return reponse_erreur(str(e), 500)
+
+
+# ─────────────────────────────────────────────
+# RH — POINTAGE CHECK-IN / CHECK-OUT / TODAY
+# ─────────────────────────────────────────────
+
+@business.route("/rh/pointage/check-in", methods=["POST", "OPTIONS"])
+@token_requis
+def pointage_check_in():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        data = get_json()
+        eid  = data.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        ma_fiche = _get_employe_du_user(eid, request.user_id)
+        if not ma_fiche:
+            return reponse_erreur("Fiche employé introuvable", 403)
+        ptg = check_in(eid, ma_fiche["id"])
+        return reponse_ok(ptg, "Arrivée pointée", 201)
+    except ValueError as e:
+        return reponse_erreur(str(e))
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
+@business.route("/rh/pointage/check-out", methods=["POST", "OPTIONS"])
+@token_requis
+def pointage_check_out():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        data = get_json()
+        eid  = data.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        ma_fiche = _get_employe_du_user(eid, request.user_id)
+        if not ma_fiche:
+            return reponse_erreur("Fiche employé introuvable", 403)
+        ptg = check_out(eid, ma_fiche["id"], ma_fiche.get("horaires"))
+        return reponse_ok(ptg, "Départ pointé")
+    except ValueError as e:
+        return reponse_erreur(str(e))
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
+@business.route("/rh/pointage/today", methods=["GET", "OPTIONS"])
+@token_requis
+def pointage_today_route():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        eid = request.args.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        ma_fiche = _get_employe_du_user(eid, request.user_id)
+        if not ma_fiche:
+            return reponse_ok({"statut": "non_commence"})
+        ptg = get_pointage_today(eid, ma_fiche["id"])
+        return reponse_ok(ptg)
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
 
 
 # ─────────────────────────────────────────────

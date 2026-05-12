@@ -356,10 +356,10 @@
         <div class="table-wrapper">
           <table class="table">
             <thead>
-              <tr><th>Employé</th><th>Date</th><th>Arrivée</th><th>Départ</th><th>Heures travaillées</th><th>Heures sup.</th><th>Notes</th></tr>
+              <tr><th>Employé</th><th>Date</th><th>Arrivée</th><th>Départ</th><th>Heures travaillées</th><th>Pause déduite</th><th>Heures sup.</th><th>Notes</th></tr>
             </thead>
             <tbody id="tbody-pointages">
-              <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted)">Sélectionnez un mois</td></tr>
+              <tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted)">Sélectionnez un mois</td></tr>
             </tbody>
           </table>
         </div>
@@ -1461,20 +1461,30 @@
 
       const tbody = document.getElementById("tbody-pointages");
       if (!data.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun pointage ce mois</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted)">Aucun pointage ce mois</td></tr>`;
         return;
       }
-      tbody.innerHTML = data.map(p => `
+      tbody.innerHTML = data.map(p => {
+        let pauseMin = "—";
+        if (p.heure_arrivee && p.heure_depart && p.heures_travaillees != null) {
+          const [hA, mA] = p.heure_arrivee.split(":").map(Number);
+          const [hD, mD] = p.heure_depart.split(":").map(Number);
+          const brutMin  = (hD * 60 + mD) - (hA * 60 + mA);
+          const pauseM   = Math.round(brutMin - p.heures_travaillees * 60);
+          pauseMin = pauseM > 0 ? `${pauseM} min` : "—";
+        }
+        return `
         <tr>
           <td><strong>${p.prenom || ""} ${p.nom || ""}</strong></td>
           <td>${p.date}</td>
           <td>${p.heure_arrivee || "—"}</td>
           <td>${p.heure_depart || "—"}</td>
           <td>${p.heures_travaillees}h</td>
+          <td style="color:var(--text-muted);font-size:0.82rem">${pauseMin}</td>
           <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${p.heures_supplementaires}h</span>` : "—"}</td>
           <td style="color:var(--text-muted);font-size:0.82rem">${p.notes || "—"}</td>
-        </tr>
-      `).join("");
+        </tr>`;
+      }).join("");
     }
 
     function ouvrirModalPointage() {
