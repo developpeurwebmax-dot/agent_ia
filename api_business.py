@@ -57,7 +57,6 @@ from rh import (
     calculer_charges, get_masse_salariale,
     creer_conge, get_conges, valider_conge,
     pointer_heures, get_pointages,
-    check_in, check_out, get_pointage_today,
     creer_evaluation, get_evaluations,
     marquer_remarque_lue, supprimer_remarque
 )
@@ -642,12 +641,76 @@ def pointages_route():
 # RH — POINTAGE CHECK-IN / CHECK-OUT / TODAY
 # ─────────────────────────────────────────────
 
+def calculer_heures_avec_pause(heure_arrivee, heure_depart, horaires_employe):
+    from datetime import datetime as _dt
+    fmt = "%H:%M"
+    try:
+        t_arr = _dt.strptime(heure_arrivee, fmt)
+        t_dep = _dt.strptime(heure_depart,  fmt)
+    except Exception:
+        return 0
+    horaires_employe = horaires_employe or {}
+    pause_debut = horaires_employe.get("pause_debut", "12:00")
+    pause_fin   = horaires_employe.get("pause_fin",   "13:00")
+    p_deb = _dt.strptime(pause_debut, fmt)
+    p_fin = _dt.strptime(pause_fin,   fmt)
+    total_min     = (t_dep - t_arr).total_seconds() / 60
+    overlap_start = max(t_arr, p_deb)
+    overlap_end   = min(t_dep, p_fin)
+    if overlap_end > overlap_start:
+        total_min -= (overlap_end - overlap_start).total_seconds() / 60
+    return round(max(0, total_min) / 60, 2)
+
+
+@business.route("/rh/pointage/today", methods=["GET", "OPTIONS"])
+@token_requis
+def pointage_today_route():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        from datetime import date as _date
+        eid = request.args.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        employe_id = request.args.get("employe_id")
+        if not employe_id:
+            ma_fiche = _get_employe_du_user(eid, request.user_id)
+            if not ma_fiche:
+                return reponse_ok({"statut": "non_commence", "heure_arrivee": None,
+                                   "heure_depart": None, "heures_travaillees": None})
+            employe_id = ma_fiche["id"]
+        today = _date.today().isoformat()
+        conn  = get_db()
+        try:
+            row = conn.execute(
+                "SELECT * FROM pointages WHERE entreprise_id=? AND employe_id=? AND date=?",
+                (eid, employe_id, today)
+            ).fetchone()
+        finally:
+            conn.close()
+        if not row:
+            return reponse_ok({"statut": "non_commence", "heure_arrivee": None,
+                               "heure_depart": None, "heures_travaillees": None})
+        ptg = dict(row)
+        if ptg.get("heure_arrivee") and ptg.get("heure_depart"):
+            ptg["statut"] = "termine"
+        elif ptg.get("heure_arrivee"):
+            ptg["statut"] = "en_service"
+        else:
+            ptg["statut"] = "non_commence"
+        return reponse_ok(ptg)
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
 @business.route("/rh/pointage/check-in", methods=["POST", "OPTIONS"])
 @token_requis
 def pointage_check_in():
     if request.method == "OPTIONS":
         return jsonify({}), 200
     try:
+        from datetime import datetime as _dt, date as _date
+        import uuid as _uuid
         data = get_json()
         eid  = data.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
@@ -655,7 +718,30 @@ def pointage_check_in():
         ma_fiche = _get_employe_du_user(eid, request.user_id)
         if not ma_fiche:
             return reponse_erreur("Fiche employé introuvable", 403)
-        ptg = check_in(eid, ma_fiche["id"])
+        employe_id    = ma_fiche["id"]
+        today         = _date.today().isoformat()
+        heure_arrivee = _dt.now().strftime("%H:%M")
+        conn = get_db()
+        try:
+            existing = conn.execute(
+                "SELECT id FROM pointages WHERE entreprise_id=? AND employe_id=? AND date=?",
+                (eid, employe_id, today)
+            ).fetchone()
+            if existing:
+                return reponse_erreur("Vous avez déjà pointé aujourd'hui")
+            pid = "PTG_" + _uuid.uuid4().hex[:12]
+            conn.execute("""
+                INSERT INTO pointages
+                    (id, entreprise_id, employe_id, date, heure_arrivee,
+                     heures_travaillees, heures_supplementaires)
+                VALUES (?, ?, ?, ?, ?, 0, 0)
+            """, (pid, eid, employe_id, today, heure_arrivee))
+            conn.commit()
+            ptg = row_to_dict(conn.execute(
+                "SELECT * FROM pointages WHERE id=?", (pid,)).fetchone())
+        finally:
+            conn.close()
+        ptg["statut"] = "en_service"
         return reponse_ok(ptg, "Arrivée pointée", 201)
     except ValueError as e:
         return reponse_erreur(str(e))
@@ -669,6 +755,8 @@ def pointage_check_out():
     if request.method == "OPTIONS":
         return jsonify({}), 200
     try:
+        from datetime import datetime as _dt, date as _date
+        import json as _json
         data = get_json()
         eid  = data.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
@@ -676,28 +764,40 @@ def pointage_check_out():
         ma_fiche = _get_employe_du_user(eid, request.user_id)
         if not ma_fiche:
             return reponse_erreur("Fiche employé introuvable", 403)
-        ptg = check_out(eid, ma_fiche["id"], ma_fiche.get("horaires"))
+        employe_id   = ma_fiche["id"]
+        today        = _date.today().isoformat()
+        heure_depart = _dt.now().strftime("%H:%M")
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT * FROM pointages WHERE entreprise_id=? AND employe_id=? AND date=?"
+                " AND heure_arrivee IS NOT NULL AND (heure_depart IS NULL OR heure_depart='')",
+                (eid, employe_id, today)
+            ).fetchone()
+            if not row:
+                return reponse_erreur("Aucun pointage d'arrivée trouvé pour aujourd'hui")
+            ptg          = dict(row)
+            horaires_raw = ma_fiche.get("horaires")
+            horaires     = _json.loads(horaires_raw) if isinstance(horaires_raw, str) and horaires_raw else {}
+            heures_nettes = calculer_heures_avec_pause(ptg["heure_arrivee"], heure_depart, horaires)
+            heures_supp   = max(0.0, round(heures_nettes - 8.0, 2))
+            pause_debut   = horaires.get("pause_debut", "12:00")
+            pause_fin     = horaires.get("pause_fin",   "13:00")
+            conn.execute("""
+                UPDATE pointages
+                SET heure_depart=?, heures_travaillees=?, heures_supplementaires=?, notes=?
+                WHERE id=?
+            """, (heure_depart, heures_nettes, heures_supp,
+                  f"Pause {pause_debut}–{pause_fin} déduite", ptg["id"]))
+            conn.commit()
+            ptg = row_to_dict(conn.execute(
+                "SELECT * FROM pointages WHERE id=?", (ptg["id"],)).fetchone())
+        finally:
+            conn.close()
+        ptg["statut"] = "termine"
         return reponse_ok(ptg, "Départ pointé")
     except ValueError as e:
         return reponse_erreur(str(e))
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
-
-
-@business.route("/rh/pointage/today", methods=["GET", "OPTIONS"])
-@token_requis
-def pointage_today_route():
-    if request.method == "OPTIONS":
-        return jsonify({}), 200
-    try:
-        eid = request.args.get("entreprise_id")
-        if not eid or not _check_acces(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        ma_fiche = _get_employe_du_user(eid, request.user_id)
-        if not ma_fiche:
-            return reponse_ok({"statut": "non_commence"})
-        ptg = get_pointage_today(eid, ma_fiche["id"])
-        return reponse_ok(ptg)
     except Exception as e:
         return reponse_erreur(str(e), 500)
 
