@@ -8,6 +8,18 @@ import jwt
 import os
 from functools import wraps
 import uuid
+from datetime import datetime
+
+try:
+    from zoneinfo import ZoneInfo
+    PARIS_TZ = ZoneInfo("Europe/Paris")
+except ImportError:
+    import pytz
+    PARIS_TZ = pytz.timezone("Europe/Paris")
+
+def maintenant_paris():
+    """Retourne le datetime actuel en heure de Paris (gère été/hiver automatiquement)."""
+    return datetime.now(PARIS_TZ)
 
 # ── Fonctions utilitaires ──
 
@@ -668,7 +680,6 @@ def pointage_today_route():
     if request.method == "OPTIONS":
         return jsonify({}), 200
     try:
-        from datetime import date as _date
         eid = request.args.get("entreprise_id")
         if not eid or not _check_acces(eid, request.user_id):
             return reponse_erreur("Accès refusé", 403)
@@ -679,7 +690,7 @@ def pointage_today_route():
                 return reponse_ok({"statut": "non_commence", "heure_arrivee": None,
                                    "heure_depart": None, "heures_travaillees": None})
             employe_id = ma_fiche["id"]
-        today = _date.today().isoformat()
+        today = maintenant_paris().strftime("%Y-%m-%d")
         conn  = get_db()
         try:
             row = conn.execute(
@@ -709,7 +720,6 @@ def pointage_check_in():
     if request.method == "OPTIONS":
         return jsonify({}), 200
     try:
-        from datetime import datetime as _dt, date as _date
         import uuid as _uuid
         data = get_json()
         eid  = data.get("entreprise_id")
@@ -719,8 +729,9 @@ def pointage_check_in():
         if not ma_fiche:
             return reponse_erreur("Fiche employé introuvable", 403)
         employe_id    = ma_fiche["id"]
-        today         = _date.today().isoformat()
-        heure_arrivee = _dt.now().strftime("%H:%M")
+        _now          = maintenant_paris()
+        today         = _now.strftime("%Y-%m-%d")
+        heure_arrivee = _now.strftime("%H:%M")
         conn = get_db()
         try:
             existing = conn.execute(
@@ -755,7 +766,6 @@ def pointage_check_out():
     if request.method == "OPTIONS":
         return jsonify({}), 200
     try:
-        from datetime import datetime as _dt, date as _date
         import json as _json
         data = get_json()
         eid  = data.get("entreprise_id")
@@ -765,8 +775,9 @@ def pointage_check_out():
         if not ma_fiche:
             return reponse_erreur("Fiche employé introuvable", 403)
         employe_id   = ma_fiche["id"]
-        today        = _date.today().isoformat()
-        heure_depart = _dt.now().strftime("%H:%M")
+        _now         = maintenant_paris()
+        today        = _now.strftime("%Y-%m-%d")
+        heure_depart = _now.strftime("%H:%M")
         conn = get_db()
         try:
             row = conn.execute(
