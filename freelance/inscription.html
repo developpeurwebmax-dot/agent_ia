@@ -147,6 +147,9 @@
       <div class="step-dot" id="dot-2"></div>
       <div class="step-dot" id="dot-3"></div>
       <div class="step-dot" id="dot-4"></div>
+      <div class="step-dot" id="dot-5" style="display:none"></div>
+      <div class="step-dot" id="dot-6" style="display:none"></div>
+      <div class="step-dot" id="dot-7" style="display:none"></div>
       <span class="step-indicator-label" id="step-label">Étape 1 / 5</span>
     </div>
 
@@ -306,8 +309,104 @@
       </div>
     </div>
 
-    <!-- ══ ÉTAPE 3 : TARIFS (FREELANCE SEULEMENT) ══ -->
-    <div class="form-step" id="step-3-freelance">
+    <!-- ══ ÉTAPE 3 : INFOS LÉGALES (FREELANCE) ══ -->
+    <div class="form-step" id="step-3-legal">
+      <h4>📋 Informations légales <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400">(optionnel — utile pour vos devis & factures)</span></h4>
+      <div class="form-group">
+        <label>Nom de facturation</label>
+        <input type="text" id="pl-nom" placeholder="Jean Dupont ou Dupont Consulting"/>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>Statut juridique</label>
+          <select id="pl-forme">
+            <option value="">-- Choisir --</option>
+            <option value="Auto-entrepreneur">Auto-entrepreneur / Micro</option>
+            <option value="EI">EI — Entreprise Individuelle</option>
+            <option value="EURL">EURL</option>
+            <option value="SASU">SASU</option>
+            <option value="SAS">SAS</option>
+            <option value="SARL">SARL</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>SIRET</label>
+          <input type="text" id="pl-siret" placeholder="123 456 789 00012" maxlength="17"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>N° TVA intracommunautaire <span style="color:var(--text-muted);font-size:0.78rem">(si assujetti)</span></label>
+        <input type="text" id="pl-tva" placeholder="FR12345678901"/>
+      </div>
+      <div class="form-group">
+        <label>Mention TVA <span style="color:var(--text-muted);font-size:0.78rem">(si non assujetti)</span></label>
+        <input type="text" id="pl-mention-tva" placeholder="TVA non applicable, art. 293 B du CGI"/>
+      </div>
+      <div class="form-nav">
+        <button class="btn-back" onclick="allerEtape(2)">← Retour</button>
+        <div style="display:flex;gap:10px">
+          <button class="btn-back" onclick="allerEtape(4)" style="color:var(--text-muted)">Passer →</button>
+          <button class="btn-auth" onclick="allerEtape(4)">Continuer →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ÉTAPE 4 : ADRESSE PRO (FREELANCE) ══ -->
+    <div class="form-step" id="step-4-adresse">
+      <h4>📍 Coordonnées professionnelles <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400">(optionnel)</span></h4>
+      <div class="form-group">
+        <label>Adresse professionnelle</label>
+        <textarea id="pl-adresse" rows="3" placeholder="1 rue de la Paix&#10;75001 Paris"></textarea>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>Email professionnel</label>
+          <input type="email" id="pl-email" placeholder="contact@maboutique.fr"/>
+        </div>
+        <div class="form-group">
+          <label>Téléphone</label>
+          <input type="tel" id="pl-tel" placeholder="06 12 34 56 78"/>
+        </div>
+      </div>
+      <div class="form-nav">
+        <button class="btn-back" onclick="allerEtape(3)">← Retour</button>
+        <div style="display:flex;gap:10px">
+          <button class="btn-back" onclick="allerEtape(5)" style="color:var(--text-muted)">Passer →</button>
+          <button class="btn-auth" onclick="allerEtape(5)">Continuer →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ÉTAPE 5 : COORDONNÉES BANCAIRES (FREELANCE) ══ -->
+    <div class="form-step" id="step-5-banque">
+      <h4>🏦 Coordonnées bancaires <span style="font-size:0.75rem;color:var(--text-muted);font-weight:400">(optionnel — pour vos factures)</span></h4>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:16px">Ces informations apparaissent dans vos factures pour faciliter le règlement.</p>
+      <div class="form-group">
+        <label>IBAN</label>
+        <input type="text" id="pl-iban" placeholder="FR76 1234 5678 9012 3456 7890 123" style="font-family:monospace;letter-spacing:0.05em"/>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label>BIC / SWIFT</label>
+          <input type="text" id="pl-bic" placeholder="BNPAFRPP" style="font-family:monospace"/>
+        </div>
+        <div class="form-group">
+          <label>Nom de la banque</label>
+          <input type="text" id="pl-banque" placeholder="BNP Paribas"/>
+        </div>
+      </div>
+      <div class="form-nav">
+        <button class="btn-back" onclick="allerEtape(4)">← Retour</button>
+        <div style="display:flex;gap:10px">
+          <button class="btn-back" onclick="allerEtape(6)" style="color:var(--text-muted)">Passer →</button>
+          <button class="btn-auth" onclick="allerEtape(6)">Continuer →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ÉTAPE 6 : TARIFS (FREELANCE SEULEMENT) ══ -->
+    <div class="form-step" id="step-6-freelance">
       <h4>💶 Tarifs & Objectifs</h4>
       <div class="profil-badge-box" id="profil-badge"></div>
       <div class="form-group">
@@ -338,13 +437,13 @@
         <input type="number" id="charges" placeholder="500" min="0"/>
       </div>
       <div class="form-nav">
-        <button class="btn-back" onclick="allerEtape(2)">← Retour</button>
-        <button class="btn-auth" onclick="allerEtape(4)">Continuer →</button>
+        <button class="btn-back" onclick="allerEtape(5)">← Retour</button>
+        <button class="btn-auth" onclick="allerEtape(7)">Continuer →</button>
       </div>
     </div>
 
-    <!-- ══ ÉTAPE 4 : PLAN FREELANCE ══ -->
-    <div class="form-step" id="step-4-freelance">
+    <!-- ══ ÉTAPE 7 : PLAN FREELANCE ══ -->
+    <div class="form-step" id="step-7-freelance">
       <h4>🚀 Choisissez votre plan</h4>
       <p style="color:var(--text-muted);font-size:0.82rem;margin-bottom:16px">Changeable à tout moment depuis vos paramètres.</p>
 
@@ -401,7 +500,7 @@
       </div>
 
       <div class="form-nav">
-        <button class="btn-back" onclick="allerEtape(3)">← Retour</button>
+        <button class="btn-back" onclick="allerEtape(6)">← Retour</button>
         <button class="btn-auth" onclick="creerCompte()">🚀 Créer mon compte</button>
       </div>
     </div>
@@ -561,7 +660,15 @@
     const metier = metierSelect === "autre"
       ? document.getElementById("metier-custom").value.trim()
       : metierSelect;
-    afficherProfilEtape3(detecterProfil(metier));
+    afficherProfilEtape3(detecterProfil(metier));  // pré-charge les cartes tarif (étape 6)
+    // Pré-remplir email et nom dans les nouvelles étapes
+    const prenom = document.getElementById("prenom").value.trim();
+    const nom    = document.getElementById("nom").value.trim();
+    const email  = document.getElementById("email").value.trim();
+    const nomField  = document.getElementById("pl-nom");
+    const emailField = document.getElementById("pl-email");
+    if (nomField  && !nomField.value)  nomField.value  = (prenom + " " + nom).trim();
+    if (emailField && !emailField.value) emailField.value = email;
     allerEtape(3);
   }
 
@@ -647,37 +754,49 @@
   // NAVIGATION ÉTAPES
   // ────────────────────────────────────────
   function allerEtape(n) {
-    // Cacher toutes les étapes
     document.querySelectorAll(".form-step").forEach(s => s.classList.remove("active"));
+
+    const isBiz = modeChoisi === "business";
 
     if (n === 0) {
       document.getElementById("step-0").classList.add("active");
     } else if (n === 1) {
       document.getElementById("step-1").classList.add("active");
     } else if (n === 2) {
-      document.getElementById(modeChoisi === "business" ? "step-2-business" : "step-2-freelance").classList.add("active");
+      document.getElementById(isBiz ? "step-2-business" : "step-2-freelance").classList.add("active");
     } else if (n === 3) {
-      // Étape 3 seulement freelance — business saute à 4
-      if (modeChoisi === "business") { allerEtape(4); return; }
-      document.getElementById("step-3-freelance").classList.add("active");
+      if (isBiz) { allerEtape(4); return; }
+      document.getElementById("step-3-legal").classList.add("active");
     } else if (n === 4) {
-      document.getElementById(modeChoisi === "business" ? "step-4-business" : "step-4-freelance").classList.add("active");
+      if (isBiz) {
+        document.getElementById("step-4-business").classList.add("active");
+      } else {
+        document.getElementById("step-4-adresse").classList.add("active");
+      }
+    } else if (n === 5) {
+      document.getElementById("step-5-banque").classList.add("active");
+    } else if (n === 6) {
+      document.getElementById("step-6-freelance").classList.add("active");
+    } else if (n === 7) {
+      document.getElementById("step-7-freelance").classList.add("active");
     }
 
     etapeActuelle = n;
 
-    // Mettre à jour les dots (5 dots : 0 à 4)
-    for (let i = 0; i <= 4; i++) {
+    // Dots
+    const maxDot = isBiz ? 4 : 7;
+    for (let i = 0; i <= 7; i++) {
       const dot = document.getElementById("dot-" + i);
       if (!dot) continue;
-      if (i < n) dot.className = "step-dot done";
-      else if (i === n) dot.className = "step-dot active";
-      else dot.className = "step-dot";
+      if (i > maxDot) { dot.style.display = "none"; continue; }
+      dot.style.display = "";
+      dot.className = i < n ? "step-dot done" : i === n ? "step-dot active" : "step-dot";
     }
 
-    // Nb total d'étapes
-    const total = modeChoisi === "business" ? 4 : 5;
-    document.getElementById("step-label").textContent = `Étape ${n + 1} / ${total}`;
+    const total = isBiz ? 4 : 8;
+    // Business saute l'étape 3 → affichage 1-2-3-4 au lieu de 1-2-3-5
+    const displayNum = (isBiz && n >= 4) ? n : n + 1;
+    document.getElementById("step-label").textContent = `Étape ${displayNum} / ${total}`;
     document.getElementById("error-msg").style.display = "none";
   }
 
@@ -758,6 +877,31 @@
       if (json.statut === "ok") {
         localStorage.setItem("jwt_token", json.data.token);
         localStorage.setItem("user_cache", JSON.stringify(json.data.user));
+
+        // Freelance → sauvegarder les infos légales saisies
+        if (modeChoisi === "freelance") {
+          const pl = {
+            nom:          (document.getElementById("pl-nom")?.value || "").trim(),
+            forme_juridique: document.getElementById("pl-forme")?.value || "",
+            siret:        (document.getElementById("pl-siret")?.value || "").trim(),
+            tva_num:      (document.getElementById("pl-tva")?.value || "").trim(),
+            mention_tva:  (document.getElementById("pl-mention-tva")?.value || "").trim(),
+            adresse:      (document.getElementById("pl-adresse")?.value || "").trim(),
+            email:        (document.getElementById("pl-email")?.value || "").trim(),
+            tel:          (document.getElementById("pl-tel")?.value || "").trim(),
+            iban:         (document.getElementById("pl-iban")?.value || "").trim(),
+            bic:          (document.getElementById("pl-bic")?.value || "").trim(),
+            banque:       (document.getElementById("pl-banque")?.value || "").trim(),
+          };
+          const hasData = Object.values(pl).some(v => v);
+          if (hasData) {
+            await fetch("https://agent-ia-zgha.onrender.com/auth/profil", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json", "Authorization": "Bearer " + json.data.token },
+              body: JSON.stringify({ profil_legal: pl })
+            });
+          }
+        }
 
         // Si business → créer l'entreprise automatiquement
         if (modeChoisi === "business" && payload._ent_nom) {

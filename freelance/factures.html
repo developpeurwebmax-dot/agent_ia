@@ -425,6 +425,7 @@
         <td>
           <button class="btn-sm" onclick="voirFacture('${f.id}')">👁 Voir</button>
           ${f.statut!=='payee'?`<button class="btn-sm" onclick="marquerPayee('${f.id}')" title="Marquer comme payée">✅ Payée</button>`:''}
+          <button class="btn-sm" title="Envoyer par email" onclick="ouvrirEnvoiFacture('${f.id}')" style="background:rgba(99,102,241,0.12);color:var(--accent2);border-color:rgba(99,102,241,0.3)">✉</button>
           <button class="btn-sm btn-danger" onclick="supprimerFacture('${f.id}')">🗑</button>
         </td></tr>`).join('');
     }
@@ -497,6 +498,61 @@
 
     verifierProfilComplet();
     chargerFactures();
+
+    // ── ENVOI PAR EMAIL ──
+    var _envoiFactureId = null;
+
+    function ouvrirEnvoiFacture(id) {
+      _envoiFactureId = id;
+      var f = getFactures().find(function(x){ return x.id === id; });
+      document.getElementById('fenvoi-titre').textContent = f ? 'Envoyer — ' + (f.numero||'') + ' à ' + (f.client||'') : 'Envoyer la facture';
+      document.getElementById('fenvoi-email').value   = '';
+      document.getElementById('fenvoi-message').value = '';
+      document.getElementById('fenvoi-erreur').textContent = '';
+      document.getElementById('modal-fenvoi').style.display = 'flex';
+    }
+
+    async function soumettrEnvoiFacture() {
+      var email   = document.getElementById('fenvoi-email').value.trim();
+      var message = document.getElementById('fenvoi-message').value.trim();
+      var errDiv  = document.getElementById('fenvoi-erreur');
+      var btn     = document.getElementById('btn-fenvoi-submit');
+      if (!email) { errDiv.textContent = 'Email destinataire requis.'; return; }
+      errDiv.textContent = '';
+      btn.disabled = true; btn.textContent = 'Envoi…';
+      var json = await apiAuth('POST', '/factures/' + _envoiFactureId + '/envoyer', { email: email, message: message });
+      btn.disabled = false; btn.textContent = '✉ Envoyer';
+      if (json && json.statut === 'ok') {
+        document.getElementById('modal-fenvoi').style.display = 'none';
+        var t = document.createElement('div');
+        t.textContent = '✅ ' + json.message;
+        t.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999';
+        document.body.appendChild(t);
+        setTimeout(function(){ t.remove(); }, 3000);
+      } else {
+        errDiv.textContent = (json && json.message) || 'Erreur lors de l\'envoi.';
+      }
+    }
   </script>
+
+  <!-- MODAL ENVOI EMAIL -->
+  <div class="modal-overlay" id="modal-fenvoi" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:480px">
+      <h3 id="fenvoi-titre">Envoyer la facture par email</h3>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Email du destinataire *</label>
+        <input type="email" id="fenvoi-email" placeholder="client@exemple.fr" style="width:100%"/>
+      </div>
+      <div class="form-group" style="margin-bottom:6px">
+        <label>Message personnalisé <span style="color:var(--text-muted);font-size:0.8rem">(optionnel)</span></label>
+        <textarea id="fenvoi-message" rows="4" placeholder="Bonjour, veuillez trouver ci-joint notre facture..." style="width:100%;min-height:90px"></textarea>
+      </div>
+      <p id="fenvoi-erreur" style="color:var(--danger);font-size:0.84rem;min-height:1.2em;margin:6px 0 12px"></p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-fenvoi').style.display='none'">Annuler</button>
+        <button class="btn-primary" id="btn-fenvoi-submit" onclick="soumettrEnvoiFacture()">✉ Envoyer</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

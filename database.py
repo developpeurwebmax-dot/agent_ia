@@ -379,3 +379,21 @@ def init_db():
     conn.commit()
     conn.close()
     print(f"✅ Base de données initialisée ({'PostgreSQL' if USE_POSTGRES else 'SQLite'})")
+
+    # ── Migrations légères (une connexion par ALTER pour isoler les erreurs) ──
+    _migrations = [
+        "ALTER TABLE devis    ADD COLUMN envoye_le TEXT",
+        "ALTER TABLE factures ADD COLUMN envoye_le TEXT",
+    ]
+    for sql in _migrations:
+        _conn = get_db()
+        try:
+            _conn.execute(sql)
+            _conn.commit()
+        except Exception:
+            try:
+                _conn._conn.rollback()
+            except Exception:
+                pass
+        finally:
+            _conn.close()

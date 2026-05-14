@@ -418,7 +418,8 @@
         '<td>' +
           '<button class="btn-sm" onclick="voirDevis(\'' + d.id + '\')">👁 Voir</button>' +
           (d.statut !== 'accepte' ? '<button class="btn-sm" style="background:rgba(16,185,129,0.15);color:#34d399;border-color:rgba(16,185,129,0.3)" onclick="accepterEtFacturer(\'' + d.id + '\')">✅ → Facture</button>' : '<span style="font-size:0.75rem;color:#34d399;margin:0 4px">✅ Converti</span>') +
-          '<button class="btn-sm btn-danger" onclick="supprimerDevis(\'' + d.id + '\')">🗑</button>' +
+          '<button class="btn-sm" title="Envoyer par email" onclick="ouvrirEnvoiDevis(\'' + d.id + '\')" style="background:rgba(99,102,241,0.12);color:var(--accent2);border-color:rgba(99,102,241,0.3)">✉</button>' +
+        '<button class="btn-sm btn-danger" onclick="supprimerDevis(\'' + d.id + '\')">🗑</button>' +
         '</td></tr>';
       }).join('');
     }
@@ -491,6 +492,62 @@
 
     verifierProfilComplet();
     chargerDevis();
+
+    // ── ENVOI PAR EMAIL ──
+    var _envoidId = null;
+
+    function ouvrirEnvoiDevis(id) {
+      _envoidId = id;
+      var d = devisCache.find(function(x){ return x.id === id; });
+      document.getElementById('envoi-titre').textContent = d ? 'Envoyer — ' + (d.numero||'') + ' à ' + (d.client||'') : 'Envoyer le devis';
+      document.getElementById('envoi-email').value   = '';
+      document.getElementById('envoi-message').value = '';
+      document.getElementById('envoi-erreur').textContent = '';
+      document.getElementById('modal-envoi').style.display = 'flex';
+    }
+
+    async function soumettrEnvoi() {
+      var email   = document.getElementById('envoi-email').value.trim();
+      var message = document.getElementById('envoi-message').value.trim();
+      var errDiv  = document.getElementById('envoi-erreur');
+      var btn     = document.getElementById('btn-envoi-submit');
+      if (!email) { errDiv.textContent = 'Email destinataire requis.'; return; }
+      errDiv.textContent = '';
+      btn.disabled = true; btn.textContent = 'Envoi…';
+      var json = await apiAuth('POST', '/devis/' + _envoidId + '/envoyer', { email: email, message: message });
+      btn.disabled = false; btn.textContent = '✉ Envoyer';
+      if (json && json.statut === 'ok') {
+        document.getElementById('modal-envoi').style.display = 'none';
+        await chargerDevis();
+        var t = document.createElement('div');
+        t.textContent = '✅ ' + json.message;
+        t.style.cssText = 'position:fixed;bottom:28px;right:28px;background:#10b981;color:white;padding:12px 20px;border-radius:10px;font-size:0.9rem;font-weight:600;z-index:9999';
+        document.body.appendChild(t);
+        setTimeout(function(){ t.remove(); }, 3000);
+      } else {
+        errDiv.textContent = (json && json.message) || 'Erreur lors de l\'envoi.';
+      }
+    }
   </script>
+
+  <!-- MODAL ENVOI EMAIL -->
+  <div class="modal-overlay" id="modal-envoi" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="modal" style="width:480px">
+      <h3 id="envoi-titre">Envoyer le devis par email</h3>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Email du destinataire *</label>
+        <input type="email" id="envoi-email" placeholder="client@exemple.fr" style="width:100%"/>
+      </div>
+      <div class="form-group" style="margin-bottom:6px">
+        <label>Message personnalisé <span style="color:var(--text-muted);font-size:0.8rem">(optionnel)</span></label>
+        <textarea id="envoi-message" rows="4" placeholder="Bonjour, veuillez trouver ci-joint notre devis..." style="width:100%;min-height:90px"></textarea>
+      </div>
+      <p id="envoi-erreur" style="color:var(--danger);font-size:0.84rem;min-height:1.2em;margin:6px 0 12px"></p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('modal-envoi').style.display='none'">Annuler</button>
+        <button class="btn-primary" id="btn-envoi-submit" onclick="soumettrEnvoi()">✉ Envoyer</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

@@ -57,7 +57,7 @@ def token_requis(f):
 
 from users import (
     creer_entreprise, get_entreprises_user, get_entreprise, modifier_entreprise,
-    inviter_membre, get_membres, modifier_role_membre, retirer_membre, get_role_user
+    get_membres, modifier_role_membre, retirer_membre, get_role_user
 )
 from finances import (
     creer_transaction, get_transactions, modifier_transaction, supprimer_transaction,
@@ -175,29 +175,6 @@ def list_membres():
         return reponse_erreur("Accès refusé", 403)
     return reponse_ok({"membres": get_membres(eid)})
 
-
-@business.route("/membres/inviter", methods=["POST", "OPTIONS"])
-@token_requis
-def inviter():
-    try:
-        data = get_json()
-        eid  = data.get("entreprise_id")
-        if not eid:
-            return reponse_erreur("entreprise_id requis")
-        if _est_employe(eid, request.user_id):
-            return reponse_erreur("Accès refusé", 403)
-        role = data.get("role", "employe")
-        if role == "employe":
-            return reponse_erreur(
-                "Pour ajouter un employé, utilisez la page Équipe & RH (création unifiée fiche + compte)",
-                400
-            )
-        result = inviter_membre(eid, request.user_id, data.get("email", ""), role)
-        return reponse_ok(result, "Membre invité", 201)
-    except (PermissionError, ValueError) as e:
-        return reponse_erreur(str(e))
-    except Exception as e:
-        return reponse_erreur(str(e), 500)
 
 
 @business.route("/membres/<uid>/role", methods=["PUT", "OPTIONS"])

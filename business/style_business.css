@@ -322,3 +322,44 @@
   border: 1px solid var(--border);
   box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
+
+/* ── BUTTONS — BUSINESS OVERRIDES ── */
+
+/* Neutralise le margin-top parasitaire sur btn-secondary dans les flex containers */
+.modal-actions .btn-secondary,
+.modal-actions .btn-primary,
+.modal-actions .btn-sm {
+  margin-top: 0;
+}
+
+/* Visibilité renforcée : texte plus clair dans les modales sombres */
+.modal .btn-secondary {
+  color: var(--text);
+  background: var(--bg3);
+  border-color: var(--border);
+}
+
+.modal .btn-secondary:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* Bouton danger explicite (suppression) */
+.btn-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: var(--danger);
+}
+
+/* Cohérence taille des boutons dans les barres d'action */
+.actions-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}

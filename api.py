@@ -729,6 +729,109 @@ def update_statut_facture(fid):
 
 
 # ─────────────────────────────────────────────
+# ENVOI PAR EMAIL
+# ─────────────────────────────────────────────
+
+@app.route("/devis/<did>/envoyer", methods=["POST", "OPTIONS"])
+@token_requis
+def envoyer_devis_route(did):
+    if request.method == "OPTIONS":
+        return "", 204
+    try:
+        from email_utils import envoyer_devis, smtp_disponible
+        data = get_json()
+        email_dest   = (data.get("email") or "").strip()
+        message_perso = data.get("message", "")
+        if not email_dest:
+            return reponse_erreur("Email destinataire requis")
+        if not smtp_disponible():
+            return reponse_erreur("SMTP non configuré sur le serveur (SMTP_USER / SMTP_PASSWORD)", 503)
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT * FROM devis WHERE id=? AND user_id=?", (did, request.user_id)
+            ).fetchone()
+        finally:
+            conn.close()
+        if not row:
+            return reponse_erreur("Devis non trouvé", 404)
+        devis = dict(row)
+        devis["lignes"] = json.loads(devis.get("lignes") or "[]")
+        user  = get_user_by_id(request.user_id) or {}
+        profil = user.get("profil_legal") or {}
+        if not profil.get("nom"):
+            profil["nom"] = f"{user.get('prenom','')} {user.get('nom','')}".strip()
+        if not profil.get("email"):
+            profil["email"] = user.get("email", "")
+        envoyer_devis(devis, profil, email_dest, message_perso)
+        now_iso = datetime.utcnow().isoformat(timespec="seconds")
+        conn2 = get_db()
+        try:
+            conn2.execute(
+                "UPDATE devis SET envoye_le=?, statut=CASE WHEN statut='brouillon' THEN 'envoye' ELSE statut END "
+                "WHERE id=? AND user_id=?",
+                (now_iso, did, request.user_id),
+            )
+            conn2.commit()
+        finally:
+            conn2.close()
+        return reponse_ok({}, f"Devis envoyé à {email_dest}")
+    except RuntimeError as e:
+        return reponse_erreur(str(e), 503)
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
+@app.route("/factures/<fid>/envoyer", methods=["POST", "OPTIONS"])
+@token_requis
+def envoyer_facture_route(fid):
+    if request.method == "OPTIONS":
+        return "", 204
+    try:
+        from email_utils import envoyer_facture, smtp_disponible
+        data = get_json()
+        email_dest    = (data.get("email") or "").strip()
+        message_perso = data.get("message", "")
+        if not email_dest:
+            return reponse_erreur("Email destinataire requis")
+        if not smtp_disponible():
+            return reponse_erreur("SMTP non configuré sur le serveur (SMTP_USER / SMTP_PASSWORD)", 503)
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT * FROM factures WHERE id=? AND user_id=?", (fid, request.user_id)
+            ).fetchone()
+        finally:
+            conn.close()
+        if not row:
+            return reponse_erreur("Facture non trouvée", 404)
+        facture = dict(row)
+        facture["lignes"] = json.loads(facture.get("lignes") or "[]")
+        user   = get_user_by_id(request.user_id) or {}
+        profil = user.get("profil_legal") or {}
+        if not profil.get("nom"):
+            profil["nom"] = f"{user.get('prenom','')} {user.get('nom','')}".strip()
+        if not profil.get("email"):
+            profil["email"] = user.get("email", "")
+        envoyer_facture(facture, profil, email_dest, message_perso)
+        now_iso = datetime.utcnow().isoformat(timespec="seconds")
+        conn2 = get_db()
+        try:
+            conn2.execute(
+                "UPDATE factures SET envoye_le=? WHERE id=? AND user_id=?",
+                (now_iso, fid, request.user_id),
+            )
+            conn2.commit()
+        finally:
+            conn2.close()
+        return reponse_ok({}, f"Facture envoyée à {email_dest}")
+    except RuntimeError as e:
+        return reponse_erreur(str(e), 503)
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
+# ─────────────────────────────────────────────
 # LANCEMENT
 # ─────────────────────────────────────────────
 
