@@ -8,7 +8,7 @@ import jwt
 import os
 from functools import wraps
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 try:
     from zoneinfo import ZoneInfo
@@ -744,9 +744,9 @@ def pointage_check_in():
             conn.execute("""
                 INSERT INTO pointages
                     (id, entreprise_id, employe_id, date, heure_arrivee,
-                     heures_travaillees, heures_supplementaires)
-                VALUES (?, ?, ?, ?, ?, 0, 0)
-            """, (pid, eid, employe_id, today, heure_arrivee))
+                     heures_travaillees, heures_supplementaires, derniere_modif)
+                VALUES (?, ?, ?, ?, ?, 0, 0, ?)
+            """, (pid, eid, employe_id, today, heure_arrivee, _now.isoformat()))
             conn.commit()
             ptg = row_to_dict(conn.execute(
                 "SELECT * FROM pointages WHERE id=?", (pid,)).fetchone())
@@ -796,10 +796,11 @@ def pointage_check_out():
             pause_fin     = horaires.get("pause_fin",   "13:00")
             conn.execute("""
                 UPDATE pointages
-                SET heure_depart=?, heures_travaillees=?, heures_supplementaires=?, notes=?
+                SET heure_depart=?, heures_travaillees=?, heures_supplementaires=?,
+                    notes=?, derniere_modif=?
                 WHERE id=?
             """, (heure_depart, heures_nettes, heures_supp,
-                  f"Pause {pause_debut}–{pause_fin} déduite", ptg["id"]))
+                  f"Pause {pause_debut}–{pause_fin} déduite", _now.isoformat(), ptg["id"]))
             conn.commit()
             ptg = row_to_dict(conn.execute(
                 "SELECT * FROM pointages WHERE id=?", (ptg["id"],)).fetchone())
@@ -809,6 +810,150 @@ def pointage_check_out():
         return reponse_ok(ptg, "Départ pointé")
     except ValueError as e:
         return reponse_erreur(str(e))
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
+# ─────────────────────────────────────────────
+# RH — ANNULATION DE POINTAGE
+# ─────────────────────────────────────────────
+
+@business.route("/rh/pointage/annuler", methods=["POST", "OPTIONS"])
+@token_requis
+def pointage_annuler():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        import json as _json, uuid as _uuid
+        data = get_json()
+        eid  = data.get("entreprise_id")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        ma_fiche = _get_employe_du_user(eid, request.user_id)
+        if not ma_fiche:
+            return reponse_erreur("Fiche employé introuvable", 403)
+        employe_id = ma_fiche["id"]
+        maintenant = maintenant_paris()
+        today      = maintenant.strftime("%Y-%m-%d")
+
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT * FROM pointages WHERE entreprise_id=? AND employe_id=? AND date=?",
+                (eid, employe_id, today)
+            ).fetchone()
+            if not row:
+                return reponse_erreur("Aucun pointage à annuler")
+            ptg = dict(row)
+
+            # Vérifier le délai de 5 minutes (côté serveur)
+            ref_str = ptg.get("derniere_modif") or ptg.get("created_at")
+            if not ref_str:
+                return reponse_erreur("Impossible de vérifier le délai d'annulation")
+            try:
+                ref = datetime.fromisoformat(ref_str)
+                if ref.tzinfo is None:
+                    ref = ref.replace(tzinfo=ZoneInfo("UTC"))
+            except Exception:
+                return reponse_erreur("Format de référence temporelle invalide")
+
+            if (maintenant - ref) > timedelta(minutes=5):
+                return reponse_erreur(
+                    "Délai d'annulation dépassé (5 minutes max). "
+                    "Contactez votre manager pour une correction."
+                )
+
+            if ptg.get("heure_depart"):
+                # Cas A — annuler le départ, revenir en service
+                annulations = _json.loads(ptg.get("annulations") or "[]")
+                annulations.append({
+                    "date": maintenant.isoformat(),
+                    "champ": "heure_depart",
+                    "ancienne_valeur": ptg["heure_depart"],
+                    "user_id": request.user_id
+                })
+                conn.execute("""
+                    UPDATE pointages
+                    SET heure_depart=NULL, heures_travaillees=0, heures_supplementaires=0,
+                        notes=NULL, annulations=?, derniere_modif=?
+                    WHERE id=?
+                """, (_json.dumps(annulations, ensure_ascii=False),
+                      maintenant.isoformat(), ptg["id"]))
+                conn.commit()
+                ptg_updated = row_to_dict(conn.execute(
+                    "SELECT * FROM pointages WHERE id=?", (ptg["id"],)).fetchone())
+                ptg_updated["statut"] = "en_service"
+                return reponse_ok(ptg_updated,
+                    "Pointage de départ annulé — vous êtes de nouveau en service")
+
+            elif ptg.get("heure_arrivee"):
+                # Cas B — annuler l'arrivée → archiver puis supprimer
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS pointages_annules (
+                        id TEXT PRIMARY KEY,
+                        entreprise_id TEXT NOT NULL,
+                        employe_id TEXT NOT NULL,
+                        date TEXT NOT NULL,
+                        heure_arrivee TEXT,
+                        heure_depart TEXT,
+                        heures_travaillees REAL DEFAULT 0,
+                        annule_le TEXT NOT NULL,
+                        annule_par TEXT NOT NULL,
+                        created_at TEXT DEFAULT (datetime('now'))
+                    )
+                """)
+                ann_id = "ANN_" + _uuid.uuid4().hex[:12]
+                conn.execute("""
+                    INSERT INTO pointages_annules
+                        (id, entreprise_id, employe_id, date, heure_arrivee,
+                         heure_depart, heures_travaillees, annule_le, annule_par)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (ann_id, eid, employe_id, ptg["date"], ptg["heure_arrivee"],
+                      ptg.get("heure_depart"), ptg.get("heures_travaillees", 0),
+                      maintenant.isoformat(), request.user_id))
+                conn.execute("DELETE FROM pointages WHERE id=?", (ptg["id"],))
+                conn.commit()
+                return reponse_ok({"statut": "non_commence"},
+                    "Pointage d'arrivée annulé")
+            else:
+                return reponse_erreur("Aucun pointage à annuler")
+        finally:
+            conn.close()
+    except ValueError as e:
+        return reponse_erreur(str(e))
+    except Exception as e:
+        return reponse_erreur(str(e), 500)
+
+
+@business.route("/rh/pointages-annules", methods=["GET", "OPTIONS"])
+@token_requis
+def pointages_annules_route():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        eid  = request.args.get("entreprise_id")
+        mois = request.args.get("mois")
+        if not eid or not _check_acces(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        if _est_employe(eid, request.user_id):
+            return reponse_erreur("Accès refusé", 403)
+        conn = get_db()
+        try:
+            sql    = """SELECT pa.*, e.prenom, e.nom
+                        FROM pointages_annules pa
+                        LEFT JOIN employes e ON pa.employe_id = e.id
+                        WHERE pa.entreprise_id=?"""
+            params = [eid]
+            if mois:
+                sql    += " AND substr(pa.date,1,7)=?"
+                params.append(mois)
+            sql += " ORDER BY pa.annule_le DESC"
+            rows = rows_to_list(conn.execute(sql, params).fetchall())
+        except Exception:
+            rows = []
+        finally:
+            conn.close()
+        return reponse_ok(rows)
     except Exception as e:
         return reponse_erreur(str(e), 500)
 

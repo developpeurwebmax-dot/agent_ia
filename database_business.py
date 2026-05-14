@@ -43,6 +43,9 @@ def init_db_business():
         "ALTER TABLE evaluations ADD COLUMN lue INTEGER DEFAULT 0",
         # Changement de mot de passe forcé à la 1ère connexion
         "ALTER TABLE users ADD COLUMN must_change_password INTEGER DEFAULT 0",
+        # Annulations de pointage
+        "ALTER TABLE pointages ADD COLUMN annulations TEXT DEFAULT '[]'",
+        "ALTER TABLE pointages ADD COLUMN derniere_modif TEXT",
     ]
 
     for sql in _migrations:
@@ -162,9 +165,25 @@ def _tables_sqlite():
             heures_travaillees REAL DEFAULT 8,
             heures_supplementaires REAL DEFAULT 0,
             notes TEXT,
+            annulations TEXT DEFAULT '[]',
+            derniere_modif TEXT,
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (entreprise_id) REFERENCES entreprises(id),
             FOREIGN KEY (employe_id) REFERENCES employes(id)
+        )""",
+
+        # ── POINTAGES ANNULÉS ──
+        """CREATE TABLE IF NOT EXISTS pointages_annules (
+            id TEXT PRIMARY KEY,
+            entreprise_id TEXT NOT NULL,
+            employe_id TEXT NOT NULL,
+            date TEXT NOT NULL,
+            heure_arrivee TEXT,
+            heure_depart TEXT,
+            heures_travaillees REAL DEFAULT 0,
+            annule_le TEXT NOT NULL,
+            annule_par TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
         )""",
 
         # ── ÉVALUATIONS ──

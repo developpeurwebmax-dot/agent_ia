@@ -295,7 +295,7 @@
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <button class="btn-pointer btn-arrivee" id="btn-arrivee" onclick="pointer('arrivee')">▶ Pointer l'arrivée</button>
           <button class="btn-pointer btn-depart"  id="btn-depart"  onclick="pointer('depart')" style="display:none">■ Pointer le départ</button>
-          <button class="btn-sm" onclick="ouvrirModalPtgManuel()" style="white-space:nowrap">✏️ Saisie manuelle</button>
+          <button id="btn-annuler" onclick="annulerPointage()" style="display:none;padding:6px 12px;border-radius:8px;border:1px solid var(--warning);background:transparent;color:var(--warning);cursor:pointer;font-size:0.82rem;white-space:nowrap">↶ Annuler (<span id="countdown">5:00</span>)</button>
         </div>
         <div id="ptg-pause-info" style="display:none;font-size:0.75rem;color:var(--text-muted);padding:4px 0 0 0;width:100%"></div>
       </div>
@@ -427,36 +427,6 @@
       <div class="modal-actions">
         <button class="btn-secondary" onclick="document.getElementById('modal-conge').style.display='none'">Annuler</button>
         <button class="btn-primary" onclick="soumettreConge()">✈️ Soumettre la demande</button>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- ════ MODAL POINTAGE MANUEL ════ -->
-  <div class="modal-overlay" id="modal-ptg-manuel" style="display:none" onclick="if(event.target===this)this.style.display='none'">
-    <div class="modal" style="width:440px">
-      <h3>✏️ Saisie de pointage</h3>
-      <div class="form-grid">
-        <div class="form-group form-full">
-          <label>Date *</label>
-          <input type="date" id="f-ptg-date"/>
-        </div>
-        <div class="form-group">
-          <label>Heure d'arrivée</label>
-          <input type="time" id="f-ptg-arrivee" value="09:00"/>
-        </div>
-        <div class="form-group">
-          <label>Heure de départ</label>
-          <input type="time" id="f-ptg-depart" value="18:00"/>
-        </div>
-        <div class="form-group form-full">
-          <label>Notes</label>
-          <input type="text" id="f-ptg-notes" placeholder="Télétravail, déplacement..."/>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn-secondary" onclick="document.getElementById('modal-ptg-manuel').style.display='none'">Annuler</button>
-        <button class="btn-primary" onclick="sauvegarderPtgManuel()">💾 Enregistrer</button>
       </div>
     </div>
   </div>
@@ -803,6 +773,58 @@
           pauseInfo.style.display = "none";
         }
       }
+      majBoutonAnnuler();
+    }
+
+    // ── Compte à rebours annulation ──────────
+    let _countdownTimer = null;
+
+    function majBoutonAnnuler() {
+      const btn  = document.getElementById("btn-annuler");
+      const span = document.getElementById("countdown");
+      if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
+
+      const statut      = ptgAujourdhui?.statut || "non_commence";
+      const derniereRef = ptgAujourdhui?.derniere_modif;
+
+      if (statut === "non_commence" || !derniereRef) {
+        btn.style.display = "none";
+        return;
+      }
+
+      function tick() {
+        const restantMs = 5 * 60 * 1000 - (Date.now() - new Date(derniereRef).getTime());
+        if (restantMs <= 0) {
+          btn.style.display = "none";
+          clearInterval(_countdownTimer);
+          _countdownTimer = null;
+          return;
+        }
+        const m = Math.floor(restantMs / 60000);
+        const s = Math.floor((restantMs % 60000) / 1000);
+        span.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+        btn.style.display = "inline-flex";
+      }
+      tick();
+      _countdownTimer = setInterval(tick, 1000);
+    }
+
+    async function annulerPointage() {
+      if (!ptgAujourdhui) return;
+      const quoi = ptgAujourdhui.heure_depart
+        ? `départ à ${ptgAujourdhui.heure_depart}`
+        : `arrivée à ${ptgAujourdhui.heure_arrivee}`;
+      if (!confirm(`Annuler le pointage de ${quoi} ?`)) return;
+
+      const json = await apiAuth("POST", "/business/rh/pointage/annuler",
+        { entreprise_id: ENTREPRISE_ID });
+      if (json?.statut === "ok") {
+        await chargerPointageAujourdhui();
+        await chargerPointages();
+        toast("↶ " + (json.message || "Pointage annulé"));
+      } else {
+        alert(json?.message || "Erreur lors de l'annulation");
+      }
     }
 
     async function pointer(action) {
@@ -977,46 +999,6 @@
           <td style="color:var(--text-muted);font-size:0.82rem">${p.notes || "—"}</td>
         </tr>`;
       }).join("");
-    }
-
-    // ════════════════════════════════════════
-    // MODAL POINTAGE MANUEL
-    // ════════════════════════════════════════
-    function ouvrirModalPtgManuel() {
-      document.getElementById("f-ptg-date").value    = new Date().toISOString().slice(0, 10);
-      document.getElementById("f-ptg-arrivee").value = "09:00";
-      document.getElementById("f-ptg-depart").value  = "18:00";
-      document.getElementById("f-ptg-notes").value   = "";
-      document.getElementById("modal-ptg-manuel").style.display = "flex";
-    }
-
-    async function sauvegarderPtgManuel() {
-      const arrivee = document.getElementById("f-ptg-arrivee").value;
-      const depart  = document.getElementById("f-ptg-depart").value;
-      const [hA, mA] = arrivee.split(":").map(Number);
-      const [hD, mD] = depart.split(":").map(Number);
-      const heures   = Math.max(0, Math.round(((hD * 60 + mD) - (hA * 60 + mA)) / 6) / 10);
-
-      const body = {
-        entreprise_id:      ENTREPRISE_ID,
-        employe_id:         MON_EMPLOYE.id,
-        date:               document.getElementById("f-ptg-date").value,
-        heure_arrivee:      arrivee,
-        heure_depart:       depart,
-        heures_travaillees: heures,
-        notes:              document.getElementById("f-ptg-notes").value.trim(),
-      };
-      if (!body.date) { alert("Date requise"); return; }
-
-      const json = await apiAuth("POST", "/business/rh/pointages", body);
-      if (json?.statut === "ok") {
-        document.getElementById("modal-ptg-manuel").style.display = "none";
-        await chargerPointageAujourdhui();
-        await chargerPointages();
-        toast("✅ Pointage enregistré !");
-      } else {
-        alert(json?.message || "Erreur");
-      }
     }
 
     // ════════════════════════════════════════

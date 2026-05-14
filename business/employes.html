@@ -364,6 +364,25 @@
           </table>
         </div>
       </div>
+
+      <!-- Pointages annulés ce mois -->
+      <div id="section-annules" style="margin-top:16px;display:none">
+        <details>
+          <summary style="cursor:pointer;font-size:0.88rem;color:var(--text-muted);padding:8px 0;list-style:none;display:flex;align-items:center;gap:6px">
+            <span>🗑️</span><span id="annules-titre">Pointages annulés ce mois (0)</span>
+          </summary>
+          <div class="card" style="margin-top:8px">
+            <div class="table-wrapper">
+              <table class="table">
+                <thead>
+                  <tr><th>Employé</th><th>Date</th><th>Arrivée annulée</th><th>Annulé le</th></tr>
+                </thead>
+                <tbody id="tbody-annules"></tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </div>
     </div>
 
     <!-- ══════ TAB PLANNING ══════ -->
@@ -1482,9 +1501,45 @@
           <td>${formatDuree(p.heures_travaillees)}</td>
           <td style="color:var(--text-muted);font-size:0.82rem">${pauseMin}</td>
           <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${formatDuree(p.heures_supplementaires)}</span>` : "—"}</td>
-          <td style="color:var(--text-muted);font-size:0.82rem">${p.notes || "—"}</td>
+          <td style="font-size:0.82rem">${(() => {
+            let parts = [];
+            if (p.notes) parts.push(`<span style="color:var(--text-muted)">${p.notes}</span>`);
+            try {
+              const anns = JSON.parse(p.annulations || "[]");
+              if (anns.length > 0) {
+                const titre = anns.map(a =>
+                  `${(a.date||"").slice(11,16)} — ${a.champ} annulé (était: ${a.ancienne_valeur})`
+                ).join("\n");
+                parts.push(`<span class="badge" style="background:rgba(255,140,0,.15);color:#ff8c00;border:1px solid rgba(255,140,0,.4)" title="${titre}">↶ ${anns.length} annulation${anns.length>1?"s":""}</span>`);
+              }
+            } catch(e) {}
+            return parts.length ? parts.join(" ") : "—";
+          })()}</td>
         </tr>`;
       }).join("");
+
+      // Charger aussi les pointages annulés
+      chargerPointagesAnnules(mois);
+    }
+
+    async function chargerPointagesAnnules(mois) {
+      const secAnn = document.getElementById("section-annules");
+      const tbodyAnn = document.getElementById("tbody-annules");
+      const titreAnn = document.getElementById("annules-titre");
+      const empId = document.getElementById("select-emp-ptg")?.value || "";
+      let url = `/business/rh/pointages-annules?entreprise_id=${ENTREPRISE_ID}&mois=${mois}`;
+      const json = await apiAuth("GET", url);
+      const data = (json?.data || []).filter(r => !empId || r.employe_id === empId);
+      if (!data.length) { secAnn.style.display = "none"; return; }
+      secAnn.style.display = "block";
+      titreAnn.textContent = `Pointages annulés ce mois (${data.length})`;
+      tbodyAnn.innerHTML = data.map(r => `
+        <tr>
+          <td><strong>${r.prenom || ""} ${r.nom || ""}</strong></td>
+          <td>${r.date}</td>
+          <td style="color:var(--warning)">${r.heure_arrivee || "—"}</td>
+          <td style="color:var(--text-muted);font-size:0.82rem">${(r.annule_le||"").slice(0,16).replace("T"," ")}</td>
+        </tr>`).join("");
     }
 
     function ouvrirModalPointage() {
