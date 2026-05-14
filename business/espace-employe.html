@@ -792,7 +792,7 @@
       } else {
         dot.className = "status-dot-lg dot-out";
         txt.textContent = "Journée terminée ✓";
-        sub.textContent = `${ptgAujourdhui.heure_arrivee} → ${ptgAujourdhui.heure_depart} · ${ptgAujourdhui.heures_travaillees}h nettes`;
+        sub.textContent = `${ptgAujourdhui.heure_arrivee} → ${ptgAujourdhui.heure_depart} · ${formatDuree(ptgAujourdhui.heures_travaillees)} nettes`;
         btnA.style.display = "none";
         btnD.style.display = "none";
         const notes = ptgAujourdhui.notes || "";
@@ -948,8 +948,8 @@
 
       document.getElementById("ptg-kpis").innerHTML = `
         <div class="kpi-mini"><div class="kpi-mini-icon">📅</div><div><div class="kpi-mini-val">${data.length}</div><div class="kpi-mini-lbl">Jours pointés</div></div></div>
-        <div class="kpi-mini"><div class="kpi-mini-icon">⏱️</div><div><div class="kpi-mini-val">${totalH.toFixed(1)}h</div><div class="kpi-mini-lbl">Heures travaillées</div></div></div>
-        <div class="kpi-mini"><div class="kpi-mini-icon">⚡</div><div><div class="kpi-mini-val" style="color:var(--warning)">${totalSup.toFixed(1)}h</div><div class="kpi-mini-lbl">Heures sup.</div></div></div>
+        <div class="kpi-mini"><div class="kpi-mini-icon">⏱️</div><div><div class="kpi-mini-val">${formatDuree(totalH)}</div><div class="kpi-mini-lbl">Heures travaillées</div></div></div>
+        <div class="kpi-mini"><div class="kpi-mini-icon">⚡</div><div><div class="kpi-mini-val" style="color:var(--warning)">${formatDuree(totalSup)}</div><div class="kpi-mini-lbl">Heures sup.</div></div></div>
       `;
 
       const tbody = document.getElementById("tbody-ptg");
@@ -971,9 +971,9 @@
           <td>${fmtDate(p.date)}</td>
           <td>${p.heure_arrivee || "—"}</td>
           <td>${p.heure_depart || "—"}</td>
-          <td><strong>${p.heures_travaillees}h</strong></td>
+          <td><strong>${formatDuree(p.heures_travaillees)}</strong></td>
           <td style="color:var(--text-muted);font-size:0.82rem">${pauseMin}</td>
-          <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${p.heures_supplementaires}h</span>` : "—"}</td>
+          <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${formatDuree(p.heures_supplementaires)}</span>` : "—"}</td>
           <td style="color:var(--text-muted);font-size:0.82rem">${p.notes || "—"}</td>
         </tr>`;
       }).join("");

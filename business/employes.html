@@ -1455,8 +1455,8 @@
       const totalSup = data.reduce((s, p) => s + (p.heures_supplementaires || 0), 0);
       document.getElementById("ptg-summary").innerHTML = `
         <div class="kpi-mini"><div class="kpi-mini-icon">📅</div><div><div class="kpi-mini-val">${data.length}</div><div class="kpi-mini-lbl">Jours pointés</div></div></div>
-        <div class="kpi-mini"><div class="kpi-mini-icon">⏱️</div><div><div class="kpi-mini-val">${totalH}h</div><div class="kpi-mini-lbl">Heures travaillées</div></div></div>
-        <div class="kpi-mini"><div class="kpi-mini-icon">⚡</div><div><div class="kpi-mini-val" style="color:var(--warning)">${totalSup}h</div><div class="kpi-mini-lbl">Heures sup.</div></div></div>
+        <div class="kpi-mini"><div class="kpi-mini-icon">⏱️</div><div><div class="kpi-mini-val">${formatDuree(totalH)}</div><div class="kpi-mini-lbl">Heures travaillées</div></div></div>
+        <div class="kpi-mini"><div class="kpi-mini-icon">⚡</div><div><div class="kpi-mini-val" style="color:var(--warning)">${formatDuree(totalSup)}</div><div class="kpi-mini-lbl">Heures sup.</div></div></div>
       `;
 
       const tbody = document.getElementById("tbody-pointages");
@@ -1479,9 +1479,9 @@
           <td>${p.date}</td>
           <td>${p.heure_arrivee || "—"}</td>
           <td>${p.heure_depart || "—"}</td>
-          <td>${p.heures_travaillees}h</td>
+          <td>${formatDuree(p.heures_travaillees)}</td>
           <td style="color:var(--text-muted);font-size:0.82rem">${pauseMin}</td>
-          <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${p.heures_supplementaires}h</span>` : "—"}</td>
+          <td>${p.heures_supplementaires > 0 ? `<span class="badge badge-yellow">+${formatDuree(p.heures_supplementaires)}</span>` : "—"}</td>
           <td style="color:var(--text-muted);font-size:0.82rem">${p.notes || "—"}</td>
         </tr>`;
       }).join("");

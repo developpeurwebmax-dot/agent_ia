@@ -5,6 +5,18 @@
 
 const API = "https://agent-ia-zgha.onrender.com";
 
+// ── UTILITAIRES D'AFFICHAGE ──
+function formatDuree(heuresDecimales) {
+  if (heuresDecimales == null || isNaN(heuresDecimales)) return "—";
+  const totalMin = Math.round(heuresDecimales * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0 && m === 0) return "0 min";
+  if (h === 0)            return `${m} min`;
+  if (m === 0)            return `${h}h`;
+  return `${h}h ${m}min`;
+}
+
 // ── TOKEN ──
 function getToken()        { return localStorage.getItem("jwt_token") || null; }
 function setToken(t)       { localStorage.setItem("jwt_token", t); }
