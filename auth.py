@@ -83,11 +83,15 @@ def inscrire_user(data: dict) -> dict:
         user_id = _generer_id()
         password_hash = hasher_password(password)
 
+        import json as _json
+        pl = data.get("profil_legal", {})
+        profil_legal_str = _json.dumps(pl, ensure_ascii=False) if isinstance(pl, dict) else (pl or "{}")
+
         conn.execute("""
             INSERT INTO users (id, prenom, nom, email, password, metier, localisation,
                 experience, secteurs, offre, tarif_type, tarif_journalier, tarif_horaire,
-                objectif_ca, objectif_clients, charges, plan, modules, date_inscription)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                objectif_ca, objectif_clients, charges, plan, modules, profil_legal, date_inscription)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             user_id,
             data.get("prenom", ""),
@@ -107,6 +111,7 @@ def inscrire_user(data: dict) -> dict:
             data.get("charges", 0),
             plan,
             modules,
+            profil_legal_str,
             datetime.now().isoformat()
         ))
         conn.commit()
